@@ -3104,6 +3104,7 @@ static void NativeSummaryUIPublish(PokemonSummary *summary, u32 phase) {
     next.mode = args->mode; next.phase = phase; next.page = summary->page;
     next.pageMask = args->pageFlags & (mon->isEgg ? 1u : 7u);
     next.monDataType = args->monDataType; next.partySlot = args->partySlot; next.partyCount = args->partyCount;
+    if (next.mode == 2 && next.monDataType == 1) next.partyCount = args->party ? Party_GetCount(args->party) : 0;
     next.moveToLearn = args->moveToLearn;
     next.species = mon->species; next.form = mon->form; next.level = mon->level;
     next.gender = mon->gender; next.noPrintGender = mon->noPrintGender; next.isEgg = mon->isEgg; next.shiny = mon->shiny;
@@ -3115,9 +3116,11 @@ static void NativeSummaryUIPublish(PokemonSummary *summary, u32 phase) {
     next.moveSlot = summary->moveSlot;
     next.previousPage = next.nextPage = next.page;
     next.previousMonSlot = next.nextMonSlot = next.partySlot;
-    BOOL supported = next.mode == 0 && next.monDataType == 1 && !next.moveToLearn && next.page < 3
-        && (next.pageMask & (1u << next.page)) && (!next.isEgg || next.page == 0);
-    BOOL inputPhase = phase == HG_SUMMARY_UI_INPUT || (phase == HG_SUMMARY_UI_MOVE_SELECT && next.page == 1 && !next.isEgg);
+    BOOL learning = HGNativeSummaryUIIsLearning(&next) && args->partyCount == 1;
+    BOOL supported = learning || (next.mode == 0 && next.monDataType == 1 && !next.moveToLearn && next.page < 3
+        && (next.pageMask & (1u << next.page)) && (!next.isEgg || next.page == 0));
+    BOOL inputPhase = learning ? phase == HG_SUMMARY_UI_FORGET_MOVE || phase == HG_SUMMARY_UI_FORGET_CONFIRM
+        : phase == HG_SUMMARY_UI_INPUT || (phase == HG_SUMMARY_UI_MOVE_SELECT && next.page == 1 && !next.isEgg);
     BOOL valid = next.partyCount > 0 && next.partyCount <= 6 && next.partySlot < next.partyCount
         && next.species != SPECIES_NONE && next.ribbonCount <= 80;
     BOOL live = supported && inputPhase && sNativeSummaryPageWindowsLive && summary->pageWindows != NULL
@@ -3127,9 +3130,16 @@ static void NativeSummaryUIPublish(PokemonSummary *summary, u32 phase) {
         HGNativeSummaryUIMove *move = &next.moves[i];
         move->moveId = mon->moves[i]; move->pp = mon->pp[i]; move->maxPP = mon->maxPP[i];
         if (!NativeSummaryUIMoveRect(move, &gPokemonSummaryMoveHitboxes[i])) valid = FALSE;
-        move->enabled = supported && inputPhase && next.page == 1 && !next.isEgg && move->moveId != MOVE_NONE;
+        move->enabled = supported && inputPhase && next.page == 1 && !next.isEgg && move->moveId != MOVE_NONE
+            && (!learning || phase == HG_SUMMARY_UI_FORGET_MOVE);
+        if (learning && move->moveId > NUM_MOVES) valid = FALSE;
         if (move->enabled) next.moveMask |= 1u << i;
         if (live && next.page == 1 && !NativeSummaryUIWindow(&move->text, summary, &summary->pageWindows[8 + i], GF_BG_LYR_SUB_0, 11, 4)) valid = FALSE;
+    }
+    if (learning) {
+        if (phase == HG_SUMMARY_UI_FORGET_MOVE) next.moveMask |= 16;
+        if (next.moveSlot > (phase == HG_SUMMARY_UI_FORGET_MOVE ? 4u : 3u)
+            || (next.moveSlot < HG_SUMMARY_UI_MOVES && !next.moves[next.moveSlot].moveId)) valid = FALSE;
     }
     if (phase == HG_SUMMARY_UI_MOVE_SELECT && (next.moveSlot >= HG_SUMMARY_UI_MOVES || !(next.moveMask & (1u << next.moveSlot)))) valid = FALSE;
     if (supported && phase == HG_SUMMARY_UI_INPUT && valid) {

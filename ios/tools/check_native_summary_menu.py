@@ -11,19 +11,135 @@ import subprocess
 import os
 
 from audit_original import digest
-from check_abi32 import ROOT, BUILD, WABT, native_build_settings
+from check_abi32 import ROOT, BUILD, SDK, WABT, native_build_settings
 from check_native_bag_menu import field_hitboxes, hashes, sha
 from check_native_engine import generate_engine
 from check_native_rainy_field import INCLUDES
 from import_original_content import read_boot_header
 from prepare_native_content import verify
+from prepare_overlay_state import IDENT, getter_name, instrument_ir
+
+
+def prepare_tm_guest(destination, run, objects, audit, includes, native_content):
+    """Three private source copies observe the unchanged original field owner, printer and TM task."""
+    destination.mkdir()
+    helper = ROOT / 'ios/tests/summary_learn_guest.inc'
+    anchor = 'BOOL finished = FieldSystem_Main(fieldSystem);'
+    hook = '\n    SummaryLearnObserve(fieldSystem);'
+    flags = ['--target=wasm32-wasip1', '-std=gnu11', '-O2', '-fwrapv', '-fno-strict-aliasing',
+             '-fno-builtin-malloc', '-fno-builtin-free', '-fwasm-exceptions', '-fexceptions', '-Xclang', '-disable-red-zone',
+             '-fms-extensions', '-Wno-microsoft', '-Wno-unknown-pragmas']
+    flags += ['-D' + name for name in ('HEARTGOLD_NATIVE', 'HEARTGOLD_ABI32', 'SDK_ARM9', 'SDK_CW', 'SDK_CODE_ARM',
+                                     'SDK_TS', '_NITRO', 'PM_KEEP_ASSERTS', 'PLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz')]
+    for path in includes:
+        flags += ['-I', path]
+    if native_content:
+        flags += ['-DHG_NATIVE_ROM_TABLES']
+    provenance, artifacts = [], []
+    for name, define in [('src/field_system.c', 'HG_SUMMARY_LEARN_FIELD_OBSERVER'), ('src/text.c', 'HG_SUMMARY_LEARN_TEXT_OBSERVER'),
+                         ('src/application/bag/bag_app.c', 'HG_SUMMARY_LEARN_BAG_OBSERVER')]:
+        original = ROOT / name
+        code = original.read_bytes()
+        inclusion = ('\n#define ' + define + '\n#include "' + str(helper) + '"\n').encode()
+        if name == 'src/field_system.c':
+            if code.count(anchor.encode()) != 1:
+                raise RuntimeError('Original field-owner hook changed')
+            body = code.replace(anchor.encode(), (anchor + hook).encode())
+            private = inclusion + ('#line 1 "' + name + '"\n').encode() + body
+            if body.replace((anchor + hook).encode(), anchor.encode()) != code:
+                raise RuntimeError('Private field copy must contain exactly one observation hook')
+        else:
+            private = code + inclusion
+            if private[:len(code)] != code:
+                raise RuntimeError('Private observation copy must preserve its exact original prefix')
+        source = destination / Path(name).name
+        source.write_bytes(private)
+        target = source.with_suffix('.o')
+        formal = str(audit / 'objects' / Path(name).with_suffix('.o'))
+        if objects.count(formal) != 1:
+            raise RuntimeError('Expected exactly one formal observation object: ' + name)
+        overlay_provenance = None
+        if name == 'src/application/bag/bag_app.c':
+            unit, = [row for row in json.loads((audit / 'report.json').read_text())['units'] if row['file'] == name]
+            formal_state, = unit['overlayStates']
+            if unit['exitCode'] or unit['sha256'] != sha(original) or formal_state['key'] != name or formal_state['getter'] != getter_name(name):
+                raise RuntimeError('Private Bag copy must retain its audited overlay owner')
+            formal_ir = Path(formal).with_suffix('.ll')
+            formal_copy = source.with_name(source.stem + '-formal.ll')
+            formal_copy.write_bytes(formal_ir.read_bytes())
+            raw_ir = source.with_name(source.stem + '-uninstrumented.ll')
+            instrumented_ir = source.with_suffix('.ll')
+            state_path = source.with_name(source.stem + '-overlay-state.json')
+            run([SDK / 'bin/clang', *flags, '-Xclang', '-disable-llvm-passes', '-S', '-emit-llvm', source, '-o', raw_ir], 'private-bag_app-ir.log')
+            try:
+                transformed, state = instrument_ir(raw_ir.read_text(), name)
+            except ValueError as error:
+                state_path.write_text(json.dumps(dict(key=name, error=str(error), rawIrSha256=sha(raw_ir)), indent=2) + '\n')
+                raise
+            pattern = r'^define\b([^\n]*?)(@' + IDENT + r')\('
+            formal_functions = {function for attributes, function in re.findall(pattern, formal_copy.read_text(), re.M)
+                                if not re.search(r'\bavailable_externally\b', attributes) and function != '@' + formal_state['getter']}
+            private_functions = {function for attributes, function in re.findall(pattern, raw_ir.read_text(), re.M)
+                                 if not re.search(r'\bavailable_externally\b', attributes)}
+            added_functions = private_functions - formal_functions
+            if any(state[key] != formal_state[key] for key in ('key', 'getter', 'globals', 'constructors', 'destructors')) \
+                or len(formal_functions) != formal_state['functions'] or len(private_functions) != state['functions'] \
+                or private_functions - {'@SummaryLearnBagTaskMatches'} != formal_functions or added_functions != {'@SummaryLearnBagTaskMatches'}:
+                state_path.write_text(json.dumps(dict(state=state, formalState=formal_state, addedFunctions=sorted(added_functions),
+                                                      removedFunctions=sorted(formal_functions - private_functions)), indent=2) + '\n')
+                raise RuntimeError('Private Bag overlay state/functions differ beyond the read-only task predicate')
+            instrumented_ir.write_text(transformed)
+            state_path.write_text(json.dumps(dict(state=state, formalState=formal_state, formalOwnedFunctions=sorted(formal_functions),
+                                                  privateOwnedFunctions=sorted(private_functions), addedFunctions=sorted(added_functions),
+                                                  removedFunctions=[]), indent=2) + '\n')
+            run([SDK / 'bin/clang', *flags, '-c', instrumented_ir, '-o', target], 'private-bag_app-compile.log')
+            if sha(formal_ir) != sha(formal_copy):
+                raise RuntimeError('Formal Bag overlay IR changed during private compilation')
+            artifacts += [formal_copy, raw_ir, instrumented_ir, state_path]
+            overlay_provenance = dict(key=name, getter=state['getter'], stateFile=str(state_path), stateSha256=sha(state_path),
+                                      formalIrSha256=sha(formal_copy), rawIrSha256=sha(raw_ir), instrumentedIrSha256=sha(instrumented_ir),
+                                      addedFunctions=sorted(added_functions), removedFunctions=[], originalOverlayStatePreserved=True)
+        else:
+            run([SDK / 'bin/clang', *flags, '-c', source, '-o', target], 'private-' + source.stem + '-compile.log')
+        objects[objects.index(formal)] = str(target)
+        artifacts += [source, target]
+        provenance.append(dict(source=name, originalSourceSha256=sha(original), formalObject=formal,
+                               formalObjectSha256=sha(Path(formal)), privateSource=str(source), privateSourceSha256=sha(source),
+                               privateObject=str(target), privateObjectSha256=sha(target),
+                               observerMacro=define, fieldObservationHookCount=1 if name == 'src/field_system.c' else 0,
+                               appendOnly=name != 'src/field_system.c',
+                               originalPrefixBytes=len(code) if name != 'src/field_system.c' else None,
+                               originalPrefixSha256=sha(original) if name != 'src/field_system.c' else None,
+                               change='one post-original FieldSystem_Main observation hook' if name == 'src/field_system.c'
+                               else 'unchanged original prefix plus read-only ' + ('printer observer' if name == 'src/text.c' else 'TM task pointer predicate'),
+                               originalBodyPreserved=True, overlayProvenance=overlay_provenance))
+    return artifacts, provenance
+
+
+def tm_evidence_passed(rows):
+    if len(rows) != 1:
+        return False
+    row = rows[0]
+    if not isinstance(row, dict):
+        return False
+    exact = dict(status='passed_original_summary_tm_learning', fixturePrepared=1, summaryLifetimes=2,
+                 fifthCancelled=1, continuedTrying=1, hmRejected=1, confirmationBack=1, replacement=1,
+                 finalMove=182, finalPpUps=0, finalPp=10, finalMaxPp=10, initialTmQuantity=2, finalTmQuantity=1,
+                 initialFriendship=70, finalFriendship=71, initialMood=0, finalMood=40,
+                 partyFieldsPreserved=True, otherBagBytesPreserved=True, flagsMoneyDexPreserved=True,
+                 friendshipMoodPreservedBeforeLearning=True, resetFinished=True, peripheralUiNative=False)
+    return all(type(row.get(key)) is type(value) and row[key] == value for key, value in exact.items()) \
+        and type(row.get('staleRejected')) is int and row['staleRejected'] >= 4
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--save', required=True, help='Designated private Route29 fixture; only new copies are opened')
     parser.add_argument('--output-name', default='native-summary-menu-pass', help='New private archive basename; existing output is never overwritten')
+    parser.add_argument('--tm-learn', action='store_true', help='Private original TM route; only Summary uses native controls, Bag/Party use observed raw input')
     args = parser.parse_args()
+    if args.tm_learn and args.output_name == 'native-summary-menu-pass':
+        args.output_name = 'native-summary-menu-tm-learn-pass'
     if not re.fullmatch(r'native-summary-menu-[a-z0-9]+(?:-[a-z0-9]+)*', args.output_name):
         parser.error('--output-name must be one lowercase native-summary-menu- basename containing only letters, digits and hyphens')
     save_source = Path(args.save).resolve()
@@ -76,6 +192,8 @@ def main():
     host_headers = set((ROOT / 'ios/Original').rglob('*.h')) | set(runtime[0].parent.glob('*.h')) | set((WABT / 'include').rglob('*.h'))
     owned = [ROOT / 'ios/tools/check_native_summary_menu.py', ROOT / 'ios/Original/abi32/summary_menu_scenario_check.c',
              ROOT / 'ios/Original/tests/summary_ui_check.c']
+    if args.tm_learn:
+        owned.append(ROOT / 'ios/tests/summary_learn_guest.inc')
     tracked = [*audited_sources, *headers, *host_headers, *runtime, *owned, ROOT / 'ios/Original/abi32/engine_check.c',
                ROOT / 'ios/OriginalApp/main.m', ROOT / 'ios/tests/check_original_app.inc',
                ROOT / 'asm/touchscreen_menu_data.s', *sorted((ROOT / 'ios/tools').glob('*.py'))]
@@ -110,6 +228,9 @@ def main():
                   complete=False, passed=False, status='building', head=head, gitStatusBefore=git_status,
                   productionModuleSha256=link['outputSha256'], headersSha256=audit_report['headersSha256'],
                   layoutConsumers=consumers, fieldIconCenters=centers, sealsBefore=seals, commands=[])
+    if args.tm_learn:
+        report.update(scope='private seeded Chikorita/TM17; original Bag/Party/StartMenu route using precisely observed raw peripheral input; native Summary fifth/HM/cancel/replace; original learning result and reset; no complete native TM/HM, UIKit/device or save-writing claim',
+                      tmLearn=True, peripheralInput='raw original input, not native peripheral UI', productionApiAdded=False)
     report_file = destination / 'report.json'
     report_file.write_text(json.dumps(report, indent=2) + '\n')
     (destination / 'preparation.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -123,7 +244,12 @@ def main():
             raise RuntimeError('Summary menu build failed: ' + str(destination / log))
 
     try:
-        # Formal objects stay unchanged; the private module adds only existing read-only getters.
+        # Formal cache objects stay unchanged; TM checks substitute only the three private observation copies.
+        private_artifacts = []
+        if args.tm_learn:
+            private_artifacts, report['privateSourceProvenance'] = prepare_tm_guest(destination / 'private-guest', run, objects,
+                                                                                 audit, include_paths, link.get('nativeContent'))
+            command.insert(command.index('-o'), '-Wl,--wrap=PokemonSummary_PrintCantForgetHMMessage')
         listing = destination / 'objects.rsp'
         listing.write_text('\n'.join('"' + path + '"' for path in objects) + '\n')
         command[command.index(original_rsp)] = '@' + str(listing)
@@ -136,9 +262,20 @@ def main():
             flag = '-Wl,--export=' + name
             if flag not in command:
                 command.insert(command.index('-o'), flag)
+        if args.tm_learn:
+            extra_exports = ('HGNativeSummaryLearnQAGetState', 'HGNativeBagUIGetState', 'CreateMon', 'MonSetMoveInSlot_ResetPpUp',
+                             'Bag_AddItem', 'Bag_GetQuantity', 'Bag_GetPocketSlotN', 'GetMoveMaxPP',
+                             'PlayerProfile_GetTrainerID', 'Save_VarsFlags_sizeof')
+            for name in extra_exports:
+                flag = '-Wl,--export=' + name
+                if flag not in command:
+                    command.insert(command.index('-o'), flag)
+            report['privateAdditionalExports'] = list(extra_exports)
         run(command, 'strict-link.log')
         generated, writes, restores = generate_engine(destination, module, run)
         host_flags += ['-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all']
+        if args.tm_learn:
+            host_flags += ['-DHG_SUMMARY_TM_LEARN_CHECK']
 
         def compile_one(item):
             index, path = item
@@ -151,7 +288,7 @@ def main():
             native = list(pool.map(compile_one, enumerate([*generated, *runtime, owned[1]])))
         binary = destination / 'summary-menu-check'
         run(['xcrun', 'clang', '-fsanitize=address,undefined', *native, '-o', binary], 'native-link.log')
-        artifacts = [*generated, destination / 'hgengine.h', destination / 'hgengine-impl.h', *native, module, binary, listing]
+        artifacts = [*generated, destination / 'hgengine.h', destination / 'hgengine-impl.h', *native, module, binary, listing, *private_artifacts]
         artifact_hashes = hashes(artifacts)
         (destination / 'private-build-hashes.json').write_text(json.dumps(artifact_hashes, indent=2) + '\n')
         for name, values in seals.items():
@@ -174,7 +311,7 @@ def main():
                       artifactHashes=artifact_hashes, checkedStackWrites=writes, exceptionDepthRestores=restores)
         report_file.write_text(json.dumps(report, indent=2) + '\n')
         try:
-            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=180)
+            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=240 if args.tm_learn else 180)
             exit_code, output = result.returncode, result.stdout + result.stderr
         except subprocess.TimeoutExpired as error:
             exit_code, output = None, (error.stdout or b'').decode() + (error.stderr or b'').decode()
@@ -190,6 +327,12 @@ def main():
         report['status'] = evidence[0]['status'] if len(evidence) == 1 else 'wall_clock_timeout' if exit_code is None else 'native_assertion' if 'Summary menu failure line ' in output else 'native_runtime_failure'
         report['complete'] = exit_code == 0 and len(evidence) == 1 and evidence[0]['status'] == 'passed_original_summary_menu'
         report['passed'] = report['complete'] and 'PASS: original Summary pages' in output
+        if args.tm_learn:
+            for key, prefix in [('tmLearningEvidence', 'Summary TM learning evidence: '), ('tmStateEvidence', 'Summary TM state evidence: '),
+                                ('tmRawEvidence', 'Summary TM raw evidence: '), ('tmFixtureEvidence', 'Summary TM fixture evidence: ')]:
+                report[key] = [json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
+            report['complete'] = exit_code == 0 and len(evidence) == 1 and evidence[0]['status'] == 'passed_original_summary_tm_learning'
+            report['passed'] = report['complete'] and tm_evidence_passed(report['tmLearningEvidence']) and 'PASS: original TM route and native Summary learning' in output
         report['generatedArtifactsUnchanged'] = hashes(artifacts) == artifact_hashes
         report['capturedFiles'] = hashes(path for path in (destination / 'frames').iterdir() if path.is_file())
         report['privateSaveHashesAfter'] = hashes(private_inputs)

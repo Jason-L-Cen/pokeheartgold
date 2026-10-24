@@ -37,6 +37,8 @@ _Static_assert(sizeof(HGNativeBattlePartyUIState)==688, "Battle Party UI ABI");
 _Static_assert(offsetof(HGNativeBattlePartyUIState,selectedMove)==528 && offsetof(HGNativeBattlePartyUIState,moves)==532
     && offsetof(HGNativeBattlePartyUIState,moveToLearn)==580 && offsetof(HGNativeBattlePartyUIState,prompt)==584
     && offsetof(HGNativeBattlePartyUIState,message)==636, "Battle Party info ABI");
+_Static_assert(sizeof(HGNativeSummaryUIState)==804 && sizeof(HGNativeSummaryUIMove)==92
+    && sizeof(HGNativeSummaryUIInput)==16 && offsetof(HGNativeSummaryUIState,moves)==176, "Summary UI ABI");
 static BOOL OriginalBattleChoiceMode(uint32_t mode) {
     return mode==HG_BATTLE_UI_NEXT_MON || mode==HG_BATTLE_UI_KEEP_FORGET || mode==HG_BATTLE_UI_GIVE_UP;
 }
@@ -76,6 +78,23 @@ static uint32_t OriginalBattleMenuKind(const HGNativeBattleBagUIState *bag, cons
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
 #include "../Original/NativeAudioCheck.h"
 #include "../tests/battle_menus_qa.h"
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+#include "../tests/summary_learn_guest.inc"
+#include "constants/balls.h"
+#include "constants/charcode.h"
+#include "constants/heap.h"
+#include "constants/items.h"
+#include "constants/maps.h"
+#include "constants/pokemon.h"
+#define BOOL NitroBOOL
+#include "player_data.h"
+#undef BOOL
+_Static_assert(sizeof(HGSummaryLearnQAState)==232 && offsetof(HGSummaryLearnQAState,hmWarning)==180,"Private Summary TM observer ABI");
+static const uint32_t SummaryTMAttributes[]={MON_DATA_PERSONALITY,MON_DATA_OT_ID,MON_DATA_SPECIES,MON_DATA_FORM,MON_DATA_IS_EGG,MON_DATA_HELD_ITEM,
+    MON_DATA_HP,MON_DATA_MAX_HP,MON_DATA_LEVEL,MON_DATA_STATUS,MON_DATA_MOVE1,MON_DATA_MOVE2,MON_DATA_MOVE3,MON_DATA_MOVE4,
+    MON_DATA_MOVE1_PP,MON_DATA_MOVE2_PP,MON_DATA_MOVE3_PP,MON_DATA_MOVE4_PP,MON_DATA_MOVE1_PP_UPS,MON_DATA_MOVE2_PP_UPS,MON_DATA_MOVE3_PP_UPS,MON_DATA_MOVE4_PP_UPS,
+    MON_DATA_MOVE1_MAX_PP,MON_DATA_MOVE2_MAX_PP,MON_DATA_MOVE3_MAX_PP,MON_DATA_MOVE4_MAX_PP};
+#endif
 #include <pthread.h>
 typedef struct CheckAudioAppSpan {
     uint64_t kind, startNs, scene, tick;
@@ -335,9 +354,24 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     NSArray *_displayedBagItemGlyphs;
     BOOL _checkBattleMenusRequestPending, _checkBattleMenusRequestAccepted;
     uint32_t _checkBattleMenusRequestRevision;
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+    NSData *_summaryTMQAState, *_summaryTMBagBaseline, *_summaryTMFlagsBaseline;
+    NSDictionary *_summaryTMFacts; UIImage *_summaryTMHMWarningImage; NSString *_summaryTMFixtureError;
+    BOOL _summaryTMEnabled, _summaryTMObserverSeen, _summaryTMFixturePreparing, _summaryTMFixturePrepared;
+    BOOL _summaryTMRequestPending, _summaryTMRequestAccepted, _summaryTMRawPending, _summaryTMRawActive, _summaryTMRawCooling, _summaryTMRawIdle, _summaryTMRawAccepted;
+    uint32_t _summaryTMRequestRevision, _summaryTMPadReads, _summaryTMBootStep, _summaryTMBootFrame, _summaryTMBootInputStep, _summaryTMBootInputFrame;
+    uint32_t _summaryTMRawKeys, _summaryTMRawX, _summaryTMRawY, _summaryTMRawReads, _summaryTMRawPresses, _summaryTMRawReleases, _summaryTMRawRejected, _summaryTMRawBagRevision;
+    BOOL _summaryTMRawPressed; HGSummaryLearnQAState _summaryTMRawExpected;
+    uint32_t _summaryTMMon, _summaryTMBag, _summaryTMFlags, _summaryTMProfile, _summaryTMDex, _summaryTMTmOffset, _summaryTMMonBaseline[26];
+    uint32_t _summaryTMMoney, _summaryTMDexEnabled, _summaryTMDexSeen, _summaryTMDexOwned, _summaryTMNameLength, _summaryTMMapSection, _summaryTMOriginalPersonality, _summaryTMOriginalOtId;
+#endif
 #endif
 }
 - (void)engineFrame;
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+- (BOOL)queueSummaryTMFixture:(uint32_t)revision;
+- (BOOL)queueSummaryTMRaw:(const HGSummaryLearnQAState *)expected keys:(uint32_t)keys x:(uint32_t)x y:(uint32_t)y pressed:(BOOL)pressed;
+#endif
 - (void)stop;
 - (void)tapAt:(CGPoint)point;
 @end
@@ -375,6 +409,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)viewDidLoad {
     [super viewDidLoad];
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+    _summaryTMEnabled=[[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivateCheckCase"] isEqual:@"summary-tm"]
+        && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_CHECK_CASE"] isEqual:@"summary-tm"]
+        && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_TEST_MUTE"] isEqual:@"1"];
+    _summaryTMRawIdle=YES;
+#endif
     self.view.backgroundColor = [UIColor colorWithRed:0.035 green:0.06 blue:0.07 alpha:1];
     _condition = [NSCondition new]; _buttons = [NSMutableDictionary new]; _audio = [OriginalAudio new];
     _touchEngine=1;
@@ -713,6 +753,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         }
         CGFloat navWidth=(area.size.width-5*gap)/6,navY=CGRectGetMaxY(area)-52;
         for (NSUInteger i=0;i<_summaryNavigation.count;i++) _summaryNavigation[i].frame=CGRectMake(area.origin.x+i*(navWidth+gap),navY,navWidth,44);
+        const HGNativeSummaryUIState *state=_displayedSummaryUIState.bytes;
+        if (HGNativeSummaryUIIsLearning(state)) {
+            navWidth=MIN(128,(area.size.width-2*gap)/3);
+            CGFloat confirmWidth=MIN(220,area.size.width-2*navWidth-2*gap);
+            _summaryNavigation[0].frame=CGRectMake(area.origin.x,navY,navWidth,44);
+            _summaryNavigation[1].frame=CGRectMake(CGRectGetMidX(area)-confirmWidth/2,navY,confirmWidth,44);
+            _summaryNavigation[5].frame=CGRectMake(CGRectGetMaxX(area)-navWidth,navY,navWidth,44);
+        }
         _status.frame=CGRectInset(_summaryPanel.frame,10,10);
     }
     if (_battleMenuKind) {
@@ -1213,32 +1261,37 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _bagPrompt.hidden=list; _bagPrompt.image=list ? nil : (pictures[@"prompt"] ?: pictures[@"message"]); _bagPage.image=pictures[@"page"];
 }
 - (NSDictionary *)copySummaryPictures:(const HGNativeSummaryUIState *)state frame:(NSData *)frame subFrame:(NSData *)subFrame {
-    if (!state->active || state->mode || state->monDataType!=1 || state->moveToLearn) { _summaryOwnerPictures=nil; return nil; }
+    BOOL learning=state->active && HGNativeSummaryUIIsLearning(state);
+    if (!state->active || (!learning && (state->mode || state->monDataType!=1 || state->moveToLearn))) { _summaryOwnerPictures=nil; return nil; }
     BOOL sameView=[_summaryOwnerPictures[@"revision"] unsignedIntValue]==state->revision
-        && [_summaryOwnerPictures[@"phase"] unsignedIntValue]==state->phase && [_summaryOwnerPictures[@"page"] unsignedIntValue]==state->page;
-    if (!state->ready || state->page>2 || (state->phase!=HG_SUMMARY_UI_INPUT && (state->phase!=HG_SUMMARY_UI_MOVE_SELECT || state->page!=1))) {
+        && [_summaryOwnerPictures[@"phase"] unsignedIntValue]==state->phase && [_summaryOwnerPictures[@"page"] unsignedIntValue]==state->page
+        && [_summaryOwnerPictures[@"mode"] unsignedIntValue]==state->mode;
+    BOOL inputPhase=learning ? state->phase==HG_SUMMARY_UI_FORGET_MOVE || state->phase==HG_SUMMARY_UI_FORGET_CONFIRM
+        : state->phase==HG_SUMMARY_UI_INPUT || (state->phase==HG_SUMMARY_UI_MOVE_SELECT && state->page==1);
+    if (!state->ready || state->page>2 || !inputPhase) {
         if (!sameView) _summaryOwnerPictures=nil;
         return _summaryOwnerPictures;
     }
     NSMutableDictionary *pictures=[NSMutableDictionary new];
     pictures[@"preview"]=OriginalPixelImage(frame,256,192) ?: NSNull.null;
-    BOOL detail=state->phase==HG_SUMMARY_UI_MOVE_SELECT;
+    BOOL detail=learning || state->phase==HG_SUMMARY_UI_MOVE_SELECT;
     if (detail) pictures[@"content"]=OriginalFrameRegion(subFrame,136,0,120,160) ?: NSNull.null;
     else if (state->page!=1) pictures[@"content"]=OriginalFrameRegion(subFrame,0,0,144,160) ?: NSNull.null;
     NSMutableArray *moves=[NSMutableArray new];
     for (NSUInteger i=0;i<HG_SUMMARY_UI_MOVES;i++) {
         const HGNativeSummaryUIMove *move=&state->moves[i];
-        UIImage *image=state->page==1 && (state->moveMask&(1u<<i)) ? OriginalFrameRegion(subFrame,move->cropX,move->cropY,move->cropWidth,move->cropHeight) : nil;
+        UIImage *image=state->page==1 && (learning ? move->moveId!=0 : (state->moveMask&(1u<<i))) ? OriginalFrameRegion(subFrame,move->cropX,move->cropY,move->cropWidth,move->cropHeight) : nil;
         [moves addObject:image ?: NSNull.null];
     }
     pictures[@"moves"]=[moves copy];
+    if (learning) pictures[@"learnAction"]=OriginalFrameRegion(subFrame,8,152,119,31) ?: NSNull.null;
     const HGNativePartyUIWindow *windows[]={&state->nickname,&state->levelText,&state->heldItemText,&state->backText,&state->pageTitle};
     NSArray *keys=@[@"nickname",@"level",@"item",@"back",@"title"];
     for (NSUInteger i=0;i<5;i++) {
         UIImage *image=OriginalWindowImage(windows[i],_env->memory->data,_env->memory->size);
         if (image) pictures[keys[i]]=image;
     }
-    pictures[@"revision"]=@(state->revision); pictures[@"phase"]=@(state->phase); pictures[@"page"]=@(state->page);
+    pictures[@"revision"]=@(state->revision); pictures[@"phase"]=@(state->phase); pictures[@"page"]=@(state->page); pictures[@"mode"]=@(state->mode);
     _summaryOwnerPictures=[pictures copy]; return _summaryOwnerPictures;
 }
 - (void)queueSummaryInput:(uint32_t)kind index:(uint32_t)index {
@@ -1252,13 +1305,23 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)summaryMovePressed:(UIButton *)button { [self queueSummaryInput:HG_SUMMARY_UI_INPUT_MOVE index:(uint32_t)button.tag]; }
 - (void)summaryNavigate:(UIButton *)button {
+    const HGNativeSummaryUIState *state=_displayedSummaryUIState.bytes;
+    if (_displayedSummaryUIState.length==sizeof(*state) && state->active && HGNativeSummaryUIIsLearning(state)) {
+        if (button.tag==0) [self queueSummaryInput:HG_SUMMARY_UI_INPUT_BACK index:0];
+        else if (button.tag==1) [self queueSummaryInput:HG_SUMMARY_UI_INPUT_CONFIRM index:0];
+        else if (button.tag==5) [self queueSummaryInput:HG_SUMMARY_UI_INPUT_MOVE index:4];
+        return;
+    }
     const uint32_t kinds[]={HG_SUMMARY_UI_INPUT_BACK,HG_SUMMARY_UI_INPUT_PREVIOUS_PAGE,HG_SUMMARY_UI_INPUT_NEXT_PAGE,
         HG_SUMMARY_UI_INPUT_PREVIOUS_MON,HG_SUMMARY_UI_INPUT_NEXT_MON,HG_SUMMARY_UI_INPUT_RIBBON_DETAILS};
     if (button.tag>=0 && button.tag<6) [self queueSummaryInput:kinds[button.tag] index:0];
 }
 - (void)takeSummaryInputLocked:(const HGNativeSummaryUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed {
-    BOOL panel=state->active && !state->mode && state->monDataType==1 && !state->moveToLearn && state->page<=2
-        && (state->phase==HG_SUMMARY_UI_INPUT || (state->phase==HG_SUMMARY_UI_MOVE_SELECT && state->page==1));
+    BOOL learning=state->active && HGNativeSummaryUIIsLearning(state);
+    if (learning) { _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; *keys=0; *pressed=NO; }
+    BOOL panel=state->active && (learning ? state->phase==HG_SUMMARY_UI_FORGET_MOVE || state->phase==HG_SUMMARY_UI_FORGET_CONFIRM
+        : !state->mode && state->monDataType==1 && !state->moveToLearn && state->page<=2
+            && (state->phase==HG_SUMMARY_UI_INPUT || (state->phase==HG_SUMMARY_UI_MOVE_SELECT && state->page==1)));
     if (!panel) {
         if (_summaryChoicePending || _summaryInputActive) { _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; *keys=0; *pressed=NO; }
         _summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO; _summaryInputKeys=0; return;
@@ -1285,14 +1348,22 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)updateSummaryControls:(NSData *)data pictures:(NSDictionary *)pictures paused:(BOOL)paused {
     const HGNativeSummaryUIState *state=data.bytes;
-    BOOL scene=data.length==sizeof(*state) && state->active && !state->mode && state->monDataType==1 && !state->moveToLearn;
-    BOOL panel=scene && state->page<=2 && (state->phase==HG_SUMMARY_UI_INPUT || (state->phase==HG_SUMMARY_UI_MOVE_SELECT && state->page==1));
+    BOOL learning=data.length==sizeof(*state) && state->active && HGNativeSummaryUIIsLearning(state);
+    BOOL scene=data.length==sizeof(*state) && state->active && (learning || (!state->mode && state->monDataType==1 && !state->moveToLearn));
+    BOOL panel=scene && (learning ? state->phase==HG_SUMMARY_UI_FORGET_MOVE || state->phase==HG_SUMMARY_UI_FORGET_CONFIRM
+        : state->page<=2 && (state->phase==HG_SUMMARY_UI_INPUT || (state->phase==HG_SUMMARY_UI_MOVE_SELECT && state->page==1)));
     BOOL changed=_summaryScene!=scene || !_displayedSummaryUIState || data.length!=_displayedSummaryUIState.length
         || (scene && memcmp(data.bytes,_displayedSummaryUIState.bytes,offsetof(HGNativeSummaryUIState,moves)));
     if (scene && !_summaryScene) { [_condition lock]; _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; [_condition unlock]; [self resetJoystick]; }
-    _summaryScene=scene; _summaryMovePanel=panel && state->page==1; _summaryMoveDetail=panel && state->phase==HG_SUMMARY_UI_MOVE_SELECT;
+    _summaryScene=scene; _summaryMovePanel=panel && state->page==1; _summaryMoveDetail=panel && (learning || state->phase==HG_SUMMARY_UI_MOVE_SELECT);
     _displayedSummaryUIState=data; _summaryPanel.hidden=!panel;
     for (UIButton *button in _summaryNavigation) button.hidden=!panel;
+    if (!learning && (_summaryNavigation[1].configuration || _summaryNavigation[5].configuration)) [UIView performWithoutAnimation:^{
+        self->_summaryNavigation[1].configuration=nil; self->_summaryNavigation[5].configuration=nil;
+        [self->_summaryNavigation[1] setTitle:@"上一页" forState:UIControlStateNormal]; [self->_summaryNavigation[5] setTitle:@"查看缎带" forState:UIControlStateNormal];
+        self->_summaryNavigation[5].backgroundColor=self->_partyBack.backgroundColor; self->_summaryNavigation[5].layer.borderWidth=0; self->_summaryNavigation[5].layer.cornerRadius=12;
+        [self->_summaryNavigation[1] layoutIfNeeded]; [self->_summaryNavigation[5] layoutIfNeeded];
+    }];
     if (changed) [self.view setNeedsLayout];
     if (!panel) return;
     [_condition lock]; BOOL waiting=_summaryChoicePending || _summaryInputActive; [_condition unlock];
@@ -1311,7 +1382,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSArray *moves=pictures[@"moves"];
     for (NSUInteger i=0;i<HG_SUMMARY_UI_MOVES;i++) {
         const HGNativeSummaryUIMove *move=&state->moves[i]; UIButton *button=_summaryMoves[i]; HGNativeSummaryUIInput input;
-        button.hidden=!_summaryMovePanel || !(state->moveMask&(1u<<i));
+        button.hidden=!_summaryMovePanel || (learning ? !move->moveId : !(state->moveMask&(1u<<i)));
         button.enabled=ready && HGNativeSummaryUIResolveInput(state,state->revision,state->phase,HG_SUMMARY_UI_INPUT_MOVE,(uint32_t)i,&input);
         button.layer.borderColor=(i==state->moveSlot && _summaryMoveDetail ? [UIColor colorWithRed:0.91 green:0.49 blue:0.12 alpha:1] : [UIColor colorWithRed:0.45 green:0.62 blue:0.72 alpha:1]).CGColor;
         button.accessibilityTraits=UIAccessibilityTraitButton | (i==state->moveSlot && _summaryMoveDetail ? UIAccessibilityTraitSelected : 0);
@@ -1324,12 +1395,33 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         HG_SUMMARY_UI_INPUT_PREVIOUS_MON,HG_SUMMARY_UI_INPUT_NEXT_MON,HG_SUMMARY_UI_INPUT_RIBBON_DETAILS};
     for (NSUInteger i=0;i<6;i++) {
         UIButton *button=_summaryNavigation[i]; HGNativeSummaryUIInput input;
-        button.enabled=ready && HGNativeSummaryUIResolveInput(state,state->revision,state->phase,kinds[i],0,&input);
-        button.hidden=i ? _summaryMoveDetail || (i==5 && (state->page!=2 || !state->ribbonCount)) : NO;
+        if (learning) {
+            uint32_t kind=i==0 ? HG_SUMMARY_UI_INPUT_BACK : i==1 ? HG_SUMMARY_UI_INPUT_CONFIRM : HG_SUMMARY_UI_INPUT_MOVE;
+            BOOL allowed=(i==0 || i==1 || i==5) && HGNativeSummaryUIResolveInput(state,state->revision,state->phase,kind,i==5 ? 4 : 0,&input);
+            button.enabled=ready && allowed;
+            button.hidden=i==1 ? !allowed : i==5 ? state->phase!=HG_SUMMARY_UI_FORGET_MOVE : i!=0;
+        } else {
+            button.enabled=ready && HGNativeSummaryUIResolveInput(state,state->revision,state->phase,kinds[i],0,&input);
+            button.hidden=i ? _summaryMoveDetail || (i==5 && (state->page!=2 || !state->ribbonCount)) : NO;
+            button.accessibilityLabel=(@[@"返回",@"上一页",@"下一页",@"上一只",@"下一只",@"查看缎带"])[i];
+            button.accessibilityHint=nil; button.accessibilityTraits=UIAccessibilityTraitButton;
+        }
     }
     UIButtonConfiguration *back=UIButtonConfiguration.filledButtonConfiguration;
     back.baseBackgroundColor=_partyBack.backgroundColor; back.baseForegroundColor=UIColor.whiteColor;
     OriginalSetButtonContent(_summaryNavigation[0],back,pictures[@"back"],@"返回");
+    if (learning) {
+        UIButtonConfiguration *confirm=[back copy],*candidate=[back copy];
+        // The fifth card selects only; the existing generic confirmation caption sends typed A in phase 8.
+        OriginalSetButtonContent(_summaryNavigation[1],confirm,state->phase==HG_SUMMARY_UI_FORGET_CONFIRM ? pictures[@"learnAction"] : nil,@"确认");
+        NSString *name=state->moveToLearn<_moveNames.count ? _moveNames[state->moveToLearn] : @"招式";
+        OriginalSetButtonContent(_summaryNavigation[5],candidate,pictures[@"learnAction"],name);
+        _summaryNavigation[1].accessibilityLabel=@"确认"; _summaryNavigation[5].accessibilityLabel=name;
+        _summaryNavigation[5].accessibilityHint=@"查看原版招式详情";
+        _summaryNavigation[5].accessibilityTraits=UIAccessibilityTraitButton | (state->moveSlot==4 ? UIAccessibilityTraitSelected : 0);
+        _summaryNavigation[5].layer.borderWidth=2; _summaryNavigation[5].layer.cornerRadius=8;
+        _summaryNavigation[5].layer.borderColor=(state->moveSlot==4 ? [UIColor colorWithRed:0.91 green:0.49 blue:0.12 alpha:1] : [UIColor colorWithRed:0.45 green:0.62 blue:0.72 alpha:1]).CGColor;
+    }
 }
 - (void)updateBattleControls:(NSData *)data {
     if (data.length != sizeof(HGNativeBattleUIState)) return;
@@ -1504,6 +1596,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         _checkBattleMenusRequestPending=NO;
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+        [self clearSummaryTMTransientLocked];
+#endif
 #endif
     }
 }
@@ -1528,6 +1623,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _checkBattleMenusRequestPending=NO;
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+        [self clearSummaryTMTransientLocked];
+#endif
 #endif
     [_condition signal]; [_condition unlock];
     for (OriginalKeyButton *button in _buttons.allValues) button.inputGeneration++;
@@ -1549,6 +1647,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [self updatePartyControls:partyUI pictures:partyPictures paused:paused];
     [self updateBagControls:bagUI pictures:bagPictures paused:paused];
     [self updateSummaryControls:summaryUI pictures:summaryPictures paused:paused];
+    const HGNativeSummaryUIState *summary=summaryUI.length==sizeof(HGNativeSummaryUIState) ? summaryUI.bytes : NULL;
+    BOOL summaryLearning=summary && summary->active && HGNativeSummaryUIIsLearning(summary);
     [self updateBattleMenuControls:battleBagUI party:battlePartyUI pictures:battleMenuPictures paused:paused engine:engine];
     if (frame) {
         if (_displayedWidth!=frameWidth) { _displayedWidth=frameWidth; [self.view setNeedsLayout]; }
@@ -1560,7 +1660,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     else if (menuFrame) _fieldMenu.image=OriginalPixelImage(menuFrame,256,192);
     BOOL panel=field && menuOpen && _fieldMenu.image;
     _fieldMenu.hidden=_fieldMenuShade.hidden=!panel; _fieldMenu.userInteractionEnabled=!paused;
-    _canvas.userInteractionEnabled=!(field && menuOpen) && !_partyScene && !(_bagScene && !_bagPanel.hidden) && !(_summaryScene && !_summaryPanel.hidden) && !_battleMenuKind;
+    _canvas.userInteractionEnabled=!(field && menuOpen) && !_partyScene && !(_bagScene && !_bagPanel.hidden) && !(_summaryScene && !_summaryPanel.hidden) && !summaryLearning && !_battleMenuKind;
     NSMutableArray *visible=[NSMutableArray new];
     NSArray *auxNames=@[@"已登记道具 1",@"已登记道具 2",@"跑鞋开关",@"互动"];
     const unsigned auxBits[]={29,30,28,31};
@@ -1578,9 +1678,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _joystick.hidden=!stick; _joystick.userInteractionEnabled=!paused;
     BOOL nativeMenu=(_partyScene && !_partyPanel.hidden) || (_bagScene && !_bagPanel.hidden) || (_summaryScene && !_summaryPanel.hidden) || (_battleMenuKind && !_battleMenuPanel.hidden);
     _canvas.hidden=nativeMenu;
-    for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10]) _buttons[key].hidden=_battleMode || field || nativeMenu;
-    _buttons[@1].hidden=_battleMode || (field && menuOpen) || nativeMenu;
-    _buttons[@2].hidden=_battleMode || (field && menuOpen) || nativeMenu;
+    for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10]) _buttons[key].hidden=_battleMode || field || nativeMenu || summaryLearning;
+    _buttons[@1].hidden=_battleMode || (field && menuOpen) || nativeMenu || summaryLearning;
+    _buttons[@2].hidden=_battleMode || (field && menuOpen) || nativeMenu || summaryLearning;
     _buttons[@0x400].hidden=_battleMode || field || _partyScene || _bagScene || _summaryScene || _battleMenuScene;
     _buttons[@8].hidden=_battleMode || ((field || _partyScene || _bagScene || _summaryScene || _battleMenuScene) && !(interrupted && ended));
     _menuButton.hidden=_battleMode || _partyScene || _bagScene || _summaryScene || _battleMenuScene;
@@ -1616,6 +1716,184 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSMutableDictionary *result=[CheckAudioTrace(data,capturedAtNs) mutableCopy];
     result[@"firstShortCapture"]=@{@"timeNs":@(firstShortTimeNs),@"producer":CheckAudioTrace(firstShort,firstShortCapturedAtNs)};
     return result;
+}
+#endif
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+- (const void *)summaryTMGuest:(uint32_t)address size:(uint64_t)size {
+    if (!_env || !_env->memory || !address || address>_env->memory->size || size>_env->memory->size-address) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    return _env->memory->data+address;
+}
+- (BOOL)readSummaryTMQA:(HGSummaryLearnQAState *)state {
+    uint32_t address=w2c_hgengine_HGNativeSummaryLearnQAGetState(_game);
+    memcpy(state,[self summaryTMGuest:address size:sizeof(*state)],sizeof(*state));
+    if (!state->version && !state->byteSize && !_summaryTMObserverSeen) return NO;
+    if (state->version!=HG_SUMMARY_LEARN_QA_VERSION || state->byteSize!=sizeof(*state)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    _summaryTMObserverSeen=YES; return YES;
+}
+- (BOOL)summaryTMInputIdleLocked {
+    return !_keys && !_pendingKeys && !_submittedKeys && !_joystickKeys && !_pendingJoystickKeys && !_submittedJoystickKeys && !_touchPressed
+        && !_battleChoicePending && !_partyChoicePending && !_partyTouchActive && !_bagChoicePending && !_bagTouchActive
+        && !_summaryChoicePending && !_summaryInputActive && !_summaryTouchPressed && !_summaryInputKeys
+        && !_battleMenuChoicePending && !_battleMenuTouchActive && !_battleMenuTouchCooling
+        && !_summaryTMRawPending && !_summaryTMRawActive && !_summaryTMRawCooling;
+}
+- (BOOL)queueSummaryTMFixture:(uint32_t)revision {
+    [_condition lock]; const HGSummaryLearnQAState *q=_summaryTMQAState.length==sizeof(*q) ? _summaryTMQAState.bytes : NULL;
+    BOOL valid=_summaryTMEnabled && !_paused && !_stopping && !_summaryTMRequestPending && !_summaryTMRequestAccepted && !_summaryTMFixturePreparing
+        && q && q->revision==revision && q->fieldReady && !q->owner && q->fadeFinished && _fieldMapId==MAP_ROUTE_29 && !_fieldMenuOpen
+        && _summaryTMBootInputStep==3 && !_summaryTMBootInputFrame && [self summaryTMInputIdleLocked];
+    if (valid) { _summaryTMRequestPending=YES; _summaryTMRequestRevision=revision; }
+    [_condition unlock]; return valid;
+}
+- (BOOL)summaryTMRawAllowed:(const HGSummaryLearnQAState *)q bag:(const HGNativeBagUIState *)state keys:(uint32_t)keys x:(uint32_t)x y:(uint32_t)y pressed:(BOOL)pressed {
+    if (!q || q->version!=HG_SUMMARY_LEARN_QA_VERSION || q->byteSize!=sizeof(*q) || q->execState!=2 || !q->graphicsReady || !q->fadeFinished || x>=256 || y>=192) return NO;
+    if (!keys && pressed && q->owner==HG_SUMMARY_LEARN_BAG && state && state->active && state->ready && !state->mode && q->phase==state->phase
+        && (state->phase==HG_BAG_UI_INPUT || state->phase==HG_BAG_UI_ITEM_MENU)) {
+        const uint32_t counts[]={HG_BAG_UI_POCKETS,HG_BAG_UI_ITEMS,HG_BAG_UI_ACTIONS,1,1,1};
+        for (uint32_t kind=HG_BAG_UI_TOUCH_POCKET;kind<=HG_BAG_UI_TOUCH_CANCEL;kind++) for (uint32_t index=0;index<counts[kind];index++) {
+            uint32_t hitX,hitY; if (HGNativeBagUIResolveTouch(state,state->revision,state->phase,kind,index,&hitX,&hitY) && x==hitX && y==hitY) return YES;
+        }
+        return NO;
+    }
+    BOOL bag=q->owner==HG_SUMMARY_LEARN_BAG && q->phase==13 && q->tmTaskMatches && q->itemId==ITEM_TM17;
+    BOOL party=q->owner==HG_SUMMARY_LEARN_PARTY && (q->context==6 || q->context==7) && q->itemId==ITEM_TM17 && q->moveId==MOVE_PROTECT;
+    if (keys==1 && !pressed) {
+        if (bag && q->taskState==1 && q->printerId<8 && !q->printerActive) return YES;
+        if (party && q->context==6 && q->phase==21 && !q->partySlot && !q->partyBusy) return YES;
+        return ((bag && q->taskState==2) || (party && q->phase==24)) && q->printerActive && q->printerMatches && q->printerState==2 && q->printerWaiting;
+    }
+    if (keys || !pressed || !((bag && q->taskState==3) || (party && q->phase==27)) || !q->yesNoReady || q->yesNoActive!=1 || q->yesNoResult!=3 || q->yesNoTimer) return NO;
+    if (q->yesNoX!=25 || q->yesNoY!=(bag ? 6u : 10u) || q->yesNoWidth!=6 || q->yesNoHeight!=4) return NO;
+    for (NSUInteger i=0;i<2;i++) if (x==q->yesHitX[i] && y==q->yesHitY[i] && x==224 && y==q->yesNoY*8+16+i*32) return YES;
+    return NO;
+}
+- (BOOL)queueSummaryTMRaw:(const HGSummaryLearnQAState *)expected keys:(uint32_t)keys x:(uint32_t)x y:(uint32_t)y pressed:(BOOL)pressed {
+    [_condition lock]; const HGSummaryLearnQAState *q=_summaryTMQAState.length==sizeof(*q) ? _summaryTMQAState.bytes : NULL;
+    const HGNativeBagUIState *bag=_bagUIState.length==sizeof(*bag) ? _bagUIState.bytes : NULL;
+    BOOL valid=_summaryTMEnabled && _summaryTMRequestAccepted && !_paused && !_stopping && q && expected
+        && q->revision==expected->revision && q->generation==expected->generation && q->owner==expected->owner && q->data==expected->data
+        && _summaryTMRawIdle && [self summaryTMInputIdleLocked] && [self summaryTMRawAllowed:q bag:bag keys:keys x:x y:y pressed:pressed];
+    if (valid) { _summaryTMRawExpected=*expected; _summaryTMRawKeys=keys; _summaryTMRawX=x; _summaryTMRawY=y; _summaryTMRawPressed=pressed;
+        _summaryTMRawBagRevision=q->owner==HG_SUMMARY_LEARN_BAG && (q->phase==HG_BAG_UI_INPUT || q->phase==HG_BAG_UI_ITEM_MENU) ? bag->revision : 0;
+        _summaryTMRawPending=YES; _summaryTMRawIdle=NO; _summaryTMRawAccepted=NO; }
+    [_condition unlock]; return valid;
+}
+- (void)clearSummaryTMTransientLocked {
+    if (_summaryTMRawPending || _summaryTMRawActive || _summaryTMRawCooling) _summaryTMRawRejected++;
+    _summaryTMRequestPending=_summaryTMRawPending=_summaryTMRawActive=_summaryTMRawCooling=_summaryTMRawAccepted=NO; _summaryTMRawIdle=YES;
+    _summaryTMRawKeys=_summaryTMRawBagRevision=0; _summaryTMRawPressed=NO;
+}
+- (void)takeSummaryTMInputLocked:(const HGSummaryLearnQAState *)q bag:(const HGNativeBagUIState *)bag reads:(uint32_t)reads keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed {
+    if (!_summaryTMEnabled) return;
+    if (!_summaryTMRequestAccepted) {
+        _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; *keys=0; *pressed=NO;
+        if (!_env->resetOccurred && _summaryTMBootStep<3) {
+            const uint32_t frames[]={450,780,1320}; uint32_t now=OS_GetVBlankCount();
+            if (!_summaryTMBootFrame && now>=frames[_summaryTMBootStep]) _summaryTMBootFrame=now;
+            if (_summaryTMBootFrame && now-_summaryTMBootFrame>=8) { _summaryTMBootFrame=0; _summaryTMBootStep++; }
+            else if (_summaryTMBootFrame) *keys=1;
+            if (now>=3600 && _summaryTMBootStep<3) _summaryTMFixtureError=@"original_boot_input_deadline";
+        }
+        return;
+    }
+    BOOL peripheral=q && (q->owner==HG_SUMMARY_LEARN_BAG || q->owner==HG_SUMMARY_LEARN_PARTY);
+    if (peripheral || _summaryTMRawPending || _summaryTMRawActive || _summaryTMRawCooling) { _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; *keys=0; *pressed=NO; }
+    BOOL nativeBag=_summaryTMRawExpected.owner==HG_SUMMARY_LEARN_BAG && (_summaryTMRawExpected.phase==HG_BAG_UI_INPUT || _summaryTMRawExpected.phase==HG_BAG_UI_ITEM_MENU);
+    BOOL sameBag=!nativeBag || (bag && bag->active && bag->ready && !bag->mode && bag->phase==_summaryTMRawExpected.phase && bag->revision==_summaryTMRawBagRevision);
+    if (_summaryTMRawPending) {
+        BOOL same=q && q->revision==_summaryTMRawExpected.revision && q->generation==_summaryTMRawExpected.generation
+            && q->owner==_summaryTMRawExpected.owner && q->manager==_summaryTMRawExpected.manager && q->data==_summaryTMRawExpected.data && q->phase==_summaryTMRawExpected.phase && sameBag;
+        _summaryTMRawPending=NO; _summaryTMRawReads=reads;
+        if (same && [self summaryTMRawAllowed:q bag:bag keys:_summaryTMRawKeys x:_summaryTMRawX y:_summaryTMRawY pressed:_summaryTMRawPressed]) {
+            _summaryTMRawActive=_summaryTMRawAccepted=YES; _summaryTMRawPresses++;
+        } else { _summaryTMRawRejected++; _summaryTMRawCooling=YES; }
+    }
+    if (_summaryTMRawActive) {
+        BOOL changed=!q || q->revision!=_summaryTMRawExpected.revision || q->generation!=_summaryTMRawExpected.generation || q->owner!=_summaryTMRawExpected.owner || !sameBag;
+        if (changed || reads-_summaryTMRawReads>=4) { _summaryTMRawActive=NO; _summaryTMRawCooling=YES; _summaryTMRawReads=reads; _summaryTMRawReleases++; }
+        else { *keys=_summaryTMRawKeys; *x=_summaryTMRawX; *y=_summaryTMRawY; *pressed=_summaryTMRawPressed; }
+    }
+    if (_summaryTMRawCooling && reads-_summaryTMRawReads>=2) _summaryTMRawCooling=NO;
+    _summaryTMRawIdle=!_summaryTMRawPending && !_summaryTMRawActive && !_summaryTMRawCooling;
+}
+- (BOOL)prepareSummaryTMFixture:(const HGSummaryLearnQAState *)q {
+#define TM_REQUIRE(value,message) do { if (!(value)) { _summaryTMFixtureError=(message); return NO; } } while (0)
+    uint32_t save=w2c_hgengine_SaveData_Get(_game),party=w2c_hgengine_SaveArray_Party_Get(_game,save);
+    _summaryTMFlags=w2c_hgengine_Save_VarsFlags_Get(_game,save); _summaryTMBag=w2c_hgengine_Save_Bag_Get(_game,save);
+    _summaryTMProfile=w2c_hgengine_Save_PlayerData_GetProfile(_game,save); _summaryTMDex=w2c_hgengine_Save_Pokedex_Get(_game,save);
+    TM_REQUIRE(w2c_hgengine_CheckGotStarter(_game,_summaryTMFlags) && w2c_hgengine_Party_GetCount(_game,party)==1,@"original_party_prerequisite");
+    _summaryTMMon=w2c_hgengine_Party_GetMonByIndex(_game,party,0);
+    TM_REQUIRE(w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_SPECIES,0)==152 && w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_LEVEL,0)==5
+        && w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_HP,0)==20 && w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_MAX_HP,0)==20
+        && !w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_HELD_ITEM,0)
+        && w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_OT_ID,0)==w2c_hgengine_PlayerProfile_GetTrainerID(_game,_summaryTMProfile)
+        && !w2c_hgengine_Bag_GetQuantity(_game,_summaryTMBag,ITEM_TM17,HEAP_ID_FIELD2),@"original_starter_or_tm_prerequisite");
+    _summaryTMOriginalPersonality=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_PERSONALITY,0);
+    _summaryTMOriginalOtId=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_OT_ID,0);
+    uint16_t name[PLAYER_NAME_LENGTH+1]; memcpy(name,[self summaryTMGuest:_summaryTMProfile+offsetof(PlayerProfile,name) size:sizeof(name)],sizeof(name));
+    _summaryTMNameLength=0; while (_summaryTMNameLength<PLAYER_NAME_LENGTH+1 && name[_summaryTMNameLength]!=EOS) _summaryTMNameLength++;
+    TM_REQUIRE(_summaryTMNameLength && _summaryTMNameLength<=PLAYER_NAME_LENGTH && q->mapSection,@"bounded_original_trainer_name");
+    uint32_t scratch=w2c_hgengine_HGNativeFrameBuffer(_game); [self summaryTMGuest:scratch size:sizeof(name)];
+    w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_OT_NAME,scratch);
+    TM_REQUIRE(!memcmp(name,[self summaryTMGuest:scratch size:sizeof(name)],(_summaryTMNameLength+1)*sizeof(uint16_t)),@"original_trainer_name_mismatch");
+    const uint16_t moves[]={MOVE_TACKLE,MOVE_GROWL,MOVE_RAZOR_LEAF,MOVE_CUT};
+    for (NSUInteger i=0;i<4;i++) w2c_hgengine_MonSetMoveInSlot_ResetPpUp(_game,_summaryTMMon,moves[i],i);
+    TM_REQUIRE(w2c_hgengine_Bag_AddItem(_game,_summaryTMBag,ITEM_TM17,2,HEAP_ID_FIELD2),@"private_tm_add_failed");
+    TM_REQUIRE(w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_FRIENDSHIP,0)==70 && !w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_MOOD,0)
+        && !w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_EGG_LOCATION,0) && !w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_HELD_ITEM,0)
+        && w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_DP_POKEBALL,0)!=BALL_LUXURY,@"original_starter_metadata");
+    for (NSUInteger i=0;i<26;i++) _summaryTMMonBaseline[i]=w2c_hgengine_GetMonData(_game,_summaryTMMon,SummaryTMAttributes[i],0);
+    TM_REQUIRE(_summaryTMMonBaseline[0]==_summaryTMOriginalPersonality && _summaryTMMonBaseline[1]==_summaryTMOriginalOtId,@"original_starter_identity_changed");
+    uint32_t bagSize=w2c_hgengine_Save_Bag_sizeof(_game),flagsSize=w2c_hgengine_Save_VarsFlags_sizeof(_game);
+    TM_REQUIRE(bagSize && bagSize<65536 && flagsSize && flagsSize<65536,@"private_baseline_sizes");
+    _summaryTMBagBaseline=[NSData dataWithBytes:[self summaryTMGuest:_summaryTMBag size:bagSize] length:bagSize];
+    _summaryTMFlagsBaseline=[NSData dataWithBytes:[self summaryTMGuest:_summaryTMFlags size:flagsSize] length:flagsSize];
+    _summaryTMTmOffset=bagSize;
+    for (NSUInteger i=0;i<NUM_BAG_TMS_HMS;i++) { uint32_t slot=w2c_hgengine_Bag_GetPocketSlotN(_game,_summaryTMBag,POCKET_TMHMS,i); uint16_t value[2];
+        memcpy(value,[self summaryTMGuest:slot size:sizeof(value)],sizeof(value));
+        if (value[0]==ITEM_TM17) { TM_REQUIRE(value[1]==2 && slot>=_summaryTMBag && slot-_summaryTMBag<=bagSize-4,@"private_tm_slot"); _summaryTMTmOffset=slot-_summaryTMBag; break; } }
+    TM_REQUIRE(_summaryTMTmOffset<bagSize,@"private_tm_slot_missing");
+    _summaryTMMoney=w2c_hgengine_PlayerProfile_GetMoney(_game,_summaryTMProfile); _summaryTMDexEnabled=w2c_hgengine_Pokedex_IsEnabled(_game,_summaryTMDex);
+    _summaryTMDexSeen=w2c_hgengine_Pokedex_CountNationalDexSeen(_game,_summaryTMDex); _summaryTMDexOwned=w2c_hgengine_Pokedex_CountNationalDexOwned(_game,_summaryTMDex);
+    _summaryTMMapSection=q->mapSection; _summaryTMFixturePrepared=YES; return YES;
+#undef TM_REQUIRE
+}
+- (NSDictionary *)summaryTMCurrentFacts {
+    NSMutableDictionary *facts=[@{@"fixturePrepared":@(_summaryTMFixturePrepared),@"fixtureError":_summaryTMFixtureError ?: @"",
+        @"rawPresses":@(_summaryTMRawPresses),@"rawReleases":@(_summaryTMRawReleases),@"rawRejected":@(_summaryTMRawRejected)} mutableCopy];
+    if (!_summaryTMFixturePrepared) return facts;
+    uint32_t current[26]; BOOL unchanged=YES,learned=YES;
+    NSMutableArray *moves=[NSMutableArray new],*pp=[NSMutableArray new],*maxPP=[NSMutableArray new],*ups=[NSMutableArray new];
+    for (NSUInteger i=0;i<26;i++) { current[i]=w2c_hgengine_GetMonData(_game,_summaryTMMon,SummaryTMAttributes[i],0); unchanged&=current[i]==_summaryTMMonBaseline[i];
+        uint32_t expected=i==10 ? MOVE_PROTECT : i==14 || i==22 ? 10 : i==18 ? 0 : _summaryTMMonBaseline[i]; learned&=current[i]==expected; }
+    for (NSUInteger i=0;i<4;i++) { [moves addObject:@(current[10+i])]; [pp addObject:@(current[14+i])]; [ups addObject:@(current[18+i])]; [maxPP addObject:@(current[22+i])]; }
+    uint32_t friendship=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_FRIENDSHIP,0),mood=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_MOOD,0);
+    uint32_t quantity=w2c_hgengine_Bag_GetQuantity(_game,_summaryTMBag,ITEM_TM17,HEAP_ID_FIELD2);
+    BOOL bagSame=!memcmp(_summaryTMBagBaseline.bytes,[self summaryTMGuest:_summaryTMBag size:_summaryTMBagBaseline.length],_summaryTMBagBaseline.length);
+    NSMutableData *oneConsumed=[_summaryTMBagBaseline mutableCopy]; uint16_t one=1; memcpy((uint8_t *)oneConsumed.mutableBytes+_summaryTMTmOffset+2,&one,sizeof(one));
+    BOOL bagConsumed=quantity==1 && !memcmp(oneConsumed.bytes,[self summaryTMGuest:_summaryTMBag size:oneConsumed.length],oneConsumed.length);
+    BOOL preserved=!memcmp(_summaryTMFlagsBaseline.bytes,[self summaryTMGuest:_summaryTMFlags size:_summaryTMFlagsBaseline.length],_summaryTMFlagsBaseline.length)
+        && w2c_hgengine_PlayerProfile_GetMoney(_game,_summaryTMProfile)==_summaryTMMoney && w2c_hgengine_Pokedex_IsEnabled(_game,_summaryTMDex)==_summaryTMDexEnabled
+        && w2c_hgengine_Pokedex_CountNationalDexSeen(_game,_summaryTMDex)==_summaryTMDexSeen && w2c_hgengine_Pokedex_CountNationalDexOwned(_game,_summaryTMDex)==_summaryTMDexOwned;
+    [facts addEntriesFromDictionary:@{@"species":@(current[2]),@"partyCount":@(w2c_hgengine_Party_GetCount(_game,w2c_hgengine_SaveArray_Party_Get(_game,w2c_hgengine_SaveData_Get(_game)))),
+        @"moves":moves,@"pp":pp,@"maxPP":maxPP,@"ppUps":ups,@"tmQuantity":@(quantity),@"friendship":@(friendship),@"mood":@(mood),
+        @"baseline26Preserved":@(unchanged && friendship==70 && !mood),@"expectedLearningDelta":@(learned && friendship==71 && mood==40),
+        @"bagUnchanged":@(bagSame),@"bagOnlyOneTMConsumed":@(bagConsumed),@"flagsMoneyDexUnchanged":@(preserved),
+        @"otNameProfileMatched":@YES,@"otNameLength":@(_summaryTMNameLength),@"fixtureUsesExistingStarter":@YES,
+        @"originalPersonality":@(_summaryTMOriginalPersonality),@"originalOtId":@(_summaryTMOriginalOtId),
+        @"originalIdentityPreserved":@(current[0]==_summaryTMOriginalPersonality && current[1]==_summaryTMOriginalOtId),@"mapSection":@(_summaryTMMapSection)}];
+    return facts;
+}
+- (UIImage *)summaryTMWarningImage:(const HGNativePartyUIWindow *)window {
+    if (!window || window->tileWidth!=15 || window->tileHeight!=10 || window->engine!=1 || window->clearColor || window->pixelBuffer>UINT32_MAX-2400) return nil;
+    HGNativePartyUIWindow half=*window; half.tileHeight=5;
+    UIImage *top=OriginalWindowImage(&half,_env->memory->data,_env->memory->size); half.pixelBuffer+=2400;
+    UIImage *bottom=OriginalWindowImage(&half,_env->memory->data,_env->memory->size);
+    if (!top || !bottom || CGImageGetBytesPerRow(top.CGImage)!=480 || CGImageGetBytesPerRow(bottom.CGImage)!=480) return nil;
+    NSData *first=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(top.CGImage)));
+    NSData *second=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(bottom.CGImage)));
+    if (first.length!=19200 || second.length!=19200) return nil;
+    NSMutableData *rgba=[first mutableCopy]; [rgba appendData:second]; return OriginalPixelImage(rgba,120,80);
 }
 #endif
 - (void)engineFrame {
@@ -1669,14 +1947,19 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     const HGNativeSummaryUIState *currentSummary=(const HGNativeSummaryUIState *)(_env->memory->data+summaryAddress);
     uint32_t battleMenuKind=OriginalBattleMenuKind(currentBattleBag,currentBattleParty);
     BOOL battleChild=currentBattleBag->active || currentBattleParty->active;
-    BOOL summaryContext=currentSummary->active && !currentSummary->mode && currentSummary->monDataType==1 && !currentSummary->moveToLearn;
+    BOOL summaryLearning=currentSummary->active && HGNativeSummaryUIIsLearning(currentSummary);
+    BOOL summaryContext=currentSummary->active && (summaryLearning || (!currentSummary->mode && currentSummary->monDataType==1 && !currentSummary->moveToLearn));
     uint32_t fieldMap=w2c_hgengine_HGNativeFieldMap(_game);
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+    HGSummaryLearnQAState summaryTM={0}; BOOL summaryTMObserved=[self readSummaryTMQA:&summaryTM];
+#endif
     [_condition lock];
     [self acknowledgeKeysLocked:HGNativeInputPadReads(_env)];
     _fieldMapId=fieldMap;
     // Original LCD routing: SUB_MAIN=0 touches main; MAIN_SUB=1 touches sub.
     _touchEngine=(*_displayControl>>15)&1;
-    if (summaryContext) _selectedEngine=currentSummary->page<=2 && (currentSummary->phase==HG_SUMMARY_UI_INPUT || (currentSummary->phase==HG_SUMMARY_UI_MOVE_SELECT && currentSummary->page==1)) ? 0 : _touchEngine;
+    if (summaryContext) _selectedEngine=(summaryLearning ? currentSummary->phase==HG_SUMMARY_UI_FORGET_MOVE || currentSummary->phase==HG_SUMMARY_UI_FORGET_CONFIRM
+        : currentSummary->page<=2 && (currentSummary->phase==HG_SUMMARY_UI_INPUT || (currentSummary->phase==HG_SUMMARY_UI_MOVE_SELECT && currentSummary->page==1))) ? 0 : _touchEngine;
     else if (battleChild) _selectedEngine=battleMenuKind ? 0 : _touchEngine;
     else if (fieldMap || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty)))) _selectedEngine=0;
     else if (currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag))) _selectedEngine=HGNativeBagUIIsList(currentBag) || currentBag->phase==HG_BAG_UI_ITEM_MENU ? 0 : _touchEngine;
@@ -1692,6 +1975,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t battleRevision = _battleChoiceRevision, battleIndex = _battleChoiceIndex;
     _battleChoicePending = NO;
     BOOL pressed = _touchPressed;
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+    if (!_paused && !stopping) [self takeSummaryTMInputLocked:summaryTMObserved ? &summaryTM : NULL bag:currentBag reads:HGNativeInputPadReads(_env) keys:&keys x:&x y:&y pressed:&pressed];
+#endif
     if (!_paused && !stopping) [self takePartyTouchLocked:currentParty reads:HGNativeInputPadReads(_env) keys:&keys x:&x y:&y pressed:&pressed];
     if (!_paused && !stopping) [self takeBagTouchLocked:currentBag reads:HGNativeInputPadReads(_env) x:&x y:&y pressed:&pressed];
     if (!_paused && !stopping) [self takeBattleMenuTouchLocked:currentBattleBag party:currentBattleParty reads:HGNativeInputPadReads(_env) x:&x y:&y pressed:&pressed];
@@ -1699,16 +1985,31 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL menuOpen=_fieldMenuOpen;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     BOOL checkReset=_checkResetPending; _checkResetPending=NO;
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+    BOOL summaryTMRequest=_summaryTMRequestPending,summaryTMIdle=[self summaryTMInputIdleLocked] && !keys && !pressed;
+    uint32_t summaryTMRevision=_summaryTMRequestRevision; _summaryTMRequestPending=NO; _summaryTMFixturePreparing=summaryTMRequest;
+#else
     BOOL checkBattleMenusRequest=_checkBattleMenusRequestPending; uint32_t checkBattleMenusRevision=_checkBattleMenusRequestRevision; _checkBattleMenusRequestPending=NO;
+#endif
 #endif
     [_condition unlock];
     if (stopping) w2c_env_HGNativeResetControl(_env, HG_RESET_REQUEST, 0);
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     if (checkReset) w2c_env_HGNativeResetControl(_env, HG_RESET_REQUEST, 1);
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+    if (summaryTMRequest && !stopping) {
+        HGSummaryLearnQAState live={0}; BOOL valid=[self readSummaryTMQA:&live] && live.revision==summaryTMRevision && live.fieldReady && !live.owner
+            && live.fadeFinished && fieldMap==MAP_ROUTE_29 && !menuOpen && summaryTMIdle && _summaryTMBootStep==3 && !_summaryTMBootFrame && !_paused;
+        BOOL accepted=valid && [self prepareSummaryTMFixture:&live];
+        if (!valid) _summaryTMFixtureError=@"fixture_request_no_longer_ready";
+        [_condition lock]; _summaryTMRequestAccepted=accepted; _summaryTMFixturePreparing=NO; [_condition unlock];
+    }
+#else
     if (checkBattleMenusRequest && !stopping) {
         BOOL accepted=w2c_hgengine_HGNativeBattleMenusQARequest(_game,checkBattleMenusRevision)!=0;
         [_condition lock]; _checkBattleMenusRequestAccepted=accepted; [_condition unlock];
     }
+#endif
 #endif
     // Original sound queries can be 30 Hz; service PCM at every display event, before and after drawing.
     if (!HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
@@ -1732,11 +2033,19 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSData *summaryUI = [NSData dataWithBytes:currentSummary length:sizeof(*currentSummary)];
     NSData *battleBagUI=[NSData dataWithBytes:currentBattleBag length:sizeof(*currentBattleBag)],*battlePartyUI=[NSData dataWithBytes:currentBattleParty length:sizeof(*currentBattleParty)];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+    HGSummaryLearnQAState publishedTM={0}; BOOL haveTM=[self readSummaryTMQA:&publishedTM];
+    NSData *summaryTMData=haveTM ? [NSData dataWithBytes:&publishedTM length:sizeof(publishedTM)] : nil;
+    NSDictionary *summaryTMFacts=[self summaryTMCurrentFacts];
+    UIImage *summaryTMWarning=haveTM && publishedTM.owner==HG_SUMMARY_LEARN_SUMMARY && publishedTM.graphicsReady && currentSummary->ready
+        ? [self summaryTMWarningImage:&publishedTM.hmWarning] : nil;
+#else
     uint32_t qaAddress=w2c_hgengine_HGNativeBattleMenusQAGetState(_game);
     if (!qaAddress || qaAddress>_env->memory->size || sizeof(HGNativeBattleMenusQAState)>_env->memory->size-qaAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeBattleMenusQAState *qa=(const HGNativeBattleMenusQAState *)(_env->memory->data+qaAddress);
     if (qa->version!=HG_BATTLE_MENUS_QA_VERSION || qa->byteSize!=sizeof(*qa)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     NSData *battleMenusQA=[NSData dataWithBytes:qa length:sizeof(*qa)];
+#endif
 #endif
     const HGNativeBattleUIState *battleState = battleUI.bytes;
     BOOL originalPage=summaryContext || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty)))
@@ -1776,7 +2085,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
     NSDictionary *bagPictures=[self copyBagPictures:bagUI.bytes frame:frame subFrame:bagSubFrame];
     NSData *summarySubFrame=nil;
-    if (currentSummary->active && !currentSummary->mode && currentSummary->monDataType==1 && !currentSummary->moveToLearn) {
+    if (summaryContext) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
 #endif
@@ -1825,7 +2134,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _fieldMenuFrame=menuFrame; _fieldMenuIcons=icons;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _geometryState = geometry;
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+    _summaryTMQAState=summaryTMData; _summaryTMFacts=summaryTMFacts; _summaryTMHMWarningImage=summaryTMWarning;
+    _summaryTMPadReads=HGNativeInputPadReads(_env); _summaryTMBootInputStep=_summaryTMBootStep; _summaryTMBootInputFrame=_summaryTMBootFrame;
+#else
     _battleMenusQAState=battleMenusQA;
+#endif
     _publishedFrames++;
 #endif
     [_condition unlock];
@@ -2000,6 +2314,17 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
                     self->_geometryState = nil; self->_checkResetPending = NO;
                     self->_battleMenusQAState=nil; self->_checkBattleMenusRequestPending=self->_checkBattleMenusRequestAccepted=NO; self->_checkBattleMenusRequestRevision=0;
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+                    [self clearSummaryTMTransientLocked];
+                    self->_summaryTMQAState=self->_summaryTMBagBaseline=self->_summaryTMFlagsBaseline=nil;
+                    self->_summaryTMFacts=nil; self->_summaryTMHMWarningImage=nil; self->_summaryTMFixtureError=nil;
+                    self->_summaryTMObserverSeen=self->_summaryTMFixturePreparing=self->_summaryTMFixturePrepared=self->_summaryTMRequestAccepted=NO;
+                    self->_summaryTMRequestRevision=self->_summaryTMPadReads=self->_summaryTMBootStep=self->_summaryTMBootFrame=self->_summaryTMBootInputStep=self->_summaryTMBootInputFrame=0;
+                    self->_summaryTMRawReads=self->_summaryTMRawPresses=self->_summaryTMRawReleases=self->_summaryTMRawRejected=0;
+                    self->_summaryTMMon=self->_summaryTMBag=self->_summaryTMFlags=self->_summaryTMProfile=self->_summaryTMDex=self->_summaryTMTmOffset=0;
+                    self->_summaryTMMoney=self->_summaryTMDexEnabled=self->_summaryTMDexSeen=self->_summaryTMDexOwned=self->_summaryTMNameLength=self->_summaryTMMapSection=self->_summaryTMOriginalPersonality=self->_summaryTMOriginalOtId=0;
+                    memset(self->_summaryTMMonBaseline,0,sizeof(self->_summaryTMMonBaseline)); memset(&self->_summaryTMRawExpected,0,sizeof(self->_summaryTMRawExpected));
+#endif
                     self->_restartClean = !self->_keys && !self->_pendingKeys && !self->_submittedKeys &&
                         !self->_joystickKeys && !self->_pendingJoystickKeys && !self->_submittedJoystickKeys &&
                         !self->_touchPressed && !self->_battleChoicePending && !self->_partyChoicePending && !self->_partyTouchActive && !self->_partyOwnerPictures &&
@@ -2007,6 +2332,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                         !self->_summaryChoicePending && !self->_summaryInputActive && !self->_summaryTouchPressed && !self->_summaryInputKeys && !self->_summaryOwnerPictures && !self->_fieldMapId &&
                         !self->_battleMenuChoicePending && !self->_battleMenuTouchActive && !self->_battleMenuTouchCooling && !self->_battleMenuOwnerPictures && !self->_checkBattleMenusRequestPending &&
                         !self->_fieldMenuOpen && !self->_frameBuffer && !self->_displayControl && !self->_displayStatus;
+#ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
+                    self->_restartClean&=!self->_summaryTMRequestPending && !self->_summaryTMRawPending && !self->_summaryTMRawActive && !self->_summaryTMRawCooling
+                        && !self->_summaryTMQAState && !self->_summaryTMFacts && !self->_summaryTMHMWarningImage && !self->_summaryTMBagBaseline && !self->_summaryTMFlagsBaseline;
+#endif
 #endif
                     [self->_condition unlock];
                     for (OriginalKeyButton *button in self->_buttons.allValues) button.inputGeneration++;
