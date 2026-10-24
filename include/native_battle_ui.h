@@ -3,7 +3,7 @@
 #define HEARTGOLD_NATIVE_BATTLE_UI_H
 #include <stdint.h>
 
-enum { HG_BATTLE_UI_NONE, HG_BATTLE_UI_COMMAND, HG_BATTLE_UI_MOVES, HG_BATTLE_UI_TARGETS };
+enum { HG_BATTLE_UI_NONE, HG_BATTLE_UI_COMMAND, HG_BATTLE_UI_MOVES, HG_BATTLE_UI_TARGETS, HG_BATTLE_UI_NEXT_MON };
 enum { HG_BATTLE_NAME_WIDTH = 256, HG_BATTLE_NAME_HEIGHT = 16 };
 typedef struct HGNativeBattleUIState {
     uint32_t active, revision, mode, ready, enabledMask, cancelRun;

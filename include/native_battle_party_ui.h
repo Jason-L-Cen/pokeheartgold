@@ -6,7 +6,7 @@
 
 enum { HG_BATTLE_PARTY_UI_ROSTER = 1, HG_BATTLE_PARTY_UI_MON_MENU = 2, HG_BATTLE_PARTY_UI_SUMMARY = 3,
     HG_BATTLE_PARTY_UI_CHECK_MOVES = 4, HG_BATTLE_PARTY_UI_MOVE_DETAIL = 5, HG_BATTLE_PARTY_UI_MESSAGE = 17, HG_BATTLE_PARTY_UI_ACK = 18 };
-enum { HG_BATTLE_PARTY_UI_SWITCH = 0, HG_BATTLE_PARTY_UI_USE_ITEM = 2, HG_BATTLE_PARTY_UI_POTION = 17 };
+enum { HG_BATTLE_PARTY_UI_SWITCH = 0, HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL = 1, HG_BATTLE_PARTY_UI_USE_ITEM = 2, HG_BATTLE_PARTY_UI_POTION = 17 };
 enum { HG_BATTLE_PARTY_UI_MONS = 6, HG_BATTLE_PARTY_UI_BUTTONS = 8 };
 
 typedef struct HGNativeBattlePartyUIMon {
@@ -39,13 +39,15 @@ static inline uint32_t HGNativeBattlePartyUIResolveTouch(const HGNativeBattlePar
     uint32_t phase, uint32_t index, uint32_t *x, uint32_t *y) {
     if (!state || !x || !y || !state->active || !state->ready || state->revision != revision || state->phase != phase
         || state->partyCount > HG_BATTLE_PARTY_UI_MONS
-        || (state->mode != HG_BATTLE_PARTY_UI_SWITCH && (state->mode != HG_BATTLE_PARTY_UI_USE_ITEM || state->itemId != HG_BATTLE_PARTY_UI_POTION))) return 0;
+        || (state->mode != HG_BATTLE_PARTY_UI_SWITCH && state->mode != HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL
+            && (state->mode != HG_BATTLE_PARTY_UI_USE_ITEM || state->itemId != HG_BATTLE_PARTY_UI_POTION))) return 0;
     uint32_t count;
     if (phase == HG_BATTLE_PARTY_UI_ROSTER && state->page == 0) count = 7;
-    else if (phase == HG_BATTLE_PARTY_UI_MON_MENU && state->page == 1 && state->mode == HG_BATTLE_PARTY_UI_SWITCH
+    else if (phase == HG_BATTLE_PARTY_UI_MON_MENU && state->page == 1
+        && (state->mode == HG_BATTLE_PARTY_UI_SWITCH || state->mode == HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL)
         && state->selectedSlot < state->partyCount && state->mons[state->selectedSlot].slotType) count = 4;
     else if (phase == HG_BATTLE_PARTY_UI_ACK && state->page <= 1) count = 1;
-    else if (state->mode == HG_BATTLE_PARTY_UI_SWITCH && state->selectedSlot < state->partyCount
+    else if ((state->mode == HG_BATTLE_PARTY_UI_SWITCH || state->mode == HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL) && state->selectedSlot < state->partyCount
         && state->mons[state->selectedSlot].slotType && !state->mons[state->selectedSlot].isEgg) {
         if (phase == HG_BATTLE_PARTY_UI_SUMMARY && state->page == 2) count = 4;
         else if (phase == HG_BATTLE_PARTY_UI_CHECK_MOVES && state->page == 3) count = 8;
@@ -56,7 +58,8 @@ static inline uint32_t HGNativeBattlePartyUIResolveTouch(const HGNativeBattlePar
     else return 0;
     if (state->buttonCount != count || index >= count || (state->enabledMask & ~((1u << count) - 1))
         || !(state->enabledMask & (1u << index))) return 0;
-    if (phase == HG_BATTLE_PARTY_UI_ROSTER && index < 6 && !state->mons[index].slotType) return 0;
+    if (phase == HG_BATTLE_PARTY_UI_ROSTER && ((index < 6 && !state->mons[index].slotType)
+        || (index == 6 && state->mode == HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL))) return 0;
     if ((phase == HG_BATTLE_PARTY_UI_CHECK_MOVES || phase == HG_BATTLE_PARTY_UI_MOVE_DETAIL) && index < 4 && !state->moves[index].moveId) return 0;
     const HGNativeBattlePartyUIButton *button = &state->buttons[index];
     if (!button->cropWidth || button->cropWidth > 256 || !button->cropHeight || button->cropHeight > 192

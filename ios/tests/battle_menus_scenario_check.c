@@ -8,8 +8,22 @@
 #include "native_battle_ui.h"
 #include "native_battle_bag_ui.h"
 #include "native_battle_party_ui.h"
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+#include "native_bag_ui.h"
+#include "constants/heap.h"
+#include "constants/pokemon.h"
+#include "constants/items.h"
+#include "item.h"
+_Static_assert(sizeof(HGNativePartyUIState)==1480 && sizeof(HGNativeBagUIState)==1568,"Field Potion UI ABI");
+#endif
 #include <nitro/os/native_reset.h>
 #include <setjmp.h>
+
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+#define NATURAL_DAMAGE_GROWL_LIMIT 12
+#else
+#define NATURAL_DAMAGE_GROWL_LIMIT 6
+#endif
 
 #define QA_CHECK(value) do { if (!(value)) { fprintf(stderr,"Battle menus failure line %d stage %u: %s\n",__LINE__,stage,#value); _Exit(1); } } while (0)
 typedef struct BattleMenusCommand { u32 active,revision,mode,ready,enabledMask,cancelRun,move[4],pp[4]; } BattleMenusCommand;
@@ -34,6 +48,24 @@ static u8 infoDescription[120*80*4];
 static const char *blockedStatus;
 static BOOL resetExpected,baselineComplete,fullHpNoEffect,targetCancel,shiftRejected,healed,damageMissing,sceneBlocked,busyCaptured,fieldReturned;
 static HGNativeBattleMenusQAState finalQA;
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+static u32 fieldIconCenters[7][2],fieldPartyRevision,fieldBagRevision,fieldTargetRevision,fieldFirstBagRevision,fieldPocketVisited;
+static u32 fieldPartyAddress,fieldBagAddress,fieldFlagsAddress,fieldDexAddress,fieldMon26[6][26],fieldFlags[5],fieldBagSize,fieldPotionOffset;
+static u32 fieldPreHp,fieldProgress,fieldResultWaitMask,fieldLastDrawHp,fieldUseLastState[10],fieldUseStateCount;
+static u8 *fieldOriginalBag,*fieldExpectedBag;
+static BOOL fieldTargetCancelled,fieldCancelNewBag,fieldHealed,fieldHealNewBag,fieldFullHp,fieldFullHpNewBag,fieldStale,fieldQuantityExact,fieldSemanticStable;
+static const u32 fieldMonAttributes[26]={MON_DATA_PERSONALITY,MON_DATA_OT_ID,MON_DATA_SPECIES,MON_DATA_FORM,MON_DATA_IS_EGG,MON_DATA_HELD_ITEM,
+    MON_DATA_HP,MON_DATA_MAX_HP,MON_DATA_LEVEL,MON_DATA_STATUS,MON_DATA_MOVE1,MON_DATA_MOVE2,MON_DATA_MOVE3,MON_DATA_MOVE4,
+    MON_DATA_MOVE1_PP,MON_DATA_MOVE2_PP,MON_DATA_MOVE3_PP,MON_DATA_MOVE4_PP,MON_DATA_MOVE1_PP_UPS,MON_DATA_MOVE2_PP_UPS,MON_DATA_MOVE3_PP_UPS,MON_DATA_MOVE4_PP_UPS,
+    MON_DATA_MOVE1_MAX_PP,MON_DATA_MOVE2_MAX_PP,MON_DATA_MOVE3_MAX_PP,MON_DATA_MOVE4_MAX_PP};
+#endif
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+static u32 forcedGrowls,forcedRevision,forcedCommandRevision,forcedReplyBefore,forcedTurnBefore;
+static BOOL forcedKO,forcedTypedCancel,forcedActualCancel,forcedInfo,forcedFaintRejected,forcedEggInfo,forcedEggRejected,forcedReply,forcedActive;
+static BOOL forcedNextMonPrompt,forcedNextMonYes;
+static u32 forcedNextMonNameWidth[2];
+static HGNativeBattlePartyUIMon forcedMons[6]; static void forcedDiagnostic(HGNativeBattleMenusQAState q,BattleMenusCommand cmd,HGNativeBattlePartyUIState party,u32 frame);
+#endif
 #ifdef HG_BATTLE_MENUS_INFO_NAV
 static u32 navPreviousRevision,navVisits,navStaleRejected,navMoveSeen,navNameSeen[2],navNameDistinctPages,navCommandRevision;
 static BOOL navComplete,navBrowsingStable;
@@ -219,6 +251,169 @@ static u32 potionRow(HGNativeBattleBagUIState bag) {
     for (u32 i=0;i<6;i++) if (bag.itemId[i]==17 && bag.quantity[i]==5) return i;
     QA_CHECK(FALSE); return 0;
 }
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+static HGNativePartyUIState readFieldParty(Capture *capture) {
+    u32 address=w2c_hgengine_HGNativePartyUIGetState(capture->game); HGNativePartyUIState state;
+    memcpy(&state,guest(capture,address,sizeof(state)),sizeof(state));
+    QA_CHECK(!memcmp(&state,guest(capture,address,sizeof(state)),sizeof(state)) && state.revision>=fieldPartyRevision);
+    fieldPartyRevision=state.revision; return state;
+}
+static HGNativeBagUIState readFieldBag(Capture *capture) {
+    u32 address=w2c_hgengine_HGNativeBagUIGetState(capture->game); HGNativeBagUIState state;
+    memcpy(&state,guest(capture,address,sizeof(state)),sizeof(state));
+    QA_CHECK(!memcmp(&state,guest(capture,address,sizeof(state)),sizeof(state)) && state.revision>=fieldBagRevision);
+    fieldBagRevision=state.revision; return state;
+}
+static void fieldSemantic(Capture *capture,const char *step,BOOL baseline,BOOL healed) {
+    u32 current[6][26]={{0}},flags[5];
+    QA_CHECK(w2c_hgengine_Party_GetCount(capture->game,fieldPartyAddress)==1);
+    u32 mon=w2c_hgengine_Party_GetMonByIndex(capture->game,fieldPartyAddress,0); guest(capture,mon,1);
+    for (u32 j=0;j<26;++j) current[0][j]=w2c_hgengine_GetMonData(capture->game,mon,fieldMonAttributes[j],0);
+    flags[0]=w2c_hgengine_CheckGotStarter(capture->game,fieldFlagsAddress); flags[1]=w2c_hgengine_CheckGotPokedex(capture->game,fieldFlagsAddress);
+    flags[2]=w2c_hgengine_Pokedex_IsEnabled(capture->game,fieldDexAddress); flags[3]=w2c_hgengine_Pokedex_CountNationalDexSeen(capture->game,fieldDexAddress);
+    flags[4]=w2c_hgengine_Pokedex_CountNationalDexOwned(capture->game,fieldDexAddress);
+    u32 size=w2c_hgengine_Save_Bag_sizeof(capture->game),quantity=w2c_hgengine_Bag_GetQuantity(capture->game,fieldBagAddress,17,HEAP_ID_FIELD2);
+    const u8 *bag=guest(capture,fieldBagAddress,size);
+    if (baseline) {
+        QA_CHECK(current[0][2]==152 && !current[0][4] && !current[0][5] && current[0][6] && current[0][6]<20 && current[0][7]==20 && quantity==5);
+        fieldPreHp=fieldLastDrawHp=current[0][6]; memcpy(fieldMon26,current,sizeof(current)); memcpy(fieldFlags,flags,sizeof(flags));
+        fieldBagSize=size; QA_CHECK(size>=sizeof(ItemSlot)); fieldOriginalBag=malloc(size); fieldExpectedBag=malloc(size); QA_CHECK(fieldOriginalBag && fieldExpectedBag);
+        memcpy(fieldOriginalBag,bag,size); memcpy(fieldExpectedBag,bag,size);
+        u32 found=0;
+        // Ask the original getter for the actual medicine slots; preserve every other Bag byte.
+        for (u32 i=0;i<NUM_BAG_MEDICINE;++i) {
+            u32 address=w2c_hgengine_Bag_GetPocketSlotN(capture->game,fieldBagAddress,POCKET_MEDICINE,i); ItemSlot slot;
+            QA_CHECK(address>=fieldBagAddress && address-fieldBagAddress<=size-sizeof(slot));
+            memcpy(&slot,guest(capture,address,sizeof(slot)),sizeof(slot));
+            if (slot.id==ITEM_POTION) { QA_CHECK(slot.quantity==5); fieldPotionOffset=address-fieldBagAddress+offsetof(ItemSlot,quantity); ++found; }
+        }
+        QA_CHECK(found==1); u16 four=4; memcpy(fieldExpectedBag+fieldPotionOffset,&four,2);
+    } else {
+        QA_CHECK(size==fieldBagSize && quantity==(healed ? 4 : 5) && !memcmp(flags,fieldFlags,sizeof(flags)));
+        for (u32 j=0;j<26;++j) QA_CHECK(current[0][j]==(j==6 && healed ? 20 : fieldMon26[0][j]));
+        QA_CHECK(!memcmp(bag,healed ? fieldExpectedBag : fieldOriginalBag,size));
+        fieldQuantityExact=TRUE; fieldSemanticStable=TRUE;
+    }
+    bytes(capture,"field-mon26.bin",current,sizeof(current)); bytes(capture,"field-bag.bin",bag,size);
+    printf("Battle menus field Potion checkpoint: {\"step\":\"%s\",\"liveHp\":%u,\"maxHp\":%u,\"potion\":%u,\"monAttributes\":26,\"bagBytes\":%u,\"baselineAfterBattle\":true,\"otherAttributesFlagsDexBagUnchanged\":true}\n",step,current[0][6],current[0][7],quantity,size);
+}
+static void fieldBagChoice(Capture *capture,HGNativeBagUIState previous,u32 kind,u32 row) {
+    HGNativeBagUIState current=readFieldBag(capture); u32 x,y;
+    QA_CHECK(HGNativeBagUIResolveTouch(&current,previous.revision,previous.phase,kind,row,&x,&y)); pulse(capture,x,y);
+}
+static void fieldPartyChoice(Capture *capture,HGNativePartyUIState previous,u32 kind,u32 row) {
+    HGNativePartyUIState current=readFieldParty(capture); u32 x,y;
+    QA_CHECK(HGNativePartyUIResolveTouch(&current,previous.revision,previous.phase,kind,row,&x,&y)); pulse(capture,x,y);
+}
+static BOOL fieldSnapshot(Capture *capture,const char *role,HGNativePartyUIState party,HGNativeBagUIState bag) {
+    if (!snapshot(capture,role,party.active || bag.active)) return FALSE;
+    bytes(capture,"field-party-state.bin",&party,sizeof(party)); bytes(capture,"field-bag-state.bin",&bag,sizeof(bag));
+    window(capture,"field-party-message.4bpp",&party.message); window(capture,"field-bag-prompt.4bpp",&bag.prompt);
+    window(capture,"field-bag-message.4bpp",&bag.message); return TRUE;
+}
+static BOOL fieldChoosePotion(Capture *capture,HGNativeBagUIState bag) {
+    for (u32 i=0;i<bag.visibleCount && i<HG_BAG_UI_ITEMS;++i) if (bag.items[i].itemId==17 && bag.items[i].enabled) {
+        fieldPocketVisited=0; fieldBagChoice(capture,bag,HG_BAG_UI_TOUCH_ITEM,i); return TRUE;
+    }
+    fieldPocketVisited|=1u<<bag.pocketIndex;
+    for (u32 i=0;i<HG_BAG_UI_POCKETS;++i) if ((bag.pocketMask&(1u<<i)) && !(fieldPocketVisited&(1u<<i))) {
+        fieldBagChoice(capture,bag,HG_BAG_UI_TOUCH_POCKET,i); return FALSE;
+    }
+    QA_CHECK(FALSE); return FALSE;
+}
+static void fieldUse(Capture *capture,HGNativeBagUIState bag) {
+    QA_CHECK(bag.selectedItemId==17);
+    for (u32 i=0;i<bag.actionCount && i<HG_BAG_UI_ACTIONS;++i) if (!bag.actions[i].actionId && bag.actions[i].enabled) {
+        fieldBagChoice(capture,bag,HG_BAG_UI_TOUCH_ACTION,i); return;
+    }
+    QA_CHECK(FALSE);
+}
+static void fieldObserveUse(HGNativePartyUIState party) {
+    u32 x,y;
+    u32 continueResolved=party.phase==HG_PARTY_UI_ITEM_USE
+        && HGNativePartyUIResolveTouch(&party,party.revision,party.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y);
+    u32 observed[]={stage,party.phase,party.selected,party.ready,party.cancelEnabled,party.revision,party.mons[0].hp,
+        party.message.tileWidth,party.message.tileHeight,continueResolved};
+    if (!fieldUseStateCount || memcmp(observed,fieldUseLastState,sizeof(observed))) {
+        QA_CHECK(fieldUseStateCount<128); ++fieldUseStateCount; memcpy(fieldUseLastState,observed,sizeof(observed));
+        printf("Battle menus field Potion state: {\"stage\":%u,\"phase\":%u,\"selected\":%u,\"ready\":%u,\"cancelEnabled\":%u,\"revision\":%u,\"hp\":%u,\"messageWidth\":%u,\"messageHeight\":%u,\"continueResolved\":%u}\n",
+            stage,party.phase,party.selected,party.ready,party.cancelEnabled,party.revision,party.mons[0].hp,
+            party.message.tileWidth,party.message.tileHeight,continueResolved);
+    }
+    if ((stage==127 || stage==131) && HGNativePartyUIIsPotionUse(&party) && party.phase==HG_PARTY_UI_ITEM_USE) {
+        QA_CHECK(party.selected==(stage==127 ? 0 : HG_PARTY_UI_CONFIRM));
+        QA_CHECK(party.revision>fieldTargetRevision
+            && !HGNativePartyUIResolveTouch(&party,fieldTargetRevision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_MON,0,&x,&y)
+            && !HGNativePartyUIResolveTouch(&party,fieldTargetRevision,party.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y)); fieldStale=TRUE;
+        QA_CHECK(!HGNativePartyUIResolveTouch(&party,party.revision,party.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+        if (!party.ready) {
+            QA_CHECK(!continueResolved);
+        } else {
+            QA_CHECK(continueResolved); fieldResultWaitMask|=stage==127 ? 1u : 2u;
+        }
+        if (stage==127 && party.mons[0].hp>fieldPreHp) {
+            ++fieldProgress;
+            if (party.mons[0].hp!=fieldLastDrawHp) {
+                QA_CHECK(party.mons[0].hp>fieldLastDrawHp && party.mons[0].hp<=20);
+                printf("Battle menus field Potion draw: {\"previousHp\":%u,\"drawHp\":%u,\"ready\":%u,\"selected\":%u,\"revision\":%u}\n",fieldLastDrawHp,party.mons[0].hp,party.ready,party.selected,party.revision);
+                fieldLastDrawHp=party.mons[0].hp;
+            }
+        }
+    }
+}
+static void fieldPotionPresent(Capture *capture,HGNativeBattleMenusQAState q) {
+    HGNativePartyUIState party=readFieldParty(capture); HGNativeBagUIState bag=readFieldBag(capture); u32 x,y;
+    BOOL list=bag.active && bag.ready && HGNativeBagUIIsList(&bag) && !bag.mode;
+    BOOL menu=bag.active && bag.ready && bag.phase==HG_BAG_UI_ITEM_MENU && !bag.mode;
+    BOOL target=HGNativePartyUIIsPotionUse(&party) && party.ready && party.phase==HG_PARTY_UI_ITEM_TARGET;
+    if ((stage==127 || stage==131) && HGNativePartyUIIsPotionUse(&party) && party.phase==HG_PARTY_UI_ITEM_USE) {
+        if (!party.ready || party.selected!=(stage==127 ? 0 : HG_PARTY_UI_CONFIRM)) return;
+        QA_CHECK(party.message.pixelBuffer && party.message.tileWidth==27 && party.message.tileHeight==4 && party.cancelEnabled);
+        if (!fieldSnapshot(capture,stage==127 ? "field-potion-healed" : "field-potion-full-no-effect",party,bag)) return;
+        fieldSemantic(capture,stage==127 ? "healed" : "full-hp-no-effect",FALSE,TRUE);
+        if (stage==127) { QA_CHECK(fieldProgress && (fieldResultWaitMask&1)); fieldHealed=TRUE; } else fieldFullHp=TRUE;
+        fieldPartyChoice(capture,party,HG_PARTY_UI_TOUCH_CANCEL,0); next(stage+1); return;
+    }
+    switch (stage) {
+    case 120: {
+        u32 icons=w2c_hgengine_HGNativeFieldMenuIcons(capture->game);
+        for (u32 i=0;i<7;++i) if (((icons>>(i*4))&15)==2) { pulse(capture,fieldIconCenters[i][0],fieldIconCenters[i][1]); next(121); break; }
+        break;
+    }
+    case 121: case 124: case 128: case 132:
+        if (!list) break;
+        if (stage==121) fieldFirstBagRevision=bag.revision;
+        else {
+            QA_CHECK(bag.revision>fieldFirstBagRevision && !party.active);
+            QA_CHECK(!HGNativePartyUIResolveTouch(&party,fieldTargetRevision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_MON,0,&x,&y)); fieldStale=TRUE;
+            fieldSemantic(capture,stage==124 ? "cancel-new-bag" : stage==128 ? "heal-new-bag" : "full-hp-new-bag",FALSE,stage!=124);
+            if (!fieldSnapshot(capture,stage==124 ? "field-potion-cancel-bag" : stage==128 ? "field-potion-heal-bag" : "field-potion-full-bag",party,bag)) break;
+            if (stage==124) fieldCancelNewBag=TRUE; else if (stage==128) fieldHealNewBag=TRUE; else fieldFullHpNewBag=TRUE;
+        }
+        if (stage==132) { fieldBagChoice(capture,bag,HG_BAG_UI_TOUCH_CANCEL,0); next(133); }
+        else if (fieldChoosePotion(capture,bag)) next(stage+1);
+        break;
+    case 122: case 125: case 129: if (menu) { fieldUse(capture,bag); next(stage+1); } break;
+    case 123: case 126: case 130:
+        if (!target) break;
+        QA_CHECK(party.count==1 && party.mons[0].active && party.mons[0].species==152 && party.mons[0].maxHp==20
+            && party.mons[0].hp==(stage==130 ? 20 : fieldPreHp));
+        if (stage!=123) { QA_CHECK(party.revision>fieldTargetRevision && !HGNativePartyUIResolveTouch(&party,fieldTargetRevision,party.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y)); fieldStale=TRUE; }
+        if (!fieldSnapshot(capture,stage==123 ? "field-potion-target-cancel" : stage==126 ? "field-potion-target-heal" : "field-potion-target-full",party,bag)) break;
+        fieldTargetRevision=party.revision;
+        fieldPartyChoice(capture,party,stage==123 ? HG_PARTY_UI_TOUCH_CANCEL : HG_PARTY_UI_TOUCH_MON,0);
+        if (stage==123) fieldTargetCancelled=TRUE;
+        next(stage+1); break;
+    case 127: case 131: break;
+    case 133:
+        if (party.active || bag.active || w2c_hgengine_HGNativeFieldMap(capture->game)!=33) break;
+        fieldSemantic(capture,"field-before-reset",FALSE,TRUE);
+        if (!fieldSnapshot(capture,"field-potion-field-return",party,bag)) break;
+        fieldReturned=TRUE; finalQA=q; resetExpected=TRUE; w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE); break;
+    default: QA_CHECK(FALSE);
+    }
+}
+#endif
 #ifdef HG_BATTLE_MENUS_INFO_NAV
 static void navigationState(HGNativeBattleMenusQAState q,HGNativeBattlePartyUIState party,u32 page,u32 step) {
     static const u32 slots[]={0,2,0,2,0};
@@ -313,6 +508,127 @@ static void navigationPresent(Capture *capture,HGNativeBattleMenusQAState q,Batt
     resetExpected=TRUE; w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE);
 }
 #endif
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+static void forcedStable(HGNativeBattleMenusQAState q,HGNativeBattlePartyUIState party) {
+    infoUnchanged(q);
+    QA_CHECK(party.active && party.ready && party.mode==HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL && party.partyCount==3
+        && !memcmp(party.mons,forcedMons,sizeof(forcedMons)) && !party.itemId && !party.pocket);
+}
+static void forcedPresent(Capture *capture,HGNativeBattleMenusQAState q,BattleMenusCommand cmd,HGNativeBattlePartyUIState party) {
+    BOOL command=cmd.active && cmd.ready && cmd.mode==HG_BATTLE_UI_COMMAND;
+    BOOL roster=party.active && party.ready && party.phase==HG_BATTLE_PARTY_UI_ROSTER;
+    BOOL monMenu=party.active && party.ready && party.phase==HG_BATTLE_PARTY_UI_MON_MENU;
+    u32 x,y;
+    if (q.returned) {
+        blockedStatus="prerequisite_forced_switch_battle_ended"; finalQA=q; resetExpected=TRUE;
+        w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE);
+    }
+    if ((stage==1 || stage==201 || stage==202) && cmd.active && cmd.ready && cmd.mode==HG_BATTLE_UI_NEXT_MON) {
+        QA_CHECK(!forcedNextMonYes && forcedGrowls && !q.playerHp && q.battleActive && !q.replyCount && cmd.enabledMask==3);
+        u32 address=w2c_hgengine_HGNativeBattleUIGetState(capture->game);
+        const HGNativeBattleUIState *state=guest(capture,address,sizeof(*state));
+        QA_CHECK(state->active && state->ready && state->mode==HG_BATTLE_UI_NEXT_MON && state->enabledMask==3 && state->revision==cmd.revision);
+        for (u32 i=0;i<2;++i) {
+            forcedNextMonNameWidth[i]=state->nameWidth[i];
+            QA_CHECK(state->nameWidth[i] && state->nameWidth[i]<=HG_BATTLE_NAME_WIDTH);
+            BOOL visible=FALSE;
+            for (u32 pixel=0;pixel<HG_BATTLE_NAME_WIDTH*HG_BATTLE_NAME_HEIGHT;++pixel) visible|=state->namePixels[i][pixel*4+3]!=0;
+            QA_CHECK(visible);
+        }
+        if (!snapshot(capture,"forced-next-mon-original-prompt",TRUE)) return;
+        state=guest(capture,address,sizeof(*state));
+        QA_CHECK(state->revision==cmd.revision && state->ready && state->mode==HG_BATTLE_UI_NEXT_MON && state->enabledMask==3);
+        bytes(capture,"forced-next-mon-upper.rgba",state->namePixels[0],sizeof(state->namePixels[0]));
+        bytes(capture,"forced-next-mon-lower.rgba",state->namePixels[1],sizeof(state->namePixels[1]));
+        forcedNextMonPrompt=TRUE; commandChoice(capture,cmd,0); forcedNextMonYes=TRUE; next(218); return;
+    }
+    switch (stage) {
+    case 1: case 202: case 218:
+        if (roster && party.mode==HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL) {
+            QA_CHECK(forcedNextMonPrompt && forcedNextMonYes && forcedGrowls && party.partyCount==3 && party.mons[0].species==152 && !party.mons[0].hp
+                && party.mons[1].species==175 && party.mons[1].isEgg && party.mons[2].species==155 && !party.mons[2].isEgg && party.mons[2].hp
+                && q.semanticsMask==527 && !q.replyCount);
+            forcedKO=TRUE; infoBefore=q; memcpy(forcedMons,party.mons,sizeof(forcedMons)); forcedRevision=party.revision;
+            QA_CHECK(!(party.enabledMask&64) && !HGNativeBattlePartyUIResolveTouch(&party,party.revision,party.phase,6,&x,&y));
+            HGNativeBattlePartyUIState forged=party; forged.enabledMask|=64;
+            QA_CHECK(!HGNativeBattlePartyUIResolveTouch(&forged,forged.revision,forged.phase,6,&x,&y)); forcedTypedCancel=TRUE;
+            if (!snapshot(capture,"forced-natural-ko-roster",TRUE)) break;
+            QA_CHECK(party.buttons[6].hitX<256 && party.buttons[6].hitY<192);
+            pulse(capture,party.buttons[6].hitX,party.buttons[6].hitY); next(203); break;
+        }
+        if (stage==218 || !command) break;
+        if (stage==202 && (cmd.revision==forcedCommandRevision || q.totalTurns<=forcedTurnBefore)) break;
+        QA_CHECK(q.partyCount==3 && q.enemySpecies==19 && q.enemyLevel==20 && !q.activePartySlot && q.playerHp && !q.replyCount);
+        if (forcedGrowls>=12) {
+            blockedStatus="prerequisite_natural_ko_not_observed"; finalQA=q; resetExpected=TRUE;
+            w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE);
+        }
+        forcedCommandRevision=cmd.revision; forcedTurnBefore=q.totalTurns; commandChoice(capture,cmd,0); next(201); break;
+    case 201:
+        if (!cmd.active || !cmd.ready || cmd.mode!=HG_BATTLE_UI_MOVES) break;
+        QA_CHECK(cmd.move[1]==45 && cmd.pp[1]); ++forcedGrowls; commandChoice(capture,cmd,1); next(202); break;
+    case 203:
+        if (!roster || party.selectedSlot!=6) break;
+        forcedStable(q,party); QA_CHECK(!q.replyCount && party.revision>forcedRevision); forcedActualCancel=TRUE;
+        if (!snapshot(capture,"forced-cancel-refused",TRUE)) break;
+        partyChoice(capture,party,0); next(204); break;
+    case 204:
+        if (!monMenu) break;
+        forcedStable(q,party); QA_CHECK(!party.selectedSlot);
+        partyChoice(capture,party,1); next(205); break;
+    case 205: case 207:
+        if (!party.active || !party.ready || party.phase!=HG_BATTLE_PARTY_UI_SUMMARY) break;
+        forcedStable(q,party); QA_CHECK(!party.selectedSlot && party.page==2 && party.revision>forcedRevision);
+        if (!snapshot(capture,stage==205 ? "forced-fainted-summary" : "forced-fainted-summary-return",TRUE)) break;
+        forcedRevision=party.revision;
+        partyChoice(capture,party,stage==205 ? 2 : 3); next(stage+1); break;
+    case 206:
+        if (!party.active || !party.ready || party.phase!=HG_BATTLE_PARTY_UI_CHECK_MOVES) break;
+        forcedStable(q,party); QA_CHECK(!party.selectedSlot && party.page==3 && party.revision>forcedRevision);
+        QA_CHECK(!HGNativeBattlePartyUIResolveTouch(&party,forcedRevision,party.phase,6,&x,&y));
+        if (!snapshot(capture,"forced-fainted-moves",TRUE)) break;
+        forcedRevision=party.revision; partyChoice(capture,party,6); next(207); break;
+    case 208:
+        if (!monMenu) break;
+        forcedStable(q,party); QA_CHECK(!party.selectedSlot); forcedInfo=TRUE;
+        partyChoice(capture,party,0); next(209); break;
+    case 209: case 213:
+        if (!party.active || !party.ready || party.phase!=HG_BATTLE_PARTY_UI_ACK) break;
+        forcedStable(q,party); QA_CHECK(party.selectedSlot==(stage==209 ? 0 : 1) && !q.replyCount);
+        if (!snapshot(capture,stage==209 ? "forced-fainted-shift-refused" : "forced-egg-shift-refused",TRUE)) break;
+        if (stage==209) forcedFaintRejected=TRUE; else forcedEggRejected=TRUE;
+        partyChoice(capture,party,0); next(stage+1); break;
+    case 210: case 214:
+        if (!monMenu) break;
+        forcedStable(q,party); partyChoice(capture,party,3); next(stage+1); break;
+    case 211: case 215:
+        if (!roster) break;
+        forcedStable(q,party); partyChoice(capture,party,stage==211 ? 1 : 2); next(stage+1); break;
+    case 212:
+        if (!monMenu) break;
+        forcedStable(q,party); QA_CHECK(party.selectedSlot==1 && !(party.enabledMask&6)
+            && !HGNativeBattlePartyUIResolveTouch(&party,party.revision,party.phase,1,&x,&y)
+            && !HGNativeBattlePartyUIResolveTouch(&party,party.revision,party.phase,2,&x,&y));
+        if (!snapshot(capture,"forced-egg-actions",TRUE)) break;
+        forcedEggInfo=TRUE; partyChoice(capture,party,0); next(213); break;
+    case 216:
+        if (!monMenu) break;
+        forcedStable(q,party); QA_CHECK(party.selectedSlot==2); forcedReplyBefore=q.replyCount;
+        if (!snapshot(capture,"forced-reserve-actions",TRUE)) break;
+        partyChoice(capture,party,0); next(217); break;
+    case 217:
+        if (q.replyCount>forcedReplyBefore) {
+            QA_CHECK(q.replyCount==forcedReplyBefore+1 && q.replyTarget==3 && !q.replyItem && !q.replyPocket && q.replyHp && q.replyHp<=q.replyMaxHp);
+            forcedReply=TRUE;
+        }
+        if (!forcedReply || !command || party.active) break;
+        QA_CHECK(cmd.revision>forcedCommandRevision && q.activePartySlot==2 && q.semanticsMask==575 && q.battleActive && !q.returned && !q.lifecycleCleared);
+        if (!snapshot(capture,"forced-reserve-original-command",TRUE)) break;
+        forcedActive=TRUE; finalQA=q; resetExpected=TRUE; w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE); break;
+    default: QA_CHECK(FALSE);
+    }
+}
+#endif
 static void MenusPresent(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
     if (!stage) {
@@ -327,6 +643,10 @@ static void MenusPresent(void *argument) {
         blockedStatus="timeout_waiting_original_scene"; finalQA=readQA(capture); resetExpected=TRUE;
         w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE);
     }
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+    // Observe the original HP draw and printer even during the touch release/cooldown handshake.
+    if (stage==127 || stage==131) fieldObserveUse(readFieldParty(capture));
+#endif
     if (pulseFrame) {
         if (!pulseReleased && frame-pulseFrame>=8) { QA_CHECK(HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE)); pulseReleased=TRUE; }
         if (frame-pulseFrame<12) return;
@@ -336,6 +656,12 @@ static void MenusPresent(void *argument) {
     HGNativeBattleBagUIState bag=readBag(capture); HGNativeBattlePartyUIState party=readParty(capture);
 #ifdef HG_BATTLE_MENUS_INFO_NAV
     navigationPresent(capture,q,cmd,bag,party); return;
+#endif
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+    forcedDiagnostic(q,cmd,party,frame); forcedPresent(capture,q,cmd,party); return;
+#endif
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+    if (stage>=120 && stage<=133) { fieldPotionPresent(capture,q); return; }
 #endif
     if (q.returned && q.outcome!=5) {
         blockedStatus="prerequisite_original_battle_ended_otherwise"; finalQA=q; resetExpected=TRUE;
@@ -359,7 +685,7 @@ static void MenusPresent(void *argument) {
     case 1:
         if (!command) break;
         sceneBlocked=q.partyCount!=1 || q.playerHp!=20 || q.playerMaxHp!=20 || q.playerStatus || q.potionQuantity!=5
-            || q.moves[0]!=33 || q.moves[1]!=45 || q.moves[2] || q.moves[3] || q.pp[1]<6 || q.enemySpecies!=10 || q.enemyLevel!=1;
+            || q.moves[0]!=33 || q.moves[1]!=45 || q.moves[2] || q.moves[3] || q.pp[1]<NATURAL_DAMAGE_GROWL_LIMIT || q.enemySpecies!=10 || q.enemyLevel!=1;
         if (sceneBlocked) { originalRun(capture,cmd); next(30); break; }
         baselineTurns=q.totalTurns; initialGrowlPP=q.pp[1]; QA_CHECK(!baselineTurns); commandChoice(capture,cmd,1); next(2); break;
     case 2:
@@ -417,13 +743,19 @@ static void MenusPresent(void *argument) {
         turnBefore=q.totalTurns; commandChoice(capture,cmd,0); next(21); break;
     case 21:
         if (!cmd.active || !cmd.ready || cmd.mode!=HG_BATTLE_UI_MOVES) break;
-        QA_CHECK(cmd.move[1]==45 && cmd.pp[1] && growls<6); ++growls; commandChoice(capture,cmd,1); next(22); break;
+        QA_CHECK(cmd.move[1]==45 && cmd.pp[1] && growls<NATURAL_DAMAGE_GROWL_LIMIT); ++growls; commandChoice(capture,cmd,1); next(22); break;
     case 22:
         if (!command || q.totalTurns<=turnBefore) break;
         QA_CHECK(q.totalTurns==turnBefore+1 && q.playerHp && q.playerHp<=20 && q.potionQuantity==5);
         if (!snapshot(capture,"natural-turn",TRUE)) break;
-        if (q.playerHp<q.playerMaxHp) { commandChoice(capture,cmd,1); next(23); }
-        else if (growls<6) { turnBefore=q.totalTurns; commandChoice(capture,cmd,0); next(21); }
+        if (q.playerHp<q.playerMaxHp) {
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+            originalRun(capture,cmd); next(30);
+#else
+            commandChoice(capture,cmd,1); next(23);
+#endif
+        }
+        else if (growls<NATURAL_DAMAGE_GROWL_LIMIT) { turnBefore=q.totalTurns; commandChoice(capture,cmd,0); next(21); }
         else { damageMissing=TRUE; originalRun(capture,cmd); next(30); }
         break;
     case 23: if (pockets) { bagChoice(capture,bag,0); next(24); } break;
@@ -454,6 +786,21 @@ static void MenusPresent(void *argument) {
         if (baselineComplete) QA_CHECK(q.pp[1]<=initialGrowlPP && initialGrowlPP-q.pp[1]==growls);
         { HGNativeBattleBagUIState a=bag; HGNativeBattlePartyUIState b=party; a.revision=b.revision=0; HGNativeBattleBagUIState z={0}; HGNativeBattlePartyUIState w={0}; QA_CHECK(!memcmp(&a,&z,sizeof(a)) && !memcmp(&b,&w,sizeof(b))); }
         if (!snapshot(capture,"field-return",FALSE)) break;
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+        if (baselineComplete && !damageMissing && !sceneBlocked) {
+            u32 save=w2c_hgengine_SaveData_Get(capture->game); guest(capture,save,1);
+            fieldPartyAddress=w2c_hgengine_SaveArray_Party_Get(capture->game,save); fieldBagAddress=w2c_hgengine_Save_Bag_Get(capture->game,save);
+            fieldFlagsAddress=w2c_hgengine_Save_VarsFlags_Get(capture->game,save); fieldDexAddress=w2c_hgengine_Save_Pokedex_Get(capture->game,save);
+            guest(capture,fieldPartyAddress,1); guest(capture,fieldBagAddress,1); guest(capture,fieldFlagsAddress,1); guest(capture,fieldDexAddress,1);
+            u32 mon=w2c_hgengine_Party_GetMonByIndex(capture->game,fieldPartyAddress,0); guest(capture,mon,1);
+            u32 hp=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HP,0);
+            if (!hp || hp>=20) {
+                blockedStatus="prerequisite_live_field_damage_not_observed"; finalQA=q; resetExpected=TRUE;
+                w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE);
+            }
+            fieldSemantic(capture,"post-battle-baseline",TRUE,FALSE); next(120); break;
+        }
+#endif
         fieldReturned=TRUE; finalQA=q; resetExpected=TRUE; w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE); break;
     case 40:
         if (!summary || !snapshot(capture,"party-summary",TRUE)) break;
@@ -490,7 +837,12 @@ static void MenusPresent(void *argument) {
 
 int main(int argc,char **argv) {
     QA_CHECK(!setvbuf(stdout,NULL,_IOLBF,0));
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+    if (argc!=19 || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) return 2;
+    for (u32 i=0;i<14;++i) { char *end; unsigned long value=strtoul(argv[5+i],&end,10); if (!*argv[5+i] || *end || value>=(i%2 ? 192u : 256u)) return 2; fieldIconCenters[i/2][i%2]=(u32)value; }
+#else
     if (argc!=5 || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) return 2;
+#endif
     u8 header[0x160]; FILE *input=fopen(argv[2],"rb"); QA_CHECK(input);
     QA_CHECK(fread(header,1,sizeof(header),input)==sizeof(header) && fgetc(input)==EOF && !ferror(input)); QA_CHECK(!fclose(input));
     wasm_rt_init(); w2c_hgengine *game=calloc(1,sizeof(*game)); struct w2c_env *env=calloc(1,sizeof(*env));
@@ -512,7 +864,22 @@ int main(int argc,char **argv) {
     }
     QA_CHECK(resetExpected && env->resetRequested); HGNativeFinishReset(env);
     QA_CHECK(env->resetFinished && !env->pendingDMA && !env->dmaAffineWrites && !env->pendingRTC && !env->pendingMIC && !env->pendingCARD && !env->pendingPOWER && !env->pendingINPUT && !env->irqTable && !env->threads && !env->rasterFunction);
-#ifdef HG_BATTLE_MENUS_INFO_NAV
+#if defined(HG_NATIVE_FIELD_POTION_CHECK)
+    BOOL passed=baselineComplete && infoComplete && infoBankRoundTrip && infoStaleRejected==8 && fieldTargetCancelled && fieldCancelNewBag
+        && fieldHealed && fieldHealNewBag && fieldFullHp && fieldFullHpNewBag && fieldStale && fieldQuantityExact && fieldSemanticStable
+        && fieldProgress && fieldResultWaitMask==3 && fieldReturned && !sceneBlocked && !damageMissing && !blockedStatus;
+    const char *status=blockedStatus ? blockedStatus : sceneBlocked ? "scene_prerequisite_blocked" : damageMissing ? "prerequisite_damage_not_observed" : passed ? "passed_original_field_potion" : "actual_assertion_failed";
+    printf("Battle menus field Potion evidence: {\"targetCancel\":%u,\"cancelNewBag\":%u,\"heal\":%u,\"healNewBag\":%u,\"fullHpNoEffect\":%u,\"fullHpNewBag\":%u,\"quantityExact\":%u,\"staleRejected\":%u,\"fieldReturned\":%u,\"otherAttributesFlagsDexBagUnchanged\":%u,\"progressObserved\":%u,\"resultWaitObserved\":%u,\"resultWaitMask\":%u,\"resultStateChanges\":%u,\"preHealHp\":%u,\"battleOutcome\":%u,\"semanticsMask\":%u,\"baselineAfterBattle\":%s,\"resetFinished\":true,\"pendingDMA\":0}\n",
+        fieldTargetCancelled,fieldCancelNewBag,fieldHealed,fieldHealNewBag,fieldFullHp,fieldFullHpNewBag,fieldQuantityExact,fieldStale,fieldReturned,fieldSemanticStable,!!fieldProgress,fieldResultWaitMask==3,fieldResultWaitMask,fieldUseStateCount,fieldPreHp,finalQA.outcome,finalQA.semanticsMask,
+        fieldOriginalBag && fieldExpectedBag && fieldBagSize && fieldPreHp && fieldPreHp<20 ? "true" : "false");
+    printf("Battle menus evidence: {\"status\":\"%s\",\"flowComplete\":%u,\"snapshots\":%u,\"resetFinished\":true,\"pendingDMA\":0}\n",status,passed,snapshots);
+#elif defined(HG_NATIVE_FORCED_SWITCH_CHECK)
+    BOOL passed=forcedNextMonPrompt && forcedNextMonYes && forcedKO && forcedTypedCancel && forcedActualCancel && forcedInfo && forcedFaintRejected && forcedEggInfo && forcedEggRejected && forcedReply && forcedActive && !blockedStatus;
+    const char *status=blockedStatus ? blockedStatus : passed ? "passed_private_original_forced_switch" : "actual_assertion_failed";
+    printf("Battle menus forced switch evidence: {\"nextMonPromptObserved\":%u,\"nextMonTypedYes\":%u,\"nextMonNameWidths\":[%u,%u],\"fleeBranchExercised\":false,\"naturalKO\":%u,\"typedCancelRejected\":%u,\"actualCancelRejected\":%u,\"faintedInfoRoundTrip\":%u,\"faintedShiftRejected\":%u,\"eggInfoDisabled\":%u,\"eggShiftRejected\":%u,\"reserveReplyObserved\":%u,\"reserveActiveObserved\":%u,\"semanticsMask\":%u,\"activeSlot\":%u,\"replyTarget\":%u,\"growlChoices\":%u,\"normalBattleTeardown\":false,\"resultsCopiedToSave\":false,\"resetFinished\":true,\"pendingDMA\":0}\n",
+        forcedNextMonPrompt,forcedNextMonYes,forcedNextMonNameWidth[0],forcedNextMonNameWidth[1],forcedKO,forcedTypedCancel,forcedActualCancel,forcedInfo,forcedFaintRejected,forcedEggInfo,forcedEggRejected,forcedReply,forcedActive,finalQA.semanticsMask,finalQA.activePartySlot,finalQA.replyTarget,forcedGrowls);
+    printf("Battle menus evidence: {\"status\":\"%s\",\"flowComplete\":%u,\"snapshots\":%u,\"resetFinished\":true,\"pendingDMA\":0}\n",status,passed,snapshots);
+#elif defined(HG_BATTLE_MENUS_INFO_NAV)
     BOOL passed=navComplete && navBrowsingStable && navVisits==10 && navStaleRejected==8 && navNameDistinctPages==3 && navMoveSeen==3 && !blockedStatus;
     const char *status=blockedStatus ? blockedStatus : passed ? "passed_private_battle_party_navigation" : "actual_assertion_failed";
     printf("Battle menus navigation evidence: {\"complete\":%u,\"visits\":%u,\"samePhaseStaleRejected\":%u,\"nameDistinctPages\":%u,\"browsingQAUnchanged\":%u,\"commandReopenIncrement\":%u,\"semanticsMask\":%u,\"syntheticBattlePartyCount\":%u,\"loadedSavePartyCount\":1,\"battleActiveBeforeReset\":%u,\"turnsBeforeReset\":%u,\"returnedBeforeReset\":%u,\"lifecycleClearedBeforeReset\":%u,\"normalBattleTeardown\":false,\"resultsCopiedToSave\":false,\"qaBytes\":%zu}\n",
@@ -528,6 +895,38 @@ int main(int argc,char **argv) {
     printf("Battle menus evidence: {\"status\":\"%s\",\"baselineCancel\":%u,\"fullHpNoEffect\":%u,\"targetCancel\":%u,\"shiftRejected\":%u,\"staleRejected\":%u,\"growlTurns\":%u,\"preHealHp\":%u,\"healGate\":%u,\"replyHp\":%u,\"replyMaxHp\":%u,\"replyPotionQuantity\":%u,\"lastCommandHp\":%u,\"totalTurns\":%u,\"returned\":%u,\"outcome\":%u,\"semanticsMask\":%u,\"lifecycleCleared\":%u,\"snapshots\":%u,\"flowComplete\":%u,\"resetFinished\":true,\"pendingDMA\":0}\n",status,baselineComplete,fullHpNoEffect,targetCancel,shiftRejected,staleRejected,growls,preHealHp,healed,finalQA.replyHp,finalQA.replyMaxHp,finalQA.replyPotionQuantity,finalQA.playerHp,finalQA.totalTurns,finalQA.returned,finalQA.outcome,finalQA.semanticsMask,finalQA.lifecycleCleared,snapshots,fieldReturned);
 #endif
     bytes(capture,"final-qa.bin",&finalQA,sizeof(finalQA));
+#ifdef HG_NATIVE_FIELD_POTION_CHECK
+    free(fieldOriginalBag); free(fieldExpectedBag);
+#endif
     wasm2c_hgengine_free(game); for (u32 i=0;i<3;i++) close(wasi->fds[i]); free(game); free(env); free(wasi); free(capture); menusEnv=NULL; wasm_rt_free();
     return passed ? 0 : sceneBlocked || damageMissing || blockedStatus ? 3 : 1;
 }
+
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+// HG_FORCED_DIAGNOSTIC_BEGIN
+static u32 forcedDiagnosticCount,forcedDiagnosticOverflow,forcedDiagnosticPrevious[25];
+static BOOL forcedDiagnosticSeen;
+static void forcedDiagnostic(HGNativeBattleMenusQAState q,BattleMenusCommand cmd,HGNativeBattlePartyUIState party,u32 frame) {
+    const u32 values[]={stage,cmd.active,cmd.ready,cmd.mode,party.active,party.ready,party.mode,party.page,party.phase,party.enabledMask,
+        q.started,q.requested,q.battleActive,q.playerHp,q.totalTurns,q.semanticsMask,q.errorLine,q.fieldReady,q.commandCount,q.partyCount,
+        forcedGrowls,q.enemySpecies,q.enemyLevel,cmd.enabledMask,cmd.cancelRun};
+    if (forcedDiagnosticSeen && !memcmp(values,forcedDiagnosticPrevious,sizeof(values))) return;
+    memcpy(forcedDiagnosticPrevious,values,sizeof(values)); forcedDiagnosticSeen=TRUE;
+    if (forcedDiagnosticCount==128) {
+        ++forcedDiagnosticOverflow;
+        if (forcedDiagnosticOverflow==1) {
+            puts("Forced diagnostic overflow: {\"limit\":128,\"droppedChangesAtLeast\":1,\"affectsVerdict\":false}"); fflush(stdout);
+        }
+        return;
+    }
+    printf("Forced diagnostic: {\"sample\":%u,\"overflow\":%u,\"frame\":%u,\"stage\":%u,\"growls\":%u,"
+        "\"cmd\":{\"active\":%u,\"ready\":%u,\"mode\":%u,\"enabledMask\":%u,\"cancelRun\":%u},\"party\":{\"active\":%u,\"ready\":%u,\"mode\":%u,\"page\":%u,\"phase\":%u,\"mask\":%u},"
+        "\"q\":{\"started\":%u,\"requested\":%u,\"battleActive\":%u,\"playerHp\":%u,\"totalTurns\":%u,\"semanticsMask\":%u,\"errorLine\":%u,"
+        "\"fieldReady\":%u,\"commandCount\":%u,\"partyCount\":%u,\"enemySpecies\":%u,\"enemyLevel\":%u}}\n",
+        ++forcedDiagnosticCount,forcedDiagnosticOverflow,frame,stage,forcedGrowls,cmd.active,cmd.ready,cmd.mode,cmd.enabledMask,cmd.cancelRun,
+        party.active,party.ready,party.mode,party.page,party.phase,party.enabledMask,q.started,q.requested,q.battleActive,q.playerHp,q.totalTurns,
+        q.semanticsMask,q.errorLine,q.fieldReady,q.commandCount,q.partyCount,q.enemySpecies,q.enemyLevel);
+    fflush(stdout);
+}
+// HG_FORCED_DIAGNOSTIC_END
+#endif

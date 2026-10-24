@@ -340,6 +340,108 @@ u32 CheckOriginalPartyUI(void) {
     NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]); NativePartyUIPublish(&menu,HG_PARTY_UI_TAKE_RESULT,checkRosterHits);
     CHECK(!state->ready && !state->cancelEnabled);
     NativePartyUIPrinterUpdated(&printer.template,0); NativePartyUIPublish(&menu,HG_PARTY_UI_TAKE_RESULT,checkRosterHits); CHECK(state->ready);
+
+    CHECK(HG_PARTY_UI_USE_CONTEXT==PARTY_MENU_CONTEXT_USE_ITEM && HG_PARTY_UI_ITEM_TARGET==PARTY_MENU_STATE_USE_ITEM_SELECT_MON
+        && HG_PARTY_UI_ITEM_USE==PARTY_MENU_STATE_ITEM_USE_CB && HG_PARTY_UI_CONFIRM==PARTY_MON_SELECTION_CONFIRM
+        && HG_PARTY_UI_SLOTS==PARTY_MON_SELECTION_CANCEL);
+    revision=state->revision; NativePartyUIBind(NULL); args.context=HG_PARTY_UI_USE_CONTEXT; args.itemId=ITEM_POTION; menu.partyMonIndex=0;
+    NativePartyUIBind(&menu); CHECK(sNativePartyMessage==&menu.windows[PARTY_MENU_WINDOW_ID_32] && !sNativePartyMessageWaiting);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits);
+    CHECK(sizeof(*state)==1480 && state->ready && state->revision>revision && HGNativePartyUIIsPotionUse(state)
+        && !HGNativePartyUIIsItemProgress(state) && state->count==2 && state->slotMask==3 && !state->actionCount && !state->actionEnabledMask
+        && state->message.pixelBuffer && state->message.tileWidth==20 && state->message.tileHeight==2 && !state->message.engine
+        && !state->selectedName.pixelBuffer && !state->selectedItem.pixelBuffer);
+    revision=state->revision;
+    CHECK(HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_MON,0,&x,&y) && x==64 && y==24);
+    CHECK(HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y) && x==228 && y==172);
+    CHECK(!HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_MON,HG_PARTY_UI_SLOTS,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_CANCEL,1,&x,&y));
+    copy=*state; copy.mons[0].hp=copy.mons[0].maxHp; copy.mons[0].isEgg=TRUE;
+    CHECK(HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y)); // Original code decides applicability/Egg rejection.
+    copy=*state; copy.count=0; CHECK(!HGNativePartyUIIsPotionUse(&copy));
+    copy=*state; copy.slotMask=1; CHECK(!HGNativePartyUIIsPotionUse(&copy));
+    copy=*state; copy.selected=UINT32_MAX; CHECK(!HGNativePartyUIIsPotionUse(&copy));
+    copy=*state; copy.message.tileWidth=27; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    copy=*state; copy.message.engine=1; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    copy=*state; copy.actionCount=1; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    copy=*state; copy.cancelX=124; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    NativePartyUIBegin(&menu); CHECK(HGNativePartyUIIsPotionUse(state) && !state->ready && !state->message.pixelBuffer && !state->mons[0].nickname.pixelBuffer);
+    CHECK(!HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits); CHECK(state->ready && state->revision==revision);
+    for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+        u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+        *pending=1u<<layer; NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits);
+        CHECK(HGNativePartyUIIsPotionUse(state) && !state->ready && !state->mons[0].nickname.pixelBuffer && !state->mons[0].iconWidth);
+        *pending=0; CHECK(!state->ready && !state->mons[0].nickname.pixelBuffer); // VBlank must republish after completing transfers.
+        NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits);
+        CHECK(state->ready && state->revision==revision && state->mons[0].nickname.pixelBuffer);
+    }
+    bad=menu.windows[PARTY_MENU_WINDOW_ID_32]; menu.windows[PARTY_MENU_WINDOW_ID_32].tilemapTop=19;
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits); CHECK(!state->ready);
+    menu.windows[PARTY_MENU_WINDOW_ID_32]=bad;
+    menu.partyMonIndex=HG_PARTY_UI_CONFIRM; menu.contextMenuButtonAnim.active=TRUE;
+    NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits);
+    CHECK(HGNativePartyUIIsPotionUse(state) && !state->ready && state->selected==HG_PARTY_UI_CONFIRM
+        && state->mons[0].nickname.pixelBuffer && state->revision>revision
+        && !HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    reads=checkSpriteReads; menu.contextMenuButtonAnim.active=FALSE;
+    NativePartyUIPublish(&menu,PARTY_MENU_STATE_BEGIN_EXIT,checkRosterHits);
+    CHECK(!state->ready && !HGNativePartyUIIsPotionUse(state) && !state->count && checkSpriteReads==reads);
+    NativePartyUIBind(NULL); menu.partyMonIndex=0; NativePartyUIBind(&menu);
+    menu.swapMonsData.active=TRUE; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits); CHECK(!state->ready && state->mons[0].nickname.pixelBuffer);
+    menu.swapMonsData.active=FALSE; checkFade=FALSE; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits);
+    CHECK(!state->ready && !state->mons[0].nickname.pixelBuffer && state->message.pixelBuffer);
+    checkFade=TRUE; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits); CHECK(state->ready);
+    u32 targetRevision=state->revision;
+    NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(HGNativePartyUIIsPotionUse(state) && HGNativePartyUIIsItemProgress(state) && !state->ready && !state->cancelEnabled && state->revision>targetRevision);
+    revision=state->revision; menu.monsDrawState[0].hp=19; bg.bufferTransferScheduled=1u<<GF_BG_LYR_MAIN_1;
+    NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(state->mons[0].hp==19 && state->revision>revision && !state->ready && !state->mons[0].nickname.pixelBuffer);
+    bg.bufferTransferScheduled=0; CHECK(!state->mons[0].nickname.pixelBuffer);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(state->mons[0].hp==19 && state->mons[0].nickname.pixelBuffer && !state->ready && !state->cancelEnabled);
+    NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]); printer.state=0; NativePartyUIPrinterUpdated(&printer.template,0);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); CHECK(!state->ready && state->message.tileWidth==27);
+    revision=state->revision; printer.state=2; NativePartyUIPrinterUpdated(&printer.template,0); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(state->ready && state->cancelEnabled && state->revision>revision
+        && HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y) && x==124 && y==168
+        && !HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,targetRevision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+        u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+        *pending=1u<<layer; NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+        CHECK(!state->ready && !state->cancelEnabled && !state->mons[0].nickname.pixelBuffer && state->message.pixelBuffer);
+        *pending=0; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+        CHECK(state->ready && state->mons[0].nickname.pixelBuffer);
+    }
+    menu.partyMonIndex=HG_PARTY_UI_CONFIRM; NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); CHECK(HGNativePartyUIIsItemProgress(state) && !state->ready && state->count==2);
+    NativePartyUIPrinterUpdated(&printer.template,0); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(state->ready && state->selected==HG_PARTY_UI_CONFIRM
+        && HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    revision=state->revision; printer.state=0; NativePartyUIPrinterUpdated(&printer.template,0); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(!state->ready && !state->cancelEnabled && state->revision>revision);
+    menu.partyMonIndex=HG_PARTY_UI_SLOTS; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(!HGNativePartyUIIsPotionUse(state) && !state->count && !state->ready);
+    menu.partyMonIndex=0; reads=checkSpriteReads; args.itemId=ITEM_ANTIDOTE;
+    NativePartyUIBind(NULL); NativePartyUIBind(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits);
+    CHECK(!state->ready && !state->count && !state->message.pixelBuffer && checkSpriteReads==reads);
+    args.itemId=ITEM_POTION; args.panelLayout=1; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits);
+    CHECK(!state->ready && !state->count && checkSpriteReads==reads); args.panelLayout=0;
+    NativePartyUIBind(NULL); NativePartyUIBind(&menu);
+    const u32 unsupportedPotionPhases[]={PARTY_MENU_STATE_INIT,PARTY_MENU_STATE_3,PARTY_MENU_STATE_SELECT_MOVE,PARTY_MENU_STATE_SACRED_ASH,
+        PARTY_MENU_STATE_GIVE_ITEM_SELECT_MON,PARTY_MENU_STATE_HANDLE_SUBCONTEXT_MENU_INPUT,PARTY_MENU_STATE_BEGIN_EXIT,PARTY_MENU_STATE_WAIT_EXIT_FADE_OUT};
+    for (u32 i=0;i<NELEMS(unsupportedPotionPhases);++i) {
+        NativePartyUIPublish(&menu,unsupportedPotionPhases[i],checkRosterHits);
+        CHECK(!HGNativePartyUIIsPotionUse(state) && !state->ready && !state->count && checkSpriteReads==reads);
+    }
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits); CHECK(state->ready && !sNativePartyMessageWaiting);
+    args.context=PARTY_MENU_CONTEXT_0; args.itemId=ITEM_NONE; menu.monsDrawState[0].hp=18;
     NativePartyUIBegin(&menu); CHECK(!state->message.pixelBuffer && !state->mons[0].nickname.pixelBuffer);
     RemoveWindow(&menu.windows[PARTY_MENU_WINDOW_ID_34]);
     revision=state->revision; NativePartyUIBind(NULL); NativePartyUIBind(&menu);

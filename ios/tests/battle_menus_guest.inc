@@ -22,6 +22,9 @@ static BattleSystem *sMenusLiveBattle;
 static u32 sMenusOutcome, sMenusPotionUses, sMenusInitialCount, sMenusInitialMons[6][26];
 static Bag sMenusInitialBag, sMenusExpectedBag;
 static u32 sMenusMoney, sMenusStarter, sMenusGotDex, sMenusDexEnabled, sMenusDexCaught, sMenusWild;
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+static BOOL sMenusForcedActive;
+#endif
 static const u32 sMenusAttributes[26] = {
     MON_DATA_PERSONALITY,MON_DATA_OT_ID,MON_DATA_SPECIES,MON_DATA_FORM,MON_DATA_IS_EGG,MON_DATA_HELD_ITEM,
     MON_DATA_HP,MON_DATA_MAX_HP,MON_DATA_LEVEL,MON_DATA_STATUS,MON_DATA_MOVE1,MON_DATA_MOVE2,MON_DATA_MOVE3,MON_DATA_MOVE4,
@@ -53,6 +56,15 @@ static void BattleMenusObserve(BattleSystem *system, BattleContext *ctx, int bat
 void __real_BattleController_EmitSelectCommand(BattleSystem *, BattleContext *, int, int);
 void __wrap_BattleController_EmitSelectCommand(BattleSystem *system, BattleContext *ctx, int battlerId, int partySlot) {
     if (sMenusQA.started && battlerId == BATTLER_PLAYER) { BattleMenusObserve(system, ctx, battlerId, partySlot); ++sMenusQA.commandCount; }
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+    if (sMenusQA.started && battlerId == BATTLER_PLAYER && sMenusQA.replyCount) {
+        BOOL valid = sMenusQA.replyCount == 1 && sMenusQA.replyTarget == 3 && partySlot == 2
+            && ctx->selectedMonIndex[BATTLER_PLAYER] == 2 && ctx->battleMons[BATTLER_PLAYER].species == SPECIES_CYNDAQUIL
+            && ctx->battleMons[BATTLER_PLAYER].hp > 0;
+        MENUS_REQUIRE(valid);
+        sMenusForcedActive = valid;
+    }
+#endif
     __real_BattleController_EmitSelectCommand(system, ctx, battlerId, partySlot);
 }
 void __real_BattleController_ReplyItemSelection(BattleSystem *, int, BattleItemInput);
@@ -142,7 +154,7 @@ static void BattleMenusQAFieldTick(FieldSystem *field) {
     FieldSystem_CreateTask(field, BattleMenusQATask, NULL);
 }
 
-#ifdef HG_BATTLE_MENUS_INFO_NAV
+#if defined(HG_BATTLE_MENUS_INFO_NAV) || defined(HG_NATIVE_FORCED_SWITCH_CHECK)
 #include "field/encounter_check.h"
 #include "get_egg.h"
 #include "map_header.h"
@@ -175,6 +187,22 @@ void __wrap_FieldSystem_GenerateSingleWildPokemon(FieldSystem *field, u16 specie
         valid = Party_AddMon(party, mon);
         MENUS_REQUIRE(valid);
     }
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+    if (valid) {
+        Party *enemy = setup->party[BATTLER_ENEMY];
+        valid = enemy != NULL && enemy != party && enemy != saved && Party_GetCount(enemy) == 1;
+        MENUS_REQUIRE(valid);
+        if (valid) {
+            Pokemon *opponent = Party_GetMonByIndex(enemy, 0);
+            // Synthetic opponent only; original CreateMon supplies stats and learnset for natural damage.
+            CreateMon(opponent, SPECIES_RATTATA, 20, 32, FALSE, 0, OT_ID_PLAYER_ID, 0);
+            valid = GetMonData(opponent, MON_DATA_SPECIES, NULL) == SPECIES_RATTATA
+                && GetMonData(opponent, MON_DATA_LEVEL, NULL) == 20
+                && GetMonData(opponent, MON_DATA_HP, NULL) > 0 && !GetMonData(opponent, MON_DATA_IS_EGG, NULL);
+            MENUS_REQUIRE(valid);
+        }
+    }
+#endif
     Heap_Free(mon);
     valid = valid && Party_GetCount(party) == 3;
     MENUS_REQUIRE(valid);
@@ -193,6 +221,27 @@ void __wrap_BattleSetup_CopyResultsToSaveData(BattleSetup *setup, FieldSystem *f
     MENUS_REQUIRE(FALSE);
 }
 
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+void __real_BattleController_ReplyPartySelection(BattleSystem *, int, u32);
+void __wrap_BattleController_ReplyPartySelection(BattleSystem *system, int battlerId, u32 input) {
+    if (sMenusQA.started && battlerId == BATTLER_PLAYER) {
+        // Forced-only meaning: existing reply fields record the real Party reply, never an Item reply.
+        ++sMenusQA.replyCount; sMenusQA.replyTarget = input;
+        sMenusQA.replyItem = sMenusQA.replyPocket = sMenusQA.replyHp = sMenusQA.replyMaxHp = 0;
+        sMenusQA.replyTurns = system->ctx->totalTurns;
+        sMenusQA.replyPotionQuantity = Bag_GetQuantity(system->bag, ITEM_POTION, HEAP_ID_BATTLE);
+        MENUS_REQUIRE(sMenusNavPrepared && sMenusQA.replyCount == 1 && input == 3);
+        if (input > 0 && input <= BattleSystem_GetPartySize(system, battlerId)) {
+            Pokemon *mon = BattleSystem_GetPartyMon(system, battlerId, input - 1);
+            sMenusQA.replyHp = GetMonData(mon, MON_DATA_HP, NULL); sMenusQA.replyMaxHp = GetMonData(mon, MON_DATA_MAX_HP, NULL);
+            MENUS_REQUIRE(GetMonData(mon, MON_DATA_SPECIES, NULL) == SPECIES_CYNDAQUIL
+                && !GetMonData(mon, MON_DATA_IS_EGG, NULL) && sMenusQA.replyHp > 0 && sMenusQA.replyHp <= sMenusQA.replyMaxHp);
+        }
+    }
+    __real_BattleController_ReplyPartySelection(system, battlerId, input);
+}
+#endif
+
 static void BattleMenusQANavFieldTick(FieldSystem *field) {
     BattleMenusQAFieldTick(field);
     if (!sMenusNavPrepared) return;
@@ -203,15 +252,28 @@ static void BattleMenusQANavFieldTick(FieldSystem *field) {
     }
     valid &= !memcmp(Save_Bag_Get(field->saveData), &sMenusInitialBag, sizeof(Bag));
     MENUS_REQUIRE(valid);
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+    // Forced mask: 0x200 mode, 1 fixture, 2 saved Party/Bag, 4 battle identity/Bag, 8 live, 16 reply, 32 reserve active.
+    sMenusQA.semanticsMask = 0x201 | (valid ? 2 : 0) | (sMenusQA.replyCount == 1 && sMenusQA.replyTarget == 3 ? 16 : 0)
+        | (sMenusForcedActive ? 32 : 0);
+    BOOL active = sMenusQA.battleActive && !sMenusQA.returned && !sMenusQA.lifecycleCleared;
+#else
     // NAV-only mask: 0x100 mode, 1 fixture, 2 loaded save, 4 battle party, 8 no turns/settlement.
     sMenusQA.semanticsMask = 0x101 | (valid ? 2 : 0);
     BOOL active = sMenusQA.battleActive && !sMenusQA.returned && !sMenusQA.lifecycleCleared && !sMenusQA.totalTurns && !sMenusQA.activePartySlot;
+#endif
     MENUS_REQUIRE(active);
     if (active) sMenusQA.semanticsMask |= 8;
     if (!sMenusLiveBattle) return;
     valid = BattleSystem_GetPartySize(sMenusLiveBattle, BATTLER_PLAYER) == 3;
     if (valid) for (u32 i = 0; i < 3; ++i) for (u32 j = 0; j < NELEMS(sMenusAttributes); ++j) {
-        valid &= GetMonData(BattleSystem_GetPartyMon(sMenusLiveBattle, BATTLER_PLAYER, i), sMenusAttributes[j], NULL) == sMenusNavMons[i][j];
+        u32 value = GetMonData(BattleSystem_GetPartyMon(sMenusLiveBattle, BATTLER_PLAYER, i), sMenusAttributes[j], NULL);
+#ifdef HG_NATIVE_FORCED_SWITCH_CHECK
+        if (i != 1 && j == 6) valid &= value <= sMenusNavMons[i][7];
+        else if (i != 1 && j >= 14 && j <= 17) valid &= value <= sMenusNavMons[i][j];
+        else
+#endif
+        valid &= value == sMenusNavMons[i][j];
     }
     valid &= !memcmp(sMenusLiveBattle->bag, &sMenusInitialBag, sizeof(Bag));
     MENUS_REQUIRE(valid);

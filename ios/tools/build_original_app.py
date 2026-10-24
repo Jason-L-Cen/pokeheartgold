@@ -76,7 +76,10 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',choices=('iphonesimulator','iphoneos'),default='iphonesimulator')
     parser.add_argument('--check',action='store_true',help='Run UIKit input, frame, pause/resume and reset checks after launching')
+    parser.add_argument('--check-case',choices=('field-potion','forced-switch'),help='Select an independent private UIKit case; requires --check')
     args=parser.parse_args()
+    if args.check_case and not args.check:
+        parser.error('--check-case requires --check; production builds cannot select a private case')
     audit=BUILD/'audit'; module=audit/'engine.wasm'
     link=json.loads((audit/'engine-link.json').read_text())
     if link['exitCode'] or hashlib.sha256(module.read_bytes()).hexdigest()!=link['outputSha256']:
@@ -92,7 +95,11 @@ def main():
     if args.check:
         from check_native_battle_menus import prepare_battle_menus_guest
         guest_destination=Path(tempfile.mkdtemp(prefix='battle-menus-guest-',dir=destination))
-        module,private_guest=prepare_battle_menus_guest(guest_destination,run)
+        if args.check_case:
+            module,private_guest=prepare_battle_menus_guest(guest_destination,run,
+                field_potion=args.check_case=='field-potion',forced_switch=args.check_case=='forced-switch')
+        else:
+            module,private_guest=prepare_battle_menus_guest(guest_destination,run)
     generated,writes,restores=generate_engine(destination,module,run)
     flags,sources=native_build_settings(destination)
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
@@ -123,6 +130,8 @@ def main():
             'UISceneDelegateClassName':'OriginalSceneDelegate'}]}}
     plist.update(CFBundleExecutable='HeartGoldOriginal',CFBundleIdentifier='com.jasoncen.heartgold.original',
                  CFBundleName='HeartGoldOriginal',CFBundleDisplayName='心金 · 原版引擎',UIDeviceFamily=[1,2],MinimumOSVersion='16.0')
+    if args.check:
+        plist['HGPrivateCheckCase']=args.check_case or 'default'
     (app/'Info.plist').write_bytes(plistlib.dumps(plist))
     rows=ET.parse(ROOT/'files/msgdata/msg/msg_0750.gmm').getroot().findall('row')
     move_names=['']*len(rows)
@@ -155,6 +164,7 @@ def main():
     (content/'boot-header.bin').write_bytes(header)
     run(['codesign','--force','--sign','-',app],'sign.log')
     report=dict(scope='native UIKit original-engine app build; gameplay validation separate',sdk=args.sdk,selfCheckEnabled=args.check,
+                checkCase=(args.check_case or 'default') if args.check else None,
                 intermediateSha256=hashlib.sha256(module.read_bytes()).hexdigest(),shippingModuleSha256=shipping_module_sha256,
                 privateGuestModuleSha256=private_guest['privateGuestModuleSha256'] if private_guest else None,
                 privateGuest=private_guest,nativeContent=link.get('nativeContent'),

@@ -78,7 +78,15 @@ u32 CheckOriginalBattlePartyUI(void) {
     context.partyOrder[5]^=1; menu.mons[5].species^=1; NativeBattlePartyUIPublish(&menu); CHECK(state->revision==revision);
     checkFade=1; NativeBattlePartyUIBegin(&menu); NativeBattlePartyUIPublish(&menu); CHECK(!state->ready && state->revision==revision);
     checkFade=0; NativeBattlePartyUIPublish(&menu); CHECK(state->ready && state->revision==revision);
-    context.mode=BATTLE_PARTY_MODE_SWITCH_NO_CANCEL; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
+    context.mode=BATTLE_PARTY_MODE_SWITCH_NO_CANCEL; menu.mons[0].hp=0; NativeBattlePartyUIPublish(&menu);
+    CHECK(state->ready && state->mode==HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL && state->buttonCount==7 && state->enabledMask==3
+        && state->revision>revision && !state->itemId && !state->pocket && !state->mons[0].hp && state->mons[1].isEgg);
+    for (u32 i=0;i<7;++i) CHECK(HGNativeBattlePartyUIResolveTouch(state,state->revision,1,i,&x,&y)==(i<2));
+    CHECK(!HGNativeBattlePartyUIResolveTouch(state,revision,1,0,&x,&y)
+        && !HGNativeBattlePartyUIResolveTouch(state,state->revision,2,0,&x,&y)
+        && !HGNativeBattlePartyUIResolveTouch(state,state->revision,1,7,&x,&y));
+    copy=*state; copy.enabledMask|=1u<<6; CHECK(!HGNativeBattlePartyUIResolveTouch(&copy,copy.revision,1,6,&x,&y));
+    menu.mons[0].hp=20;
     context.mode=BATTLE_PARTY_MODE_LEARN_MOVE; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
     context.mode=BATTLE_PARTY_MODE_USE_ITEM; context.item=ITEM_SUPER_POTION; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
     context.item=ITEM_POTION; context.pocket=0; NativeBattlePartyUIPublish(&menu);
@@ -105,12 +113,16 @@ u32 CheckOriginalBattlePartyUI(void) {
     CHECK(HGNativeBattlePartyUIResolveTouch(state,state->revision,2,0,&x,&y) && x==127 && y==75
         && state->buttons[0].cropWidth==240 && state->buttons[0].cropHeight==136);
     revision=state->revision; NativeBattlePartyUIBegin(&menu); NativeBattlePartyUIPublish(&menu); CHECK(state->ready && state->revision==revision);
+    context.mode=BATTLE_PARTY_MODE_SWITCH_NO_CANCEL; NativeBattlePartyUIPublish(&menu);
+    CHECK(state->ready && state->enabledMask==15 && state->revision>revision && !HGNativeBattlePartyUIResolveTouch(state,revision,2,3,&x,&y));
+    for (u32 i=0;i<4;++i) CHECK(HGNativeBattlePartyUIResolveTouch(state,state->revision,2,i,&x,&y));
+    copy=*state; copy.selectedSlot=6; CHECK(!HGNativeBattlePartyUIResolveTouch(&copy,copy.revision,2,3,&x,&y));
     context.selectedMon=1; NativeBattlePartyUIPublish(&menu); CHECK(state->ready && state->enabledMask==9);
     CHECK(HGNativeBattlePartyUIResolveTouch(state,state->revision,2,0,&x,&y) && !HGNativeBattlePartyUIResolveTouch(state,state->revision,2,1,&x,&y)
         && !HGNativeBattlePartyUIResolveTouch(state,state->revision,2,2,&x,&y) && HGNativeBattlePartyUIResolveTouch(state,state->revision,2,3,&x,&y));
     copy=*state; copy.buttons[0].cropWidth=257; CHECK(!HGNativeBattlePartyUIResolveTouch(&copy,copy.revision,2,0,&x,&y));
     CHECK(!HGNativeBattlePartyUIResolveTouch(state,state->revision,2,4,&x,&y) && !HGNativeBattlePartyUIResolveTouch(state,state->revision,2,0,NULL,&y));
-    memset(&menu.mons[2],0,4*sizeof(menu.mons[0])); context.selectedMon=0;
+    memset(&menu.mons[2],0,4*sizeof(menu.mons[0])); context.selectedMon=0; context.mode=BATTLE_PARTY_MODE_SWITCH;
     menu.mons[0].moves[0]=(BattlePartyMenuMove){.move=MOVE_TACKLE,.pp=17,.maxPP=35};
     menu.mons[0].moves[1]=(BattlePartyMenuMove){.move=MOVE_GROWL,.pp=25,.maxPP=40};
     menu.mons[0].moves[2]=(BattlePartyMenuMove){.pp=0xA5,.maxPP=0xA5};
@@ -140,7 +152,10 @@ u32 CheckOriginalBattlePartyUI(void) {
     context.selectedMon=1; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready && !state->buttonCount);
     context.selectedMon=2; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
     context.selectedMon=0; context.mode=BATTLE_PARTY_MODE_USE_ITEM; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
-    context.mode=BATTLE_PARTY_MODE_SWITCH_NO_CANCEL; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
+    context.mode=BATTLE_PARTY_MODE_SWITCH_NO_CANCEL; NativeBattlePartyUIPublish(&menu);
+    CHECK(state->ready && state->enabledMask==12 && HGNativeBattlePartyUIResolveTouch(state,state->revision,3,2,&x,&y)
+        && HGNativeBattlePartyUIResolveTouch(state,state->revision,3,3,&x,&y));
+    copy=*state; copy.selectedSlot=1; CHECK(!HGNativeBattlePartyUIResolveTouch(&copy,copy.revision,3,3,&x,&y));
     context.mode=BATTLE_PARTY_MODE_LEARN_MOVE; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
     context.mode=BATTLE_PARTY_MODE_SWITCH; menu.state=8; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
     menu.state=3; NativeBattlePartyUIPublish(&menu); CHECK(state->ready);
@@ -182,19 +197,22 @@ u32 CheckOriginalBattlePartyUI(void) {
         bad=*window; window->width=14; NativeBattlePartyUIPublish(&menu); CHECK(!state->ready);
         *window=bad; NativeBattlePartyUIPublish(&menu); CHECK(state->ready);
     }
-    for (u32 page=0;page<=4;++page) {
-        BattlePartyMenu_RemovePageWindows(&menu); menu.page=page; menu.state=page+1; BattlePartyMenu_AddPageWindows(&menu,page);
-        u32 button=page==2 ? 3 : page==3 ? 7 : page==4 ? 4 : 0;
-        for (u32 bank=0;bank<2;++bank) {
-            menu.windowSet=bank; NativeBattlePartyUIPublish(&menu); CHECK(state->ready);
-            u32 pendingRevision=state->revision;
-            for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
-                u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
-                *pending=1u<<layer; NativeBattlePartyUIBegin(&menu); NativeBattlePartyUIPublish(&menu);
-                CHECK(state->ready==(layer<GF_BG_LYR_SUB_0)
-                    && HGNativeBattlePartyUIResolveTouch(state,pendingRevision,menu.state,button,&x,&y)==(layer<GF_BG_LYR_SUB_0));
-                *pending=0; NativeBattlePartyUIPublish(&menu);
-                CHECK(state->ready && state->revision==pendingRevision && HGNativeBattlePartyUIResolveTouch(state,pendingRevision,menu.state,button,&x,&y));
+    for (u32 mode=BATTLE_PARTY_MODE_SWITCH;mode<=BATTLE_PARTY_MODE_SWITCH_NO_CANCEL;++mode) {
+        context.mode=mode;
+        for (u32 page=0;page<=4;++page) {
+            BattlePartyMenu_RemovePageWindows(&menu); menu.page=page; menu.state=page+1; BattlePartyMenu_AddPageWindows(&menu,page);
+            u32 button=page==2 ? 3 : page==3 ? 7 : page==4 ? 4 : 0;
+            for (u32 bank=0;bank<2;++bank) {
+                menu.windowSet=bank; NativeBattlePartyUIPublish(&menu); CHECK(state->ready);
+                u32 pendingRevision=state->revision;
+                for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+                    u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+                    *pending=1u<<layer; NativeBattlePartyUIBegin(&menu); NativeBattlePartyUIPublish(&menu);
+                    CHECK(state->ready==(layer<GF_BG_LYR_SUB_0)
+                        && HGNativeBattlePartyUIResolveTouch(state,pendingRevision,menu.state,button,&x,&y)==(layer<GF_BG_LYR_SUB_0));
+                    *pending=0; NativeBattlePartyUIPublish(&menu);
+                    CHECK(state->ready && state->revision==pendingRevision && HGNativeBattlePartyUIResolveTouch(state,pendingRevision,menu.state,button,&x,&y));
+                }
             }
         }
     }
@@ -226,5 +244,5 @@ u32 CheckOriginalBattlePartyUI(void) {
 
 #ifdef HG_NATIVE_BATTLE_PARTY_UI_CHECK_MAIN
 int main(void) { u32 line=CheckOriginalBattlePartyUI(); if (line) { fprintf(stderr,"Battle Party UI check line %u\n",line); return 1; }
-    puts("PASS: real battle Party producer, summary/moves/detail, original geometry, masks, both window banks, lifetime and resident revisions."); return 0; }
+    puts("PASS: real battle Party producer, forced switch, summary/moves/detail, original geometry, masks, both window banks, lifetime and resident revisions."); return 0; }
 #endif

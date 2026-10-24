@@ -15,6 +15,7 @@
 #include "ui_util.h"
 
 #ifdef HEARTGOLD_NATIVE
+#include "constants/items.h"
 #include "native_party_ui.h"
 #include "palette_vram_addr.h"
 #include "screen_fade.h"
@@ -1392,6 +1393,11 @@ static void NativePartyUIPrinterUpdated(TextPrinterTemplate *template, u16 glyph
         && printer->id == sNativePartyMenu->textPrinterId;
 }
 
+static BOOL NativePartyUIPotionUse(const PartyMenu *partyMenu) {
+    return partyMenu->args->context == PARTY_MENU_CONTEXT_USE_ITEM && partyMenu->args->panelLayout == 0
+        && partyMenu->args->itemId == ITEM_POTION;
+}
+
 void NativePartyUIBind(PartyMenu *partyMenu) {
     if (partyMenu == sNativePartyMenu) return;
     u32 revision = sNativePartyUI.revision + 1;
@@ -1407,7 +1413,7 @@ void NativePartyUIBind(PartyMenu *partyMenu) {
         sNativePartyUI.context = partyMenu->args->context;
         sNativePartyUI.panelLayout = partyMenu->args->panelLayout;
         sNativePartyUI.selected = partyMenu->partyMonIndex;
-        if (partyMenu->args->context == PARTY_MENU_CONTEXT_0) {
+        if (partyMenu->args->context == PARTY_MENU_CONTEXT_0 || NativePartyUIPotionUse(partyMenu)) {
             sNativePartyMessage = &partyMenu->windows[PARTY_MENU_WINDOW_ID_32];
         }
     }
@@ -1486,11 +1492,16 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
     next.phase = phase;
     next.selected = partyMenu->partyMonIndex;
     BOOL graphicsReady = partyMenu->bgConfig != NULL && !((partyMenu->bgConfig->bufferTransferScheduled | partyMenu->bgConfig->scrollScheduled) & 0xFF);
+    BOOL potion = NativePartyUIPotionUse(partyMenu) && (phase == HG_PARTY_UI_ITEM_TARGET
+        || (phase == HG_PARTY_UI_ITEM_USE && (next.selected == HG_PARTY_UI_CONFIRM
+            || (next.selected < HG_PARTY_UI_SLOTS && partyMenu->monsDrawState[next.selected].active))));
     BOOL itemProgress = !next.panelLayout && next.selected < HG_PARTY_UI_SLOTS && partyMenu->monsDrawState[next.selected].active
         && ((next.context == PARTY_MENU_CONTEXT_0 && (phase == HG_PARTY_UI_ITEM_RESULT || phase == HG_PARTY_UI_TAKE_RESULT))
             || (next.context == HG_PARTY_UI_GIVE_CONTEXT && (phase == HG_PARTY_UI_GIVE_ITEM || phase == HG_PARTY_UI_ITEM_RESULT)));
-    BOOL supported = (next.context == PARTY_MENU_CONTEXT_0 && next.panelLayout == 0) || itemProgress;
-    BOOL ready = next.context == PARTY_MENU_CONTEXT_0 && supported && (phase == HG_PARTY_UI_ROSTER || phase == HG_PARTY_UI_CONTEXT || phase == HG_PARTY_UI_SUBCONTEXT)
+    itemProgress = itemProgress || (potion && phase == HG_PARTY_UI_ITEM_USE);
+    BOOL supported = (next.context == PARTY_MENU_CONTEXT_0 && next.panelLayout == 0) || itemProgress || potion;
+    BOOL ready = supported && ((next.context == PARTY_MENU_CONTEXT_0 && (phase == HG_PARTY_UI_ROSTER || phase == HG_PARTY_UI_CONTEXT || phase == HG_PARTY_UI_SUBCONTEXT))
+        || (potion && phase == HG_PARTY_UI_ITEM_TARGET))
         && !partyMenu->contextMenuButtonAnim.active && !partyMenu->swapMonsData.active && IsPaletteFadeFinished();
     BOOL valid = TRUE;
     if (supported) {
@@ -1542,6 +1553,10 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
         else if (sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_33]) { width = 13; height = 4; }
         else if (sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_34]) { width = 27; height = 4; }
         if (width) NativePartyUIWindow(&next.message, partyMenu, sNativePartyMessage, GF_BG_LYR_MAIN_0, width, height, 15);
+        if (potion && phase == HG_PARTY_UI_ITEM_TARGET && (!HGNativePartyUIIsPotionUse(&next) || !next.message.pixelBuffer
+            || sNativePartyMessage != &partyMenu->windows[PARTY_MENU_WINDOW_ID_32]
+            || sNativePartyMessage->tilemapLeft != 2 || sNativePartyMessage->tilemapTop != 21)) valid = FALSE;
+        itemProgress = HGNativePartyUIIsItemProgress(&next);
         if (itemProgress && phase != HG_PARTY_UI_GIVE_ITEM && graphicsReady && sNativePartyMessageWaiting && valid
             && sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_34]
             && next.message.pixelBuffer && width == 27 && height == 4
