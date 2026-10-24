@@ -282,3 +282,145 @@ static void BattleMenusQANavFieldTick(FieldSystem *field) {
 
 #define BattleMenusQAFieldTick BattleMenusQANavFieldTick
 #endif
+
+#ifdef HG_NATIVE_LEARN_MOVES_CHECK
+#include "field/encounter_check.h"
+#include "battle/battle_util.h"
+#include "map_header.h"
+#include "move.h"
+#include "trainer_memo.h"
+#include "constants/moves.h"
+
+static BOOL sMenusLearnPrepared, sMenusLearnAuto, sMenusLearnReplaced, sMenusLearnDone;
+static u32 sMenusLearnSavedExp, sMenusLearnMon26[26], sMenusLearnCalls, sMenusLearnSetCalls, sMenusLearnCandidate;
+
+void __real_FieldSystem_GenerateSingleWildPokemon(FieldSystem *, u16, u8, BOOL, BattleSetup *);
+void __wrap_FieldSystem_GenerateSingleWildPokemon(FieldSystem *field, u16 species, u8 level, BOOL shiny, BattleSetup *setup) {
+    __real_FieldSystem_GenerateSingleWildPokemon(field, species, level, shiny, setup);
+    Party *party=setup->party[BATTLER_PLAYER], *enemy=setup->party[BATTLER_ENEMY], *saved=SaveArray_Party_Get(field->saveData);
+    BOOL valid=sMenusQA.started && !sMenusLearnPrepared && sMenusInitialCount==1 && party && enemy
+        && party!=saved && enemy!=saved && party!=enemy && Party_GetCount(party)==1 && Party_GetCount(enemy)==1 && Party_GetCount(saved)==1;
+    MENUS_REQUIRE(valid); if (!valid) return;
+    sMenusLearnSavedExp=GetMonData(Party_GetMonByIndex(saved,0),MON_DATA_EXPERIENCE,NULL);
+    Pokemon *mon=Party_GetMonByIndex(party,0), *opponent=Party_GetMonByIndex(enemy,0);
+    CreateMon(mon,SPECIES_CARNIVINE,30,0,TRUE,0,OT_ID_PLAYER_ID,0);
+    MonSetTrainerMemo(mon,Save_PlayerData_GetProfile(field->saveData),0,MapHeader_GetMapSec(field->location->mapId),HEAP_ID_FIELD2);
+    u32 exp=GetMonExpBySpeciesAndLevel(SPECIES_CARNIVINE,31)-1, ups=3, pp=GetMoveMaxPP(MOVE_VINE_WHIP,3);
+    MENUS_REQUIRE(exp==37237);
+    SetMonData(mon,MON_DATA_EXPERIENCE,&exp);
+    const u16 moves[4]={MOVE_VINE_WHIP,MOVE_CUT,MOVE_GROWTH,MOVE_NONE};
+    for (u32 i=0;i<4;++i) MonSetMoveInSlot_ResetPpUp(mon,moves[i],i);
+    SetMonData(mon,MON_DATA_MOVE1_PP_UPS,&ups); SetMonData(mon,MON_DATA_MOVE1_PP,&pp);
+    CreateMon(opponent,SPECIES_MAGIKARP,1,0,TRUE,0,OT_ID_PLAYER_ID,0);
+    valid=GetMonData(mon,MON_DATA_LEVEL,NULL)==30 && GetMonData(mon,MON_DATA_EXPERIENCE,NULL)==37237
+        && GetMonData(mon,MON_DATA_MOVE1_PP_UPS,NULL)==3 && GetMonData(mon,MON_DATA_HP,NULL)==GetMonData(mon,MON_DATA_MAX_HP,NULL)
+        && GetMonData(opponent,MON_DATA_SPECIES,NULL)==SPECIES_MAGIKARP && GetMonData(opponent,MON_DATA_LEVEL,NULL)==1
+        && GetMonData(opponent,MON_DATA_MOVE1,NULL)==MOVE_SPLASH && !GetMonData(opponent,MON_DATA_MOVE2,NULL)
+        && !GetMonData(opponent,MON_DATA_MOVE3,NULL) && !GetMonData(opponent,MON_DATA_MOVE4,NULL);
+    for (u32 j=0;j<NELEMS(sMenusAttributes);++j) sMenusLearnMon26[j]=GetMonData(mon,sMenusAttributes[j],NULL);
+    MENUS_REQUIRE(valid); sMenusLearnPrepared=valid;
+}
+
+void __wrap_BattleSetup_CopyResultsToSaveData(BattleSetup *setup, FieldSystem *field) {
+    (void)setup; (void)field;
+    MENUS_REQUIRE(FALSE);
+}
+
+static BOOL BattleMenusLearnFinalMon(Pokemon *mon) {
+    const u16 moves[4]={MOVE_SPIT_UP,MOVE_CUT,MOVE_GROWTH,MOVE_STOCKPILE};
+    BOOL valid=GetMonData(mon,MON_DATA_LEVEL,NULL)==31 && GetMonData(mon,MON_DATA_EXPERIENCE,NULL)==37239;
+    for (u32 i=0;i<4;++i) valid &= GetMonData(mon,MON_DATA_MOVE1+i,NULL)==moves[i]
+        && !GetMonData(mon,MON_DATA_MOVE1_PP_UPS+i,NULL) && GetMonData(mon,MON_DATA_MOVE1_PP+i,NULL)==GetMoveMaxPP(moves[i],0);
+    return valid;
+}
+
+u32 __real_MonTryLearnMoveOnLevelUp(Pokemon *, int *, u16 *);
+u32 __wrap_MonTryLearnMoveOnLevelUp(Pokemon *mon, int *index, u16 *move) {
+    u32 result=__real_MonTryLearnMoveOnLevelUp(mon,index,move);
+    if (!sMenusLearnPrepared || !sMenusLiveBattle || mon!=BattleSystem_GetPartyMon(sMenusLiveBattle,BATTLER_PLAYER,0)) return result;
+    ++sMenusLearnCalls;
+    if (result==MOVE_STOCKPILE) {
+        sMenusLearnCandidate=*move;
+        sMenusLearnAuto=sMenusLearnCalls==1 && *move==MOVE_STOCKPILE && !sMenusLearnMon26[13]
+            && GetMonData(mon,MON_DATA_MOVE4,NULL)==MOVE_STOCKPILE && !GetMonData(mon,MON_DATA_MOVE4_PP_UPS,NULL)
+            && GetMonData(mon,MON_DATA_MOVE4_PP,NULL)==GetMoveMaxPP(MOVE_STOCKPILE,0);
+        MENUS_REQUIRE(sMenusLearnAuto);
+    } else if (result==MOVE_APPEND_FULL) {
+        sMenusLearnCandidate=*move;
+        MENUS_REQUIRE(sMenusLearnAuto && ((sMenusLearnCalls==2 && *move==MOVE_SPIT_UP && !sMenusLearnReplaced)
+            || (sMenusLearnCalls==3 && *move==MOVE_SWALLOW && sMenusLearnReplaced)));
+    } else if (!result) {
+        // End-of-learnset does not write *move; retain the last real candidate, Swallow.
+        sMenusLearnDone=sMenusLearnCalls==4 && sMenusLearnCandidate==MOVE_SWALLOW && sMenusLearnAuto && sMenusLearnReplaced
+            && sMenusLearnSetCalls==1 && sMenusQA.replyCount==2 && sMenusQA.replyTarget==1 && BattleMenusLearnFinalMon(mon);
+        MENUS_REQUIRE(sMenusLearnDone);
+    } else MENUS_REQUIRE(FALSE);
+    return result;
+}
+
+void __real_MonSetMoveInSlot(Pokemon *, u16, u8);
+void __wrap_MonSetMoveInSlot(Pokemon *mon, u16 move, u8 slot) {
+    __real_MonSetMoveInSlot(mon,move,slot);
+    if (!sMenusLearnPrepared || !sMenusLiveBattle || mon!=BattleSystem_GetPartyMon(sMenusLiveBattle,BATTLER_PLAYER,0)) return;
+    ++sMenusLearnSetCalls;
+    sMenusLearnReplaced=sMenusLearnSetCalls==1 && sMenusLearnCandidate==MOVE_SPIT_UP && move==MOVE_SPIT_UP && !slot
+        && sMenusLearnMon26[18]==3 && GetMonData(mon,MON_DATA_MOVE1,NULL)==MOVE_SPIT_UP
+        && !GetMonData(mon,MON_DATA_MOVE1_PP_UPS,NULL) && GetMonData(mon,MON_DATA_MOVE1_PP,NULL)==GetMoveMaxPP(MOVE_SPIT_UP,0);
+    MENUS_REQUIRE(sMenusLearnReplaced);
+}
+
+void __real_BattleController_ReplyPartySelection(BattleSystem *, int, u32);
+void __wrap_BattleController_ReplyPartySelection(BattleSystem *system, int battlerId, u32 input) {
+    __real_BattleController_ReplyPartySelection(system,battlerId,input);
+    if (!sMenusQA.started || battlerId!=BATTLER_PLAYER) return;
+    ++sMenusQA.replyCount; sMenusQA.replyTarget=input;
+    MENUS_REQUIRE(sMenusLearnPrepared && sMenusLearnCandidate==MOVE_SPIT_UP
+        && ((sMenusQA.replyCount==1 && input==0xFF) || (sMenusQA.replyCount==2 && input==1)));
+}
+
+static void BattleMenusQALearnFieldTick(FieldSystem *field) {
+    BattleMenusQAFieldTick(field);
+    if (!sMenusLearnPrepared) return;
+    Party *saved=SaveArray_Party_Get(field->saveData);
+    BOOL preserved=Party_GetCount(saved)==1 && !memcmp(Save_Bag_Get(field->saveData),&sMenusInitialBag,sizeof(Bag));
+    if (preserved) {
+        Pokemon *mon=Party_GetMonByIndex(saved,0);
+        for (u32 j=0;j<NELEMS(sMenusAttributes);++j) preserved &= GetMonData(mon,sMenusAttributes[j],NULL)==sMenusInitialMons[0][j];
+        preserved &= GetMonData(mon,MON_DATA_EXPERIENCE,NULL)==sMenusLearnSavedExp;
+    }
+    BOOL active=sMenusQA.battleActive && !sMenusQA.returned && !sMenusQA.lifecycleCleared;
+    MENUS_REQUIRE(preserved && active);
+    // Learn-only aliases: replyItem is the real candidate; replyPocket is the real learner EXP, never a Bag pocket.
+    sMenusQA.replyItem=sMenusLearnCandidate;
+    u32 semantics=0x801 | (preserved ? 2 : 0) | (active ? 8 : 0)
+        | (sMenusLearnAuto ? 16 : 0) | (sMenusLearnReplaced ? 32 : 0) | (sMenusLearnDone ? 64 : 0);
+    if (!sMenusLiveBattle) goto publish;
+    BattleSystem *system=sMenusLiveBattle; Pokemon *mon=BattleSystem_GetPartyMon(system,BATTLER_PLAYER,0);
+    u32 level=GetMonData(mon,MON_DATA_LEVEL,NULL), exp=GetMonData(mon,MON_DATA_EXPERIENCE,NULL);
+    BOOL valid=BattleSystem_GetPartySize(system,BATTLER_PLAYER)==1 && BattleSystem_IsPlayerOT(system,mon)
+        && !memcmp(system->bag,&sMenusInitialBag,sizeof(Bag)) && (level==30 || level==31) && (exp==37237 || exp==37239);
+    for (u32 j=0;j<6;++j) valid &= GetMonData(mon,sMenusAttributes[j],NULL)==sMenusLearnMon26[j];
+    valid &= GetMonData(mon,MON_DATA_STATUS,NULL)==sMenusLearnMon26[9]
+        && GetMonData(mon,MON_DATA_HP,NULL)>0 && GetMonData(mon,MON_DATA_HP,NULL)<=GetMonData(mon,MON_DATA_MAX_HP,NULL);
+    const u16 moves[4]={sMenusLearnReplaced ? MOVE_SPIT_UP : MOVE_VINE_WHIP,MOVE_CUT,MOVE_GROWTH,sMenusLearnAuto ? MOVE_STOCKPILE : MOVE_NONE};
+    for (u32 i=0;i<4;++i) {
+        u32 ups=!i && !sMenusLearnReplaced ? 3 : 0, pp=GetMonData(mon,MON_DATA_MOVE1_PP+i,NULL), max=GetMoveMaxPP(moves[i],ups);
+        valid &= GetMonData(mon,MON_DATA_MOVE1+i,NULL)==moves[i] && GetMonData(mon,MON_DATA_MOVE1_PP_UPS+i,NULL)==ups
+            && GetMonData(mon,MON_DATA_MOVE1_MAX_PP+i,NULL)==max && pp<=max;
+        if (i || sMenusLearnReplaced) valid &= pp==max;
+    }
+    MENUS_REQUIRE(valid);
+    sMenusQA.replyPocket=exp; sMenusQA.replyHp=GetMonData(mon,MON_DATA_HP,NULL); sMenusQA.replyMaxHp=GetMonData(mon,MON_DATA_MAX_HP,NULL);
+    sMenusQA.replyTurns=system->ctx->totalTurns; sMenusQA.replyPotionQuantity=Bag_GetQuantity(system->bag,ITEM_POTION,HEAP_ID_BATTLE);
+    if (valid) semantics |= 4;
+    if (level==31 && exp==37239) semantics |= 128;
+    // Task_GetExp's original stat-difference/true-stat waits (11/13), before the first learn attempt.
+    GetterWork *work=system->ctx->getterWork;
+    if (!sMenusLearnAuto && work && work->battleSystem==system && work->ctx==system->ctx && (work->state==11 || work->state==13))
+        semantics |= 0x100;
+publish:
+    sMenusQA.semanticsMask=semantics;
+}
+
+#define BattleMenusQAFieldTick BattleMenusQALearnFieldTick
+#endif

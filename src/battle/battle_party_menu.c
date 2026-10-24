@@ -3894,7 +3894,8 @@ static void BattlePartyMenu_RedrawSelectedMonButton(BattlePartyMenu *menu) {
 }
 
 #ifdef HEARTGOLD_NATIVE
-_Static_assert(sizeof(HGNativeBattlePartyUIState) == 684 && offsetof(HGNativeBattlePartyUIState, prompt) == 580, "native battle Party ABI");
+_Static_assert(sizeof(HGNativeBattlePartyUIState) == 688 && offsetof(HGNativeBattlePartyUIState, moveToLearn) == 580
+    && offsetof(HGNativeBattlePartyUIState, prompt) == 584, "native battle Party ABI");
 static BattlePartyMenu *sNativeBattlePartyOwner;
 static BOOL sNativeBattlePartyWindowsLive;
 
@@ -3925,6 +3926,8 @@ static BOOL NativeBattlePartyUIWindow(HGNativePartyUIWindow *out, BattlePartyMen
     u32 width = role->width, height = role->height, bg = role->bgId;
     BOOL detailDescription = menu->page == BATTLE_PARTY_PAGE_MOVE_DETAIL && bg == GF_BG_LYR_SUB_0 && width == 15 && height == 10
         && (role == &gBattlePartyMoveDetailWindows[4] || role == &gBattlePartyMoveDetailWindows[15]);
+    detailDescription |= menu->page == BATTLE_PARTY_PAGE_FORGET_MOVE && bg == GF_BG_LYR_SUB_1 && width == 15 && height == 10
+        && role == &gBattlePartyForgetMoveWindows[8];
     if (bg < GF_BG_LYR_SUB_0 || bg > GF_BG_LYR_SUB_1 || !width || width > 32 || !height || (height > 5 && !detailDescription)
         || window->bgConfig == NULL || window->bgConfig != menu->bgConfig || window->bgId != bg
         || window->colorMode != GF_BG_CLR_4BPP || menu->bgConfig->bgs[bg].colorMode != GX_BG_COLORMODE_16
@@ -3940,7 +3943,7 @@ static BOOL NativeBattlePartyUIWindow(HGNativePartyUIWindow *out, BattlePartyMen
 static BOOL NativeBattlePartyUIButton(HGNativeBattlePartyUIButton *out, const TouchscreenHitbox *hit, u32 button) {
     u32 right = hit->rect.right ? hit->rect.right : 256;
     if (hit->rect.top >= hit->rect.bottom || hit->rect.bottom > 192 || hit->rect.left >= right
-        || button > 33 || (button > 17 && button < 30)) return FALSE;
+        || button > 33 || (button > 18 && button < 23) || button == 29) return FALSE;
     const u8 *rect = gBattlePartyButtonRects[button];
     out->cropX = rect[0] * 8; out->cropY = rect[1] * 8;
     out->cropWidth = rect[2] * 8; out->cropHeight = rect[3] * 8;
@@ -3964,7 +3967,8 @@ static void NativeBattlePartyUIPublish(BattlePartyMenu *menu) {
         next.itemId = menu->context->item; next.pocket = menu->context->pocket;
     }
     BOOL switching = next.mode == BATTLE_PARTY_MODE_SWITCH || next.mode == BATTLE_PARTY_MODE_SWITCH_NO_CANCEL;
-    BOOL supported = switching || (next.mode == BATTLE_PARTY_MODE_USE_ITEM && next.itemId == ITEM_POTION);
+    BOOL learning = next.mode == BATTLE_PARTY_MODE_LEARN_MOVE;
+    BOOL normal = switching || (next.mode == BATTLE_PARTY_MODE_USE_ITEM && next.itemId == ITEM_POTION);
     BOOL valid = next.partyCount <= 6 && menu->context->party != NULL && menu->paletteData != NULL;
     for (u32 i = 0; i < 6; ++i) {
         const BattlePartyMenuMon *mon = &menu->mons[i];
@@ -3973,11 +3977,12 @@ static void NativeBattlePartyUIPublish(BattlePartyMenu *menu) {
         out->species = mon->species; out->form = mon->form; out->level = mon->level;
         out->hp = mon->hp; out->maxHp = mon->maxHp; out->status = mon->status;
         out->gender = mon->gender; out->hideGender = mon->hideGender; out->isEgg = mon->isEgg; out->heldItem = mon->heldItem;
-        out->partyIndex = menu->context->partyOrder[i]; out->slotType = BattlePartyMenu_GetSlotType(menu, i);
+        out->partyIndex = learning ? i : menu->context->partyOrder[i]; out->slotType = BattlePartyMenu_GetSlotType(menu, i);
         if (out->partyIndex >= 6) valid = FALSE;
     }
     BOOL selected = next.selectedSlot < next.partyCount && next.selectedSlot < 6 && next.mons[next.selectedSlot].slotType != BATTLE_PARTY_SLOT_EMPTY;
     BOOL info = selected && !next.mons[next.selectedSlot].isEgg && switching;
+    BOOL learnInfo = selected && !next.mons[next.selectedSlot].isEgg && learning && !menu->canToggleView && menu->viewMode == BATTLE_PARTY_VIEW_BATTLE;
     const WindowTemplate *roles = NULL;
     u32 windowCount = 0;
     if (next.page == BATTLE_PARTY_PAGE_PARTY_LIST) { roles = gBattlePartyPartyListWindows; windowCount = 6; }
@@ -3985,6 +3990,8 @@ static void NativeBattlePartyUIPublish(BattlePartyMenu *menu) {
     else if (next.page == BATTLE_PARTY_PAGE_SUMMARY) { roles = gBattlePartySummaryWindows; windowCount = 35; }
     else if (next.page == BATTLE_PARTY_PAGE_CHECK_MOVES) { roles = gBattlePartyCheckMovesWindows; windowCount = 11; }
     else if (next.page == BATTLE_PARTY_PAGE_MOVE_DETAIL) { roles = gBattlePartyMoveDetailWindows; windowCount = 17; }
+    else if (next.page == BATTLE_PARTY_PAGE_LEARN_MOVE) { roles = gBattlePartyLearnMoveWindows; windowCount = 6; }
+    else if (next.page == BATTLE_PARTY_PAGE_FORGET_MOVE) { roles = gBattlePartyForgetMoveWindows; windowCount = 12; }
     BOOL live = sNativeBattlePartyWindowsLive && menu->pageWindows != NULL && roles != NULL && menu->pageWindowCount == windowCount;
     if (next.page == 0) {
         for (u32 i = 0; i < 7; ++i) if (!NativeBattlePartyUIButton(&next.buttons[i], &sBattlePartyPartyListHitboxes[i], i)) valid = FALSE;
@@ -4023,14 +4030,35 @@ static void NativeBattlePartyUIPublish(BattlePartyMenu *menu) {
             next.buttonCount = 5; next.enabledMask = 16;
             for (u32 i = 0; i < 4; ++i) if (menu->mons[next.selectedSlot].moves[i].move != MOVE_NONE) next.enabledMask |= 1u << i;
         }
+    } else if (next.page == BATTLE_PARTY_PAGE_LEARN_MOVE) {
+        const u8 buttons[] = {23, 24, 25, 26, 27, 18, 6};
+        for (u32 i = 0; i < NELEMS(buttons); ++i) if (!NativeBattlePartyUIButton(&next.buttons[i], &sBattlePartyLearnMoveHitboxes[i], buttons[i])) valid = FALSE;
+        if (next.phase == HG_BATTLE_PARTY_UI_LEARN_LIST && learnInfo) {
+            next.buttonCount = 7; next.enabledMask = 0x5F;
+        }
+    } else if (next.page == BATTLE_PARTY_PAGE_FORGET_MOVE) {
+        const u8 buttons[] = {28, 18, 6};
+        for (u32 i = 0; i < NELEMS(buttons); ++i) if (!NativeBattlePartyUIButton(&next.buttons[i], &sBattlePartyForgetMoveHitboxes[i], buttons[i])) valid = FALSE;
+        if (next.phase == HG_BATTLE_PARTY_UI_LEARN_DETAIL && learnInfo) {
+            next.buttonCount = 3; next.enabledMask = 5;
+        }
     }
-    if (next.page >= BATTLE_PARTY_PAGE_SUMMARY && next.page <= BATTLE_PARTY_PAGE_MOVE_DETAIL && selected) {
-        next.selectedMove = menu->context->selectedMove;
+    if (selected && ((next.page >= BATTLE_PARTY_PAGE_SUMMARY && next.page <= BATTLE_PARTY_PAGE_MOVE_DETAIL)
+        || (learning && (next.page == BATTLE_PARTY_PAGE_LEARN_MOVE || next.page == BATTLE_PARTY_PAGE_FORGET_MOVE)))) {
+        if (learning) {
+            if (next.phase == HG_BATTLE_PARTY_UI_LEARN_LIST) next.selectedMove = menu->learnMovePosition;
+            else if (next.phase == HG_BATTLE_PARTY_UI_LEARN_DETAIL) next.selectedMove = menu->context->selectedMove;
+        } else next.selectedMove = menu->context->selectedMove;
         for (u32 i = 0; i < 4; ++i) {
             const BattlePartyMenuMove *move = &menu->mons[next.selectedSlot].moves[i];
             if (move->move == MOVE_NONE) continue;
             next.moves[i].moveId = move->move; next.moves[i].pp = move->pp; next.moves[i].maxPP = move->maxPP;
         }
+    }
+    if (learning) {
+        next.moveToLearn = menu->context->move;
+        if (!next.moveToLearn || next.moveToLearn > NUM_MOVES) valid = FALSE;
+        for (u32 i = 0; i < 4; ++i) if (!next.moves[i].moveId || next.moves[i].moveId > NUM_MOVES) valid = FALSE;
     }
     if (live) {
         HGNativePartyUIWindow checked;
@@ -4046,16 +4074,20 @@ static void NativeBattlePartyUIPublish(BattlePartyMenu *menu) {
                 button->hitX = button->cropX + button->cropWidth / 2; button->hitY = button->cropY + button->cropHeight / 2;
                 next.buttonCount = next.enabledMask = 1;
             }
+        } else if (next.phase == HG_BATTLE_PARTY_UI_LEARN_DETAIL && next.page == BATTLE_PARTY_PAGE_FORGET_MOVE) {
+            if (!NativeBattlePartyUIWindow(&next.message, menu, &menu->pageWindows[8], &gBattlePartyForgetMoveWindows[8], 0)) valid = FALSE;
         }
     }
-    BOOL inputPhase = (next.phase == HG_BATTLE_PARTY_UI_ROSTER && next.page == 0)
+    BOOL inputPhase = (next.phase == HG_BATTLE_PARTY_UI_ROSTER && next.page == 0 && normal)
         || (next.phase == HG_BATTLE_PARTY_UI_MON_MENU && next.page == 1 && switching && selected)
         || (next.phase == HG_BATTLE_PARTY_UI_SUMMARY && next.page == 2 && info)
         || (next.phase == HG_BATTLE_PARTY_UI_CHECK_MOVES && next.page == 3 && info)
         || (next.phase == HG_BATTLE_PARTY_UI_MOVE_DETAIL && next.page == 4 && info && next.selectedMove < 4 && next.moves[next.selectedMove].moveId != MOVE_NONE)
-        || (next.phase == HG_BATTLE_PARTY_UI_ACK && next.page <= 1);
+        || (next.phase == HG_BATTLE_PARTY_UI_ACK && next.page <= 1 && normal)
+        || (next.phase == HG_BATTLE_PARTY_UI_LEARN_LIST && next.page == BATTLE_PARTY_PAGE_LEARN_MOVE && learnInfo && next.selectedMove <= 4)
+        || (next.phase == HG_BATTLE_PARTY_UI_LEARN_DETAIL && next.page == BATTLE_PARTY_PAGE_FORGET_MOVE && learnInfo && next.selectedMove <= 4);
     BOOL graphicsReady = menu->bgConfig != NULL && !((menu->bgConfig->bufferTransferScheduled | menu->bgConfig->scrollScheduled) & 0xF0);
-    next.ready = supported && inputPhase && valid && live && graphicsReady && !PaletteData_GetSelectedBuffersBitmask(menu->paletteData);
+    next.ready = (normal || learnInfo) && inputPhase && valid && live && graphicsReady && !PaletteData_GetSelectedBuffersBitmask(menu->paletteData);
     BOOL changed = memcmp(&next, &gNativeBattlePartyUIState, offsetof(HGNativeBattlePartyUIState, ready)) != 0
         || memcmp(&next.mode, &gNativeBattlePartyUIState.mode, offsetof(HGNativeBattlePartyUIState, prompt) - offsetof(HGNativeBattlePartyUIState, mode)) != 0;
     if (changed) ++next.revision;

@@ -76,7 +76,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',choices=('iphonesimulator','iphoneos'),default='iphonesimulator')
     parser.add_argument('--check',action='store_true',help='Run UIKit input, frame, pause/resume and reset checks after launching')
-    parser.add_argument('--check-case',choices=('field-potion','forced-switch'),help='Select an independent private UIKit case; requires --check')
+    parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves'),help='Select an independent private UIKit case; requires --check')
     args=parser.parse_args()
     if args.check_case and not args.check:
         parser.error('--check-case requires --check; production builds cannot select a private case')
@@ -97,7 +97,7 @@ def main():
         guest_destination=Path(tempfile.mkdtemp(prefix='battle-menus-guest-',dir=destination))
         if args.check_case:
             module,private_guest=prepare_battle_menus_guest(guest_destination,run,
-                field_potion=args.check_case=='field-potion',forced_switch=args.check_case=='forced-switch')
+                field_potion=args.check_case=='field-potion',forced_switch=args.check_case=='forced-switch',learn_moves=args.check_case=='learn-moves')
         else:
             module,private_guest=prepare_battle_menus_guest(guest_destination,run)
     generated,writes,restores=generate_engine(destination,module,run)
@@ -165,6 +165,7 @@ def main():
     run(['codesign','--force','--sign','-',app],'sign.log')
     report=dict(scope='native UIKit original-engine app build; gameplay validation separate',sdk=args.sdk,selfCheckEnabled=args.check,
                 checkCase=(args.check_case or 'default') if args.check else None,
+                learnMoves=args.check_case=='learn-moves',
                 intermediateSha256=hashlib.sha256(module.read_bytes()).hexdigest(),shippingModuleSha256=shipping_module_sha256,
                 privateGuestModuleSha256=private_guest['privateGuestModuleSha256'] if private_guest else None,
                 privateGuest=private_guest,nativeContent=link.get('nativeContent'),

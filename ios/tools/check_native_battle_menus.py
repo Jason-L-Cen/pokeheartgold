@@ -34,9 +34,9 @@ def hashes(paths):
     return {str(path): sha(path) for path in sorted(set(map(Path, paths)))}
 
 
-def prepare_battle_menus_guest(destination, run, party_navigation=False, field_potion=False, forced_switch=False):
+def prepare_battle_menus_guest(destination, run, party_navigation=False, field_potion=False, forced_switch=False, learn_moves=False):
     """The same private guest is used by native CQA and build_original_app --check."""
-    if sum((party_navigation, field_potion, forced_switch)) > 1:
+    if sum((party_navigation, field_potion, forced_switch, learn_moves)) > 1:
         raise ValueError('Private battle variants are mutually exclusive')
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
@@ -102,12 +102,18 @@ def prepare_battle_menus_guest(destination, run, party_navigation=False, field_p
     (destination / 'lifecycle-symbol.log').write_text(symbol.stdout + symbol.stderr)
     if symbol.returncode or not re.search(r'\bU\s+Battle_BattleExit\b', symbol.stdout):
         raise RuntimeError('Formal Battle_BattleExit caller is not an undefined external reference')
-    navigation_wraps = ('FieldSystem_GenerateSingleWildPokemon', 'BattleSetup_CopyResultsToSaveData') if party_navigation or forced_switch else ()
-    if party_navigation or forced_switch:
+    navigation_wraps = ('FieldSystem_GenerateSingleWildPokemon', 'BattleSetup_CopyResultsToSaveData') if party_navigation or forced_switch or learn_moves else ()
+    if navigation_wraps:
         symbol = subprocess.run([str(SDK / 'bin/llvm-nm'), '--undefined-only', str(audit / 'objects/src/encounter.o')], capture_output=True, text=True, timeout=15)
         (destination / 'navigation-symbols.log').write_text(symbol.stdout + symbol.stderr)
         if symbol.returncode or any(not re.search(r'\bU\s+' + name + r'\b', symbol.stdout) for name in navigation_wraps):
             raise RuntimeError('Original encounter must call both navigation hooks through undefined external references')
+    learn_wraps = ('MonTryLearnMoveOnLevelUp', 'MonSetMoveInSlot') if learn_moves else ()
+    if learn_wraps:
+        symbol = subprocess.run([str(SDK / 'bin/llvm-nm'), '--undefined-only', str(audit / 'objects/src/battle/battle_command.o')], capture_output=True, text=True, timeout=15)
+        (destination / 'learn-symbols.log').write_text(symbol.stdout + symbol.stderr)
+        if symbol.returncode or any(not re.search(r'\bU\s+' + name + r'\b', symbol.stdout) for name in learn_wraps):
+            raise RuntimeError('Original battle command must call both learning hooks through undefined external references')
     anchor = 'BOOL finished = FieldSystem_Main(fieldSystem);'
     code = field_source.read_text()
     if code.count(anchor) != 1:
@@ -128,6 +134,8 @@ def prepare_battle_menus_guest(destination, run, party_navigation=False, field_p
         flags += ['-DHG_BATTLE_MENUS_INFO_NAV']
     if forced_switch:
         flags += ['-DHG_NATIVE_FORCED_SWITCH_CHECK']
+    if learn_moves:
+        flags += ['-DHG_NATIVE_LEARN_MOVES_CHECK']
     private_object = destination / 'field-menus.o'
     run([SDK / 'bin/clang', *flags, '-c', private_source, '-o', private_object], 'guest-field-compile.log')
     index = objects.index(formal_field)
@@ -146,8 +154,8 @@ def prepare_battle_menus_guest(destination, run, party_navigation=False, field_p
                      'Save_Bag_Get', 'Save_Bag_sizeof', 'Bag_GetQuantity', 'Bag_GetPocketSlotN'):
             flag = '-Wl,--export=' + name
             if flag not in command: command.insert(command.index('-o'), flag)
-    party_wraps = ('BattleController_ReplyPartySelection',) if forced_switch else ()
-    for name in ('BattleController_EmitSelectCommand', 'BattleController_ReplyItemSelection', 'Battle_BattleExit', *navigation_wraps, *party_wraps):
+    party_wraps = ('BattleController_ReplyPartySelection',) if forced_switch or learn_moves else ()
+    for name in ('BattleController_EmitSelectCommand', 'BattleController_ReplyItemSelection', 'Battle_BattleExit', *navigation_wraps, *party_wraps, *learn_wraps):
         command.insert(command.index('-o'), '-Wl,--wrap=' + name)
     run(command, 'guest-strict-link.log')
     private_exports = inspect_exports(module, 'private-exports.log')
@@ -163,7 +171,7 @@ def prepare_battle_menus_guest(destination, run, party_navigation=False, field_p
                   privateQAExports=private_exports, privateGuestDirectory=str(destination), privateGuestModule=str(module),
                   replacedObjectIndices=[index], replacedFormalObjects=[formal_field],
                   privateObjects=[str(private_object)], artifactHashes=artifacts, sealsBefore=seals, sealsAfter={key: True for key in seals},
-                  sourceHook='original FieldSystem_Main then owner tick; original single wild task', passed=True)
+                  sourceHook='original FieldSystem_Main then owner tick; original single wild task', learnMoves=learn_moves, passed=True)
     if party_navigation:
         report.update(partyNavigation=True, navigationWrappers=list(navigation_wraps), fixtureScope='synthetic test-owned battle party only; loaded save remains one starter; reset before results copy')
     if field_potion:
@@ -171,6 +179,9 @@ def prepare_battle_menus_guest(destination, run, party_navigation=False, field_p
     if forced_switch:
         report.update(forcedSwitch=True, navigationWrappers=list(navigation_wraps), partyWrappers=list(party_wraps),
                       fixtureScope='synthetic copied battle party and stronger original-created opponent; natural KO; reset before results copy')
+    if learn_moves:
+        report.update(navigationWrappers=list(navigation_wraps), partyWrappers=list(party_wraps), learnWrappers=list(learn_wraps),
+                      fixtureScope='synthetic copied battle learner and original-created opponent; natural victory EXP; reset before results copy')
     (destination / 'preparation.json').write_text(json.dumps(report, indent=2) + '\n')
     return module, report
 
@@ -183,11 +194,13 @@ def main():
     variants.add_argument('--party-navigation', action='store_true', help='Private synthetic-party navigation only; reset before settlement')
     variants.add_argument('--field-potion', action='store_true', help='Natural battle damage, flee, then original field Potion and full-HP no-effect')
     variants.add_argument('--forced-switch', action='store_true', help='Private synthetic battle fixture, natural KO and original mandatory replacement')
+    variants.add_argument('--learn-moves', action='store_true', help='Private original victory EXP, level-up learning and move-forgetting flow; reset before settlement')
     args = parser.parse_args()
     if args.output_name is None:
         args.output_name = ('native-battle-menus-party-navigation-pass' if args.party_navigation else
                             'native-battle-menus-field-potion-pass' if args.field_potion else
-                            'native-battle-menus-forced-switch-pass' if args.forced_switch else 'native-battle-menus-pass')
+                            'native-battle-menus-forced-switch-pass' if args.forced_switch else
+                            'native-battle-menus-learn-moves-pass' if args.learn_moves else 'native-battle-menus-pass')
     if not re.fullmatch(r'native-battle-menus-[a-z0-9]+(?:-[a-z0-9]+)*', args.output_name):
         parser.error('--output-name must be one lowercase native-battle-menus- basename')
     source = Path(args.save).resolve()
@@ -203,7 +216,7 @@ def main():
     report = dict(complete=False, passed=False, status='building', commands=[], fixtureBefore=hashes(fixture))
     if args.party_navigation:
         report['partyNavigation'] = True
-    report.update(fieldPotion=args.field_potion, forcedSwitch=args.forced_switch)
+    report.update(fieldPotion=args.field_potion, forcedSwitch=args.forced_switch, learnMoves=args.learn_moves)
     report_file = destination / 'report.json'
     report_file.write_text(json.dumps(report, indent=2) + '\n')
     def run(argv, log):
@@ -215,7 +228,7 @@ def main():
     artifacts = {}; preparation = {}
     try:
         module, preparation = prepare_battle_menus_guest(destination / 'guest', run, party_navigation=args.party_navigation,
-                                                        field_potion=args.field_potion, forced_switch=args.forced_switch)
+                                                        field_potion=args.field_potion, forced_switch=args.forced_switch, learn_moves=args.learn_moves)
         report.update(preparation=preparation, shippingModuleSha256=preparation['shippingModuleSha256'], privateGuestModuleSha256=preparation['privateGuestModuleSha256'])
         generated, writes, restores = generate_engine(destination, module, run)
         original_tables = battle_menu_component_data(destination)
@@ -239,6 +252,8 @@ def main():
             flags += ['-DHG_NATIVE_FIELD_POTION_CHECK']
         if args.forced_switch:
             flags += ['-DHG_NATIVE_FORCED_SWITCH_CHECK']
+        if args.learn_moves:
+            flags += ['-DHG_NATIVE_LEARN_MOVES_CHECK']
         def compile_one(item):
             index, path = item; target = destination / f'host-{index}.o'
             extra = ['-DWASM_RT_TRAP_HANDLER=HGEngineTrap'] if path.name == 'wasm-rt-impl.c' else []
@@ -251,7 +266,7 @@ def main():
         artifacts = hashes([*preparation['artifactHashes'], *generated, original_tables, destination / 'hgengine.h', destination / 'hgengine-impl.h', *objects, binary])
         link = json.loads((BUILD / 'audit/engine-link.json').read_text()); pack = verify(link.get('nativeContent'))
         for path in fixture: shutil.copy2(path, destination / ('scenario.sav' + path.name[len(source.name):]))
-        if args.party_navigation or args.field_potion or args.forced_switch:
+        if args.party_navigation or args.field_potion or args.forced_switch or args.learn_moves:
             report['privateSaveHashesBefore'] = hashes(path for path in destination.glob('scenario.sav*') if path.is_file())
         boot = destination / 'boot-header.bin'; boot.write_bytes(read_boot_header(pack))
         if any(hashes(rows) != rows for rows in preparation['sealsBefore'].values()) or hashes(artifacts) != artifacts:
@@ -264,7 +279,7 @@ def main():
         report.update(status='running', checkedStackWrites=writes, exceptionDepthRestores=restores, artifactHashes=artifacts)
         report['commands'].append(argv); report_file.write_text(json.dumps(report, indent=2) + '\n')
         try:
-            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=300 if args.field_potion else 180)
+            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=300 if args.field_potion or args.learn_moves else 180)
             code, output = result.returncode, result.stdout + result.stderr
         except subprocess.TimeoutExpired as error:
             code, output = None, (error.stdout or b'').decode() + (error.stderr or b'').decode()
@@ -274,9 +289,13 @@ def main():
         report['infoCrops'] = [json.loads(line.removeprefix('Battle menus info crop: ')) for line in output.splitlines() if line.startswith('Battle menus info crop: ')]
         if args.field_potion:
             report['fieldPotionStates'] = [json.loads(line.removeprefix('Battle menus field Potion state: ')) for line in output.splitlines() if line.startswith('Battle menus field Potion state: ')]
+        if args.learn_moves:
+            report['learnMovesEvidence'] = [json.loads(line.removeprefix('Battle menus learn moves evidence: ')) for line in output.splitlines() if line.startswith('Battle menus learn moves evidence: ')]
+            report['learnMovesStates'] = [json.loads(line.removeprefix('Battle menus learn moves state: ')) for line in output.splitlines() if line.startswith('Battle menus learn moves state: ')]
+            report['learnMovesCrops'] = [json.loads(line.removeprefix('Battle menus learn moves crop: ')) for line in output.splitlines() if line.startswith('Battle menus learn moves crop: ')]
         report.update(runtimeComplete=code is not None, complete=code is not None and len(report['evidence']) == 1 and bool(report['evidence'][0]['flowComplete']),
                       exitCode=code, status=report['evidence'][0]['status'] if len(report['evidence']) == 1 else 'wall_clock_timeout' if code is None else 'native_runtime_failure')
-        report['passed'] = (code == 0 and len(report['evidence']) == 1 and report['status'] == 'passed_original_battle_menus_and_heal'
+        report['passed'] = (not args.learn_moves and code == 0 and len(report['evidence']) == 1 and report['status'] == 'passed_original_battle_menus_and_heal'
                             and len(report['infoEvidence']) == 1 and report['infoEvidence'][0]['complete'] == 1
                             and report['infoEvidence'][0]['pagesMask'] == 28 and report['infoEvidence'][0]['availableMoveMask'] == 3
                             and report['infoEvidence'][0]['staleRejected'] == 8 and report['infoEvidence'][0]['descriptionBankRoundTrip'] == 1)
@@ -318,12 +337,39 @@ def main():
                                          and evidence.get('replyTarget') == 3 and evidence.get('resultsCopiedToSave') is False
                                          and evidence.get('normalBattleTeardown') is False and evidence.get('fleeBranchExercised') is False
                                          and isinstance(widths, list) and len(widths) == 2 and all(type(width) is int and 0 < width <= 256 for width in widths))
+        if args.learn_moves:
+            evidence = report['learnMovesEvidence'][0] if len(report['learnMovesEvidence']) == 1 else {}
+            states = report['learnMovesStates']
+            required = ('fixtureReady', 'originalExpLevelUp', 'autoStockpile', 'keepContinue', 'hmRejected', 'fifthCancelled',
+                        'continueAfterFifth', 'replacementCommitted', 'ppUpsReset', 'finalGiveUp', 'savedPartyBagUnchanged', 'staleRejected')
+            expected = dict(semanticsMask=2303, initialEXP=37237, finalEXP=37239, partyReplies=2, finalReply=1, finalCandidate=256,
+                            battleActiveBeforeReset=1, returnedBeforeReset=0, lifecycleClearedBeforeReset=0,
+                            pendingDMA=0, qaBytes=176, partyBytes=688)
+            state_fields = ('candidate', 'exp', 'semanticsMask', 'commandMode', 'commandReady', 'partyPhase', 'partyReady',
+                            'selectedMove', 'moveToLearn', 'replyCount', 'replyTarget')
+            report['passed'] = (code == 0 and len(report['evidence']) == 1 and report['status'] == 'passed_private_original_learn_moves'
+                                and len(report['learnMovesEvidence']) == 1 and all(evidence.get(name) == 1 for name in required)
+                                and all(evidence.get(name) == value for name, value in expected.items())
+                                and evidence.get('normalBattleTeardown') is False and evidence.get('resultsCopiedToSave') is False
+                                and evidence.get('resetFinished') is True and 0 < len(states) <= 128 and evidence.get('stateChanges') == len(states)
+                                and evidence.get('statAdvancePulses') == 2
+                                and all(isinstance(state, dict) and all(type(state.get(name)) is int for name in state_fields)
+                                        and all(isinstance(state.get(name), list) and len(state[name]) == 4
+                                                and all(type(value) is int for value in state[name]) for name in ('moves', 'pp')) for state in states)
+                                and any(state['semanticsMask'] & 0x100 for state in states)
+                                and {(5, 255), (6, 255), (6, 256)} <= {(state['commandMode'], state['candidate']) for state in states if state['commandReady'] == 1}
+                                and any(state['partyPhase'] == 19 and state['partyReady'] == 1 and state['candidate'] == 255
+                                        and state['moveToLearn'] == 255 for state in states)
+                                and {0, 1, 4} <= {state['selectedMove'] for state in states
+                                                 if state['partyPhase'] == 20 and state['partyReady'] == 1 and state['candidate'] == 255}
+                                and any(state['semanticsMask'] == 2303 and state['candidate'] == 256 and state['exp'] == 37239
+                                        and state['moves'] == [255, 15, 74, 254] and state['pp'][0] == 10 and state['pp'][3] == 20 for state in states))
     except Exception as error:
         report.update(passed=False, status='build_or_integrity_failure', error=str(error))
     finally:
         report['fixtureUnchanged'] = hashes(fixture) == report['fixtureBefore']
         report['privateSaveHashesAfter'] = hashes(path for path in destination.glob('scenario.sav*') if path.is_file())
-        if args.party_navigation or args.field_potion or args.forced_switch:
+        if args.party_navigation or args.field_potion or args.forced_switch or args.learn_moves:
             report['privateCopiesUnchanged'] = len(report['privateSaveHashesAfter']) == 4 and report['privateSaveHashesAfter'] == report.get('privateSaveHashesBefore')
             report['passed'] &= report['privateCopiesUnchanged']
         report['artifactHashesUnchanged'] = hashes(artifacts) == artifacts

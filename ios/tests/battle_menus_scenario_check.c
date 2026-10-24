@@ -29,9 +29,9 @@ _Static_assert(sizeof(HGNativePartyUIState)==1480 && sizeof(HGNativeBagUIState)=
 typedef struct BattleMenusCommand { u32 active,revision,mode,ready,enabledMask,cancelRun,move[4],pp[4]; } BattleMenusCommand;
 _Static_assert(sizeof(BattleMenusCommand)==offsetof(HGNativeBattleUIState,maxPP),"Battle command prefix");
 _Static_assert(sizeof(HGNativeBattleBagUIState)==536,"Battle Bag ABI");
-_Static_assert(sizeof(HGNativeBattlePartyUIState)==684 && offsetof(HGNativeBattlePartyUIState,selectedMove)==528
-    && offsetof(HGNativeBattlePartyUIState,moves)==532 && offsetof(HGNativeBattlePartyUIState,prompt)==580
-    && offsetof(HGNativeBattlePartyUIState,message)==632,"Battle Party ABI");
+_Static_assert(sizeof(HGNativeBattlePartyUIState)==688 && offsetof(HGNativeBattlePartyUIState,selectedMove)==528
+    && offsetof(HGNativeBattlePartyUIState,moves)==532 && offsetof(HGNativeBattlePartyUIState,moveToLearn)==580
+    && offsetof(HGNativeBattlePartyUIState,prompt)==584 && offsetof(HGNativeBattlePartyUIState,message)==636,"Battle Party ABI");
 extern const u8 gBattlePartySummaryWindows[392],gBattlePartyCheckMovesWindows[88],gBattlePartyMoveDetailWindows[136];
 extern const u8 gBattlePartyButtonRects[136];
 static jmp_buf resetLanding;
@@ -48,6 +48,13 @@ static u8 infoDescription[120*80*4];
 static const char *blockedStatus;
 static BOOL resetExpected,baselineComplete,fullHpNoEffect,targetCancel,shiftRejected,healed,damageMissing,sceneBlocked,busyCaptured,fieldReturned;
 static HGNativeBattleMenusQAState finalQA;
+#ifdef HG_NATIVE_LEARN_MOVES_CHECK
+extern const u8 gBattlePartyLearnMoveWindows[48],gBattlePartyForgetMoveWindows[96];
+static BOOL learnFixture,learnExp,learnAuto,learnKeepContinue,learnHM,learnFifth,learnContinueFifth,learnReplace,learnUps,learnGiveUp,learnSaved;
+static u32 learnPartyRevision,learnCommandRevision,learnStale,learnInitialExp,learnStatsPulses,learnStateChanges,learnPreviousState[20];
+static BOOL learnStateSeen;
+static u8 learnHMDescription[120*80*4];
+#endif
 #ifdef HG_NATIVE_FIELD_POTION_CHECK
 static u32 fieldIconCenters[7][2],fieldPartyRevision,fieldBagRevision,fieldTargetRevision,fieldFirstBagRevision,fieldPocketVisited;
 static u32 fieldPartyAddress,fieldBagAddress,fieldFlagsAddress,fieldDexAddress,fieldMon26[6][26],fieldFlags[5],fieldBagSize,fieldPotionOffset;
@@ -166,6 +173,32 @@ static void infoCrops(Capture *capture,const HGNativeBattlePartyUIState *party,c
         }
     }
 }
+#ifdef HG_NATIVE_LEARN_MOVES_CHECK
+static void learnCrops(Capture *capture,const HGNativeBattlePartyUIState *party,const u8 *pixels) {
+    if (!party->active || !party->ready || party->mode!=HG_BATTLE_PARTY_UI_LEARN_MOVE) return;
+    const u8 *roles; u32 first,count;
+    if (party->phase==HG_BATTLE_PARTY_UI_LEARN_LIST && party->page==6) { roles=gBattlePartyLearnMoveWindows; first=0; count=6; }
+    else if (party->phase==HG_BATTLE_PARTY_UI_LEARN_DETAIL && party->page==7) { roles=gBattlePartyForgetMoveWindows; first=8; count=1; }
+    else return;
+    u8 crop[120*80*4];
+    for (u32 i=first;i<first+count;++i) {
+        const u8 *role=roles+i*8; u32 x=role[1]*8,y=role[2]*8,width=role[3]*8,height=role[4]*8;
+        QA_CHECK(role[0]==(party->page==6 ? 4 : 5) && width && height && x+width<=256 && y+height<=192 && width*height*4<=sizeof(crop));
+        BOOL varied=FALSE;
+        for (u32 row=0;row<height;++row) {
+            memcpy(crop+row*width*4,pixels+((y+row)*256+x)*4,width*4);
+            for (u32 col=0;col<width;++col) varied |= memcmp(crop,crop+(row*width+col)*4,4)!=0;
+        }
+        QA_CHECK(varied);
+        char name[64]; QA_CHECK(snprintf(name,sizeof(name),"learn-page-%u-text-%02u.rgba",party->page,i)<sizeof(name));
+        bytes(capture,name,crop,width*height*4);
+        printf("Battle menus learn moves crop: {\"stage\":%u,\"page\":%u,\"candidate\":%u,\"selectedMove\":%u,\"index\":%u,\"bg\":%u,\"x\":%u,\"y\":%u,\"width\":%u,\"height\":%u}\n",
+            stage,party->page,party->moveToLearn,party->selectedMove,i,role[0],x,y,width,height);
+        if (party->page==7 && stage==305) memcpy(learnHMDescription,crop,sizeof(learnHMDescription));
+        if (party->page==7 && stage==306) QA_CHECK(memcmp(learnHMDescription,crop,sizeof(learnHMDescription)));
+    }
+}
+#endif
 static BOOL snapshot(Capture *capture,const char *role,BOOL active) {
     if (!capture->buffer) capture->buffer=w2c_hgengine_HGNativeFrameBuffer(capture->game);
     guest(capture,capture->buffer,256*192*4); HGNativeDrainDMA();
@@ -176,7 +209,11 @@ static BOOL snapshot(Capture *capture,const char *role,BOOL active) {
         const u8 *pixels=guest(capture,capture->buffer,256*192*4); BOOL varied=FALSE;
         for (u32 i=1;i<256*192;i++) if (memcmp(pixels,pixels+4*i,4)) { varied=TRUE; break; }
         if ((!engine || active) && !varied) return FALSE;
-        if (engine) { HGNativeBattlePartyUIState party=readParty(capture); infoCrops(capture,&party,pixels); }
+        if (engine) { HGNativeBattlePartyUIState party=readParty(capture); infoCrops(capture,&party,pixels);
+#ifdef HG_NATIVE_LEARN_MOVES_CHECK
+            learnCrops(capture,&party,pixels);
+#endif
+        }
         char path[4096]; QA_CHECK(snprintf(path,sizeof(path),"%s/stage-%02u-shot-%02u-%s-engine-%u.ppm",capture->folder,stage,snapshots,role,engine)<sizeof(path));
         FILE *file=fopen(path,"wb"); QA_CHECK(file && fprintf(file,"P6\n256 192\n255\n")>0);
         for (u32 i=0;i<256*192;i++) QA_CHECK(fwrite(pixels+4*i,1,3,file)==3);
@@ -629,6 +666,151 @@ static void forcedPresent(Capture *capture,HGNativeBattleMenusQAState q,BattleMe
     }
 }
 #endif
+#ifdef HG_NATIVE_LEARN_MOVES_CHECK
+static void learnState(HGNativeBattleMenusQAState q,BattleMenusCommand cmd,HGNativeBattlePartyUIState party,u32 frame) {
+    const u32 values[]={stage,q.replyItem,q.replyPocket,q.semanticsMask,cmd.mode,cmd.ready,party.phase,party.ready,party.selectedMove,party.moveToLearn,
+        q.replyCount,q.replyTarget,q.moves[0],q.moves[1],q.moves[2],q.moves[3],q.pp[0],q.pp[1],q.pp[2],q.pp[3]};
+    if (learnStateSeen && !memcmp(values,learnPreviousState,sizeof(values))) return;
+    QA_CHECK(learnStateChanges<128); memcpy(learnPreviousState,values,sizeof(values)); learnStateSeen=TRUE; ++learnStateChanges;
+    printf("Battle menus learn moves state: {\"stage\":%u,\"frame\":%u,\"candidate\":%u,\"exp\":%u,\"semanticsMask\":%u,\"commandMode\":%u,\"commandReady\":%u,"
+        "\"partyPhase\":%u,\"partyReady\":%u,\"selectedMove\":%u,\"moveToLearn\":%u,\"replyCount\":%u,\"replyTarget\":%u,\"moves\":[%u,%u,%u,%u],\"pp\":[%u,%u,%u,%u]}\n",
+        stage,frame,q.replyItem,q.replyPocket,q.semanticsMask,cmd.mode,cmd.ready,party.phase,party.ready,party.selectedMove,party.moveToLearn,
+        q.replyCount,q.replyTarget,q.moves[0],q.moves[1],q.moves[2],q.moves[3],q.pp[0],q.pp[1],q.pp[2],q.pp[3]);
+}
+static BOOL learnPrompt(Capture *capture,HGNativeBattleMenusQAState q,BattleMenusCommand cmd,u32 mode,u32 candidate,u32 choice,const char *name) {
+    if (!cmd.active || !cmd.ready || cmd.mode!=mode || q.replyItem!=candidate) return FALSE;
+    u32 address=w2c_hgengine_HGNativeBattleUIGetState(capture->game);
+    const HGNativeBattleUIState *state=guest(capture,address,sizeof(*state));
+    QA_CHECK(state->revision==cmd.revision && state->enabledMask==3 && !state->cancelRun);
+    for (u32 i=0;i<4;++i) QA_CHECK(!state->move[i] && !state->pp[i] && !state->maxPP[i]);
+    for (u32 i=0;i<2;++i) {
+        QA_CHECK(state->nameWidth[i] && state->nameWidth[i]<=HG_BATTLE_NAME_WIDTH);
+        BOOL visible=FALSE;
+        for (u32 pixel=0;pixel<HG_BATTLE_NAME_WIDTH*HG_BATTLE_NAME_HEIGHT;++pixel) visible |= state->namePixels[i][pixel*4+3]!=0;
+        QA_CHECK(visible);
+    }
+    if (!snapshot(capture,name,TRUE)) return FALSE;
+    state=guest(capture,address,sizeof(*state)); QA_CHECK(state->revision==cmd.revision && state->ready && state->mode==mode);
+    bytes(capture,"learn-prompt-upper.rgba",state->namePixels[0],sizeof(state->namePixels[0]));
+    bytes(capture,"learn-prompt-lower.rgba",state->namePixels[1],sizeof(state->namePixels[1]));
+    QA_CHECK(!w2c_hgengine_HGNativeBattleUIChoose(capture->game,cmd.revision,2));
+    if (learnCommandRevision) {
+        QA_CHECK(cmd.revision>learnCommandRevision && !w2c_hgengine_HGNativeBattleUIChoose(capture->game,learnCommandRevision,choice)); ++learnStale;
+    }
+    commandChoice(capture,cmd,choice);
+    QA_CHECK(!w2c_hgengine_HGNativeBattleUIChoose(capture->game,cmd.revision,choice)); learnCommandRevision=cmd.revision;
+    return TRUE;
+}
+static void learnPartyState(HGNativeBattleMenusQAState q,HGNativeBattlePartyUIState party,u32 phase,u32 selectedMove) {
+    QA_CHECK(party.active && party.ready && party.mode==HG_BATTLE_PARTY_UI_LEARN_MOVE && party.phase==phase
+        && party.page==(phase==HG_BATTLE_PARTY_UI_LEARN_LIST ? 6 : 7) && party.partyCount==1 && !party.selectedSlot
+        && party.mons[0].species==455 && party.mons[0].level==31 && party.mons[0].partyIndex==0 && !party.mons[0].isEgg
+        && !party.itemId && !party.pocket && party.moveToLearn==255 && q.replyItem==255 && q.replyPocket==37239);
+    QA_CHECK(party.buttonCount==(phase==HG_BATTLE_PARTY_UI_LEARN_LIST ? 7 : 3) && party.enabledMask==(phase==HG_BATTLE_PARTY_UI_LEARN_LIST ? 0x5F : 5));
+    for (u32 i=0;i<4;++i) QA_CHECK(party.moves[i].moveId==q.moves[i] && party.moves[i].pp==q.pp[i]);
+    if (phase==HG_BATTLE_PARTY_UI_LEARN_DETAIL) QA_CHECK(party.selectedMove==selectedMove && party.message.pixelBuffer
+        && party.message.tileWidth==15 && party.message.tileHeight==10 && party.message.engine==1);
+}
+static void learnPresent(Capture *capture,HGNativeBattleMenusQAState q,BattleMenusCommand cmd,HGNativeBattlePartyUIState party) {
+    BOOL list=party.active && party.ready && party.phase==HG_BATTLE_PARTY_UI_LEARN_LIST;
+    BOOL detail=party.active && party.ready && party.phase==HG_BATTLE_PARTY_UI_LEARN_DETAIL;
+    if (q.returned) {
+        blockedStatus="prerequisite_learning_battle_ended"; finalQA=q; resetExpected=TRUE;
+        w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE);
+    }
+    u32 x,y;
+    switch (stage) {
+    case 1:
+        if (!cmd.active || !cmd.ready || cmd.mode!=HG_BATTLE_UI_COMMAND) break;
+        QA_CHECK(q.semanticsMask==2063 && q.partyCount==1 && !q.activePartySlot && q.playerHp==q.playerMaxHp && q.playerHp
+            && !q.playerStatus && q.potionQuantity==5 && q.enemySpecies==129 && q.enemyLevel==1 && q.enemyHp
+            && q.moves[0]==22 && q.moves[1]==15 && q.moves[2]==74 && !q.moves[3] && q.pp[0]==24 && q.replyPocket==37237 && !q.replyCount);
+        if (!snapshot(capture,"learn-original-fixture",TRUE)) break;
+        learnFixture=TRUE; learnInitialExp=q.replyPocket; commandChoice(capture,cmd,0); next(300); break;
+    case 300:
+        if (!cmd.active || !cmd.ready || cmd.mode!=HG_BATTLE_UI_MOVES) break;
+        QA_CHECK(cmd.move[0]==22 && cmd.pp[0]==24); commandChoice(capture,cmd,0); next(301); break;
+    case 301:
+        if (q.semanticsMask&0x100) {
+            if (cmd.mode!=HG_BATTLE_UI_NONE || party.active) break;
+            QA_CHECK(learnStatsPulses<2 && !q.enemyHp);
+            QA_CHECK(!pulseFrame && HGNativeSetInput(capture->env,1,FALSE,0,0,FALSE));
+            pulseFrame=OS_GetVBlankCount(); pulseReleased=FALSE; ++learnStatsPulses; break;
+        }
+        if (!cmd.active || !cmd.ready || cmd.mode!=HG_BATTLE_UI_KEEP_FORGET || q.replyItem!=255) break;
+        QA_CHECK(learnStatsPulses==2 && q.semanticsMask==2207 && q.replyPocket==37239 && q.moves[3]==254 && q.pp[3]==20 && !q.enemyHp && !q.replyCount);
+        if (!learnPrompt(capture,q,cmd,HG_BATTLE_UI_KEEP_FORGET,255,1,"learn-spit-up-keep")) break;
+        learnExp=!!(q.semanticsMask&128); learnAuto=!!(q.semanticsMask&16); infoBefore=q; next(302); break;
+    case 302:
+        infoUnchanged(q);
+        if (learnPrompt(capture,q,cmd,HG_BATTLE_UI_GIVE_UP,255,1,"learn-spit-up-continue")) next(303);
+        break;
+    case 303:
+        infoUnchanged(q);
+        if (learnPrompt(capture,q,cmd,HG_BATTLE_UI_KEEP_FORGET,255,0,"learn-spit-up-forget")) { learnKeepContinue=TRUE; next(304); }
+        break;
+    case 304:
+        if (!list) break;
+        infoUnchanged(q); learnPartyState(q,party,HG_BATTLE_PARTY_UI_LEARN_LIST,0);
+        if (!snapshot(capture,"learn-spit-up-list",TRUE)) break;
+        learnPartyRevision=party.revision; partyChoice(capture,party,1); next(305); break;
+    case 305:
+        if (!detail || party.selectedMove!=1 || party.revision==learnPartyRevision) break;
+        infoUnchanged(q); learnPartyState(q,party,HG_BATTLE_PARTY_UI_LEARN_DETAIL,1);
+        if (!snapshot(capture,"learn-cut-before-hm-rejection",TRUE)) break;
+        learnPartyRevision=party.revision; partyChoice(capture,party,0); next(306); break;
+    case 306:
+        if (!detail || party.selectedMove!=1 || party.revision==learnPartyRevision) break;
+        infoUnchanged(q); learnPartyState(q,party,HG_BATTLE_PARTY_UI_LEARN_DETAIL,1);
+        QA_CHECK(!q.replyCount && q.moves[1]==15 && !HGNativeBattlePartyUIResolveTouch(&party,learnPartyRevision,party.phase,0,&x,&y)); ++learnStale;
+        if (!snapshot(capture,"learn-original-hm-rejection",TRUE)) break;
+        learnHM=TRUE; partyChoice(capture,party,2); next(307); break;
+    case 307:
+        if (!list) break;
+        infoUnchanged(q); learnPartyState(q,party,HG_BATTLE_PARTY_UI_LEARN_LIST,0);
+        learnPartyRevision=party.revision; partyChoice(capture,party,4); next(308); break;
+    case 308:
+        if (!detail || party.selectedMove!=4 || party.revision==learnPartyRevision) break;
+        infoUnchanged(q); learnPartyState(q,party,HG_BATTLE_PARTY_UI_LEARN_DETAIL,4);
+        QA_CHECK(!HGNativeBattlePartyUIResolveTouch(&party,learnPartyRevision,party.phase,0,&x,&y)); ++learnStale;
+        if (!snapshot(capture,"learn-spit-up-fifth-cancel",TRUE)) break;
+        partyChoice(capture,party,0); next(309); break;
+    case 309:
+        if (q.replyCount!=1 || q.replyTarget!=255) break;
+        if (learnPrompt(capture,q,cmd,HG_BATTLE_UI_GIVE_UP,255,1,"learn-fifth-continue")) { learnFifth=TRUE; next(310); }
+        break;
+    case 310:
+        if (learnPrompt(capture,q,cmd,HG_BATTLE_UI_KEEP_FORGET,255,0,"learn-retry-forget")) { learnContinueFifth=TRUE; next(311); }
+        break;
+    case 311:
+        if (!list) break;
+        learnPartyState(q,party,HG_BATTLE_PARTY_UI_LEARN_LIST,0); QA_CHECK(q.replyCount==1 && q.replyTarget==255);
+        learnPartyRevision=party.revision; partyChoice(capture,party,0); next(312); break;
+    case 312:
+        if (!detail || party.selectedMove!=0 || party.revision==learnPartyRevision) break;
+        learnPartyState(q,party,HG_BATTLE_PARTY_UI_LEARN_DETAIL,0); QA_CHECK(q.replyCount==1 && q.replyTarget==255 && party.moves[0].maxPP==24);
+        if (!snapshot(capture,"learn-replace-vine-whip",TRUE)) break;
+        partyChoice(capture,party,0); next(313); break;
+    case 313:
+        if (!cmd.active || !cmd.ready || cmd.mode!=HG_BATTLE_UI_KEEP_FORGET || q.replyItem!=256) break;
+        QA_CHECK(q.semanticsMask==2239 && q.replyCount==2 && q.replyTarget==1 && q.moves[0]==255 && q.pp[0]==10 && q.moves[3]==254 && q.pp[3]==20);
+        if (!learnPrompt(capture,q,cmd,HG_BATTLE_UI_KEEP_FORGET,256,1,"learn-swallow-keep")) break;
+        learnReplace=TRUE; learnUps=!!(q.semanticsMask&32); next(314); break;
+    case 314:
+        if (learnPrompt(capture,q,cmd,HG_BATTLE_UI_GIVE_UP,256,0,"learn-swallow-final-give-up")) next(315);
+        break;
+    case 315:
+        if (q.semanticsMask!=2303) break;
+        QA_CHECK(q.replyItem==256 && q.replyPocket==37239 && q.replyCount==2 && q.replyTarget==1
+            && q.moves[0]==255 && q.moves[1]==15 && q.moves[2]==74 && q.moves[3]==254 && q.pp[0]==10 && q.pp[3]==20
+            && q.battleActive && !q.returned && !q.lifecycleCleared);
+        if (!snapshot(capture,"learn-complete-before-settlement",TRUE)) break;
+        learnGiveUp=!!(q.semanticsMask&64); learnSaved=!!(q.semanticsMask&2); finalQA=q; resetExpected=TRUE;
+        w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0); QA_CHECK(FALSE); break;
+    default: QA_CHECK(FALSE);
+    }
+}
+#endif
 static void MenusPresent(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
     if (!stage) {
@@ -659,6 +841,9 @@ static void MenusPresent(void *argument) {
 #endif
 #ifdef HG_NATIVE_FORCED_SWITCH_CHECK
     forcedDiagnostic(q,cmd,party,frame); forcedPresent(capture,q,cmd,party); return;
+#endif
+#ifdef HG_NATIVE_LEARN_MOVES_CHECK
+    learnState(q,cmd,party,frame); learnPresent(capture,q,cmd,party); return;
 #endif
 #ifdef HG_NATIVE_FIELD_POTION_CHECK
     if (stage>=120 && stage<=133) { fieldPotionPresent(capture,q); return; }
@@ -864,7 +1049,19 @@ int main(int argc,char **argv) {
     }
     QA_CHECK(resetExpected && env->resetRequested); HGNativeFinishReset(env);
     QA_CHECK(env->resetFinished && !env->pendingDMA && !env->dmaAffineWrites && !env->pendingRTC && !env->pendingMIC && !env->pendingCARD && !env->pendingPOWER && !env->pendingINPUT && !env->irqTable && !env->threads && !env->rasterFunction);
-#if defined(HG_NATIVE_FIELD_POTION_CHECK)
+#if defined(HG_NATIVE_LEARN_MOVES_CHECK)
+    BOOL passed=learnFixture && learnExp && learnAuto && learnKeepContinue && learnHM && learnFifth && learnContinueFifth
+        && learnReplace && learnUps && learnGiveUp && learnSaved && learnStale>=2 && !blockedStatus;
+    const char *status=blockedStatus ? blockedStatus : passed ? "passed_private_original_learn_moves" : "actual_assertion_failed";
+    printf("Battle menus learn moves evidence: {\"fixtureReady\":%u,\"originalExpLevelUp\":%u,\"autoStockpile\":%u,\"keepContinue\":%u,\"hmRejected\":%u,\"fifthCancelled\":%u,"
+        "\"continueAfterFifth\":%u,\"replacementCommitted\":%u,\"ppUpsReset\":%u,\"finalGiveUp\":%u,\"savedPartyBagUnchanged\":%u,\"staleRejected\":%u,\"staleRejections\":%u,"
+        "\"semanticsMask\":%u,\"initialEXP\":%u,\"finalEXP\":%u,\"partyReplies\":%u,\"finalReply\":%u,\"finalCandidate\":%u,\"battleActiveBeforeReset\":%u,\"returnedBeforeReset\":%u,\"lifecycleClearedBeforeReset\":%u,"
+        "\"stateChanges\":%u,\"statAdvancePulses\":%u,\"qaBytes\":%zu,\"partyBytes\":%zu,\"normalBattleTeardown\":false,\"resultsCopiedToSave\":false,\"resetFinished\":true,\"pendingDMA\":0}\n",
+        learnFixture,learnExp,learnAuto,learnKeepContinue,learnHM,learnFifth,learnContinueFifth,learnReplace,learnUps,learnGiveUp,learnSaved,learnStale>=2,learnStale,
+        finalQA.semanticsMask,learnInitialExp,finalQA.replyPocket,finalQA.replyCount,finalQA.replyTarget,finalQA.replyItem,finalQA.battleActive,finalQA.returned,finalQA.lifecycleCleared,
+        learnStateChanges,learnStatsPulses,sizeof(finalQA),sizeof(HGNativeBattlePartyUIState));
+    printf("Battle menus evidence: {\"status\":\"%s\",\"flowComplete\":%u,\"snapshots\":%u,\"resetFinished\":true,\"pendingDMA\":0}\n",status,passed,snapshots);
+#elif defined(HG_NATIVE_FIELD_POTION_CHECK)
     BOOL passed=baselineComplete && infoComplete && infoBankRoundTrip && infoStaleRejected==8 && fieldTargetCancelled && fieldCancelNewBag
         && fieldHealed && fieldHealNewBag && fieldFullHp && fieldFullHpNewBag && fieldStale && fieldQuantityExact && fieldSemanticStable
         && fieldProgress && fieldResultWaitMask==3 && fieldReturned && !sceneBlocked && !damageMissing && !blockedStatus;

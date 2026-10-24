@@ -33,13 +33,29 @@ static NSString *OriginalPartyStatusName(uint32_t status) {
     return status<sizeof(names)/sizeof(*names) ? names[status] : @"";
 }
 _Static_assert(sizeof(HGNativeBattleBagUIState)==536, "Battle Bag UI ABI");
-_Static_assert(sizeof(HGNativeBattlePartyUIState)==684, "Battle Party UI ABI");
+_Static_assert(sizeof(HGNativeBattlePartyUIState)==688, "Battle Party UI ABI");
 _Static_assert(offsetof(HGNativeBattlePartyUIState,selectedMove)==528 && offsetof(HGNativeBattlePartyUIState,moves)==532
-    && offsetof(HGNativeBattlePartyUIState,prompt)==580 && offsetof(HGNativeBattlePartyUIState,message)==632, "Battle Party info ABI");
+    && offsetof(HGNativeBattlePartyUIState,moveToLearn)==580 && offsetof(HGNativeBattlePartyUIState,prompt)==584
+    && offsetof(HGNativeBattlePartyUIState,message)==636, "Battle Party info ABI");
+static BOOL OriginalBattleChoiceMode(uint32_t mode) {
+    return mode==HG_BATTLE_UI_NEXT_MON || mode==HG_BATTLE_UI_KEEP_FORGET || mode==HG_BATTLE_UI_GIVE_UP;
+}
+static BOOL OriginalBattlePartyInfoPhase(uint32_t phase) {
+    return (phase>=HG_BATTLE_PARTY_UI_SUMMARY && phase<=HG_BATTLE_PARTY_UI_MOVE_DETAIL)
+        || phase==HG_BATTLE_PARTY_UI_LEARN_LIST || phase==HG_BATTLE_PARTY_UI_LEARN_DETAIL;
+}
 static uint32_t OriginalBattleMenuKind(const HGNativeBattleBagUIState *bag, const HGNativeBattlePartyUIState *party) {
     if (bag && bag->active && ((bag->phase==HG_BATTLE_BAG_UI_POCKETS && bag->page==0)
         || (bag->phase==HG_BATTLE_BAG_UI_ITEMS && bag->page==1)
         || ((bag->phase==HG_BATTLE_BAG_UI_USE || bag->phase==HG_BATTLE_BAG_UI_ACK) && bag->page==2))) return OriginalBattleMenuBag;
+    if (party && party->active && party->partyCount<=HG_BATTLE_PARTY_UI_MONS && party->mode==HG_BATTLE_PARTY_UI_LEARN_MOVE
+        && party->selectedSlot<party->partyCount && party->mons[party->selectedSlot].slotType && !party->mons[party->selectedSlot].isEgg
+        && party->moveToLearn && party->moveToLearn<=NUM_MOVES && party->selectedMove<=4
+        && ((party->phase==HG_BATTLE_PARTY_UI_LEARN_LIST && party->page==6)
+            || (party->phase==HG_BATTLE_PARTY_UI_LEARN_DETAIL && party->page==7))) {
+        for (NSUInteger i=0;i<4;i++) if (!party->moves[i].moveId || party->moves[i].moveId>NUM_MOVES) return 0;
+        return OriginalBattleMenuParty;
+    }
     if (party && party->active && party->partyCount<=HG_BATTLE_PARTY_UI_MONS
         && (party->mode==HG_BATTLE_PARTY_UI_SWITCH || party->mode==HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL
             || (party->mode==HG_BATTLE_PARTY_UI_USE_ITEM && party->itemId==HG_BATTLE_PARTY_UI_POTION))
@@ -622,12 +638,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _battleBar.frame = CGRectMake(area.origin.x, CGRectGetMaxY(area) - barHeight, area.size.width, barHeight);
         BOOL selection=_battleMode==HG_BATTLE_UI_MOVES || _battleMode==HG_BATTLE_UI_TARGETS;
         CGFloat inset = selection ? 96 : 12;
-        BOOL nextMon=_battleMode==HG_BATTLE_UI_NEXT_MON;
-        CGFloat ballSpace = selection || nextMon ? 0 : 96;
+        BOOL choice=OriginalBattleChoiceMode(_battleMode);
+        CGFloat ballSpace = selection || choice ? 0 : 96;
         CGFloat gap = 10, buttonWidth = (_battleBar.bounds.size.width - inset - 12 - gap - ballSpace) / 2;
         CGFloat buttonHeight = (barHeight - 24 - gap) / 2;
         for (NSUInteger i = 0; i < 4; i++) {
-            _battleButtons[i].frame = CGRectMake(inset + (i % 2) * (buttonWidth + gap), nextMon ? 12 : 12 + (i / 2) * (buttonHeight + gap), buttonWidth, nextMon ? barHeight - 24 : buttonHeight);
+            _battleButtons[i].frame = CGRectMake(inset + (i % 2) * (buttonWidth + gap), choice ? 12 : 12 + (i / 2) * (buttonHeight + gap), buttonWidth, choice ? barHeight - 24 : buttonHeight);
         }
         _battleBack.frame = CGRectMake(12, 12, 72, barHeight - 24);
         _battleBall.frame = CGRectMake(_battleBar.bounds.size.width - 84, (barHeight - 72) / 2, 72, 72);
@@ -726,7 +742,16 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         } else if (_battleMenuKind==OriginalBattleMenuParty && phase==HG_BATTLE_PARTY_UI_MON_MENU) {
             CGFloat ch=(ph-56-gap)/2;
             for (NSUInteger i=0;i<4;i++) _battleMenuButtons[i].frame=CGRectMake(rx+(i%2)*(cardWidth+gap),40+(i/2)*(ch+gap),cardWidth,ch);
-        } else if (_battleMenuKind==OriginalBattleMenuParty && phase>=HG_BATTLE_PARTY_UI_SUMMARY && phase<=HG_BATTLE_PARTY_UI_MOVE_DETAIL) {
+        } else if (_battleMenuKind==OriginalBattleMenuParty && phase==HG_BATTLE_PARTY_UI_LEARN_LIST) {
+            CGFloat cw=(pw-3*gap)/2,ch=MAX(44,(ph-76-2*gap)/3);
+            for (NSUInteger i=0;i<5;i++) _battleMenuButtons[i].frame=CGRectMake(gap+(i%2)*(cw+gap),8+(i/2)*(ch+gap),cw,ch);
+            _battleMenuButtons[6].frame=CGRectMake(gap,ph-52,MIN(160,pw-2*gap),44);
+        } else if (_battleMenuKind==OriginalBattleMenuParty && phase==HG_BATTLE_PARTY_UI_LEARN_DETAIL) {
+            CGFloat cw=(pw-3*gap)/2;
+            _battleMenuButtons[0].frame=CGRectMake(gap,ph-52,cw,44);
+            _battleMenuButtons[2].frame=CGRectMake(2*gap+cw,ph-52,cw,44);
+            _battleMenuDescription.frame=CGRectMake(gap,8,pw-2*gap,MAX(44,ph-68));
+        } else if (_battleMenuKind==OriginalBattleMenuParty && OriginalBattlePartyInfoPhase(phase)) {
             BOOL moves=phase==HG_BATTLE_PARTY_UI_CHECK_MOVES;
             NSUInteger first=moves ? 4 : 0,count=phase==HG_BATTLE_PARTY_UI_MOVE_DETAIL ? 5 : 4;
             CGFloat navWidth=(pw-(count+1)*gap)/count;
@@ -766,7 +791,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (subFrame.length!=256*192*4 || !frame.length || frame.length%(192*4)) return nil;
     uint32_t revision=kind==OriginalBattleMenuBag ? bag->revision : party->revision;
     uint32_t phase=kind==OriginalBattleMenuBag ? bag->phase : party->phase;
-    BOOL info=kind==OriginalBattleMenuParty && phase>=HG_BATTLE_PARTY_UI_SUMMARY && phase<=HG_BATTLE_PARTY_UI_MOVE_DETAIL;
+    BOOL info=kind==OriginalBattleMenuParty && OriginalBattlePartyInfoPhase(phase);
     BOOL ready=kind==OriginalBattleMenuBag ? bag->ready : party->ready;
     BOOL keep=_battleMenuOwnerPictures && _battleMenuOwnerKind==kind && _battleMenuOwnerRevision==revision && _battleMenuOwnerPhase==phase;
     NSMutableDictionary *pictures=keep ? [_battleMenuOwnerPictures mutableCopy] : [NSMutableDictionary new];
@@ -775,7 +800,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (phase==HG_BATTLE_PARTY_UI_CHECK_MOVES) {
             UIImage *name=OriginalFrameRegion(subFrame,40,8,72,16); if (!name) return nil;
             pictures[@"selected"]=name;
-        } else {
+        } else if (phase!=HG_BATTLE_PARTY_UI_LEARN_LIST) {
             UIImage *content=OriginalFrameRegion(subFrame,0,0,256,152); if (!content) return nil;
             pictures[@"content"]=content;
         }
@@ -857,7 +882,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     const HGNativeBattleBagUIState *bag=bagData.length==sizeof(*bag) ? bagData.bytes : NULL;
     const HGNativeBattlePartyUIState *party=partyData.length==sizeof(*party) ? partyData.bytes : NULL;
     uint32_t kind=OriginalBattleMenuKind(bag,party),phase=kind==OriginalBattleMenuBag ? bag->phase : kind==OriginalBattleMenuParty ? party->phase : 0;
-    BOOL info=kind==OriginalBattleMenuParty && phase>=HG_BATTLE_PARTY_UI_SUMMARY && phase<=HG_BATTLE_PARTY_UI_MOVE_DETAIL;
+    BOOL info=kind==OriginalBattleMenuParty && OriginalBattlePartyInfoPhase(phase);
     BOOL scene=(bag && bag->active) || (party && party->active);
     BOOL changed=kind!=_battleMenuKind || scene!=_battleMenuScene
         || (kind==OriginalBattleMenuBag && (_displayedBattleBagUIState.length!=sizeof(*bag) || ((const HGNativeBattleBagUIState *)_displayedBattleBagUIState.bytes)->revision!=bag->revision))
@@ -897,6 +922,20 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                 highlight=i==party->selectedSlot;
             } else if (phase==HG_BATTLE_PARTY_UI_ROSTER && i==6) label=@"返回";
             else if (phase==HG_BATTLE_PARTY_UI_MON_MENU && i<monActions.count) label=monActions[i];
+            else if (phase==HG_BATTLE_PARTY_UI_LEARN_LIST) {
+                hidden=hidden || i==5;
+                if (i<5) {
+                    uint32_t move=i<4 ? party->moves[i].moveId : party->moveToLearn;
+                    NSString *name=move<_moveNames.count ? _moveNames[move] : @"招式";
+                    label=i<4 ? [NSString stringWithFormat:@"%@，PP %u／%u",name,party->moves[i].pp,party->moves[i].maxPP]
+                        : [@"要学习的招式，" stringByAppendingString:name];
+                    highlight=i==party->selectedMove;
+                } else if (i==6) label=@"返回";
+            } else if (phase==HG_BATTLE_PARTY_UI_LEARN_DETAIL) {
+                hidden=hidden || i==1;
+                if (i==0) label=@"确认";
+                else if (i==2) label=@"返回";
+            }
             else if (phase==HG_BATTLE_PARTY_UI_SUMMARY && i<4) label=(@[@"上一只宝可梦",@"下一只宝可梦",@"查看招式",@"返回"])[i];
             else if ((phase==HG_BATTLE_PARTY_UI_CHECK_MOVES || phase==HG_BATTLE_PARTY_UI_MOVE_DETAIL) && i<4) {
                 const HGNativeBattlePartyUIMove *move=&party->moves[i];
@@ -913,17 +952,22 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _battleMenuImages[i].image=image;
         [button setTitle:title forState:UIControlStateNormal]; if (title) [button bringSubviewToFront:button.titleLabel];
     }
-    _battleMenuTitle.text=kind==OriginalBattleMenuBag ? @"战斗背包" : kind==OriginalBattleMenuParty ? (party->mode==HG_BATTLE_PARTY_UI_USE_ITEM ? @"使用道具" : @"宝可梦") : nil;
+    _battleMenuTitle.text=kind==OriginalBattleMenuBag ? @"战斗背包" : kind==OriginalBattleMenuParty ? (party->mode==HG_BATTLE_PARTY_UI_USE_ITEM ? @"使用道具" : party->mode==HG_BATTLE_PARTY_UI_LEARN_MOVE ? @"学习招式" : @"宝可梦") : nil;
     _battleMenuPreview.image=pictures[@"preview"]; _battleMenuSelected.image=pictures[@"selected"]; _battleMenuQuantity.image=pictures[@"quantity"];
     _battleMenuDescription.image=info ? pictures[@"content"] : pictures[@"description"] ?: pictures[@"prompt"]; _battleMenuMessage.image=pictures[@"message"];
     _battleMenuTitle.hidden=_battleMenuPreview.hidden=_battleMenuQuantity.hidden=info;
     _battleMenuSelected.hidden=info && phase!=HG_BATTLE_PARTY_UI_CHECK_MOVES;
-    _battleMenuDescription.hidden=info && phase==HG_BATTLE_PARTY_UI_CHECK_MOVES;
-    _battleMenuDescription.isAccessibilityElement=info && phase!=HG_BATTLE_PARTY_UI_CHECK_MOVES;
+    BOOL moveList=phase==HG_BATTLE_PARTY_UI_CHECK_MOVES || phase==HG_BATTLE_PARTY_UI_LEARN_LIST;
+    _battleMenuDescription.hidden=info && moveList;
+    _battleMenuDescription.isAccessibilityElement=info && !moveList;
     _battleMenuSelected.isAccessibilityElement=info && phase==HG_BATTLE_PARTY_UI_CHECK_MOVES;
     NSString *selectedName=info && party->mons[party->selectedSlot].species<_speciesNames.count ? _speciesNames[party->mons[party->selectedSlot].species] : @"宝可梦";
     _battleMenuSelected.accessibilityLabel=selectedName;
-    _battleMenuDescription.accessibilityLabel=phase==HG_BATTLE_PARTY_UI_MOVE_DETAIL ? [NSString stringWithFormat:@"%@，%@",selectedName,_battleMenuButtons[party->selectedMove].accessibilityLabel] : [selectedName stringByAppendingString:@"，属性"];
+    if (phase==HG_BATTLE_PARTY_UI_LEARN_DETAIL) {
+        uint32_t move=party->selectedMove<4 ? party->moves[party->selectedMove].moveId : party->moveToLearn;
+        NSString *name=move<_moveNames.count ? _moveNames[move] : @"招式";
+        _battleMenuDescription.accessibilityLabel=[NSString stringWithFormat:@"%@，%@，招式详情与原版提示",selectedName,name];
+    } else _battleMenuDescription.accessibilityLabel=phase==HG_BATTLE_PARTY_UI_MOVE_DETAIL ? [NSString stringWithFormat:@"%@，%@",selectedName,_battleMenuButtons[party->selectedMove].accessibilityLabel] : [selectedName stringByAppendingString:@"，属性"];
     _battleMenuMessage.hidden=!(kind==OriginalBattleMenuParty && phase==HG_BATTLE_PARTY_UI_MESSAGE);
 }
 - (NSDictionary *)copyPartyPictures:(const HGNativePartyUIState *)state frame:(NSData *)frame {
@@ -1290,7 +1334,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)updateBattleControls:(NSData *)data {
     if (data.length != sizeof(HGNativeBattleUIState)) return;
     const HGNativeBattleUIState *state = data.bytes;
-    if (state->mode > HG_BATTLE_UI_NEXT_MON) return;
+    if (state->mode > HG_BATTLE_UI_GIVE_UP) return;
     [_condition lock]; BOOL scene=state->active && (state->mode || !_selectedEngine); [_condition unlock];
     BOOL changed = !_displayedBattleUIState || memcmp(_displayedBattleUIState.bytes, data.bytes, offsetof(HGNativeBattleUIState, namePixels));
     _displayedBattleUIState = data;
@@ -1311,10 +1355,13 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSArray *nextMonChoices = @[@"使用下一只宝可梦",@"逃跑"];
     uint32_t displayMode=state->mode ? state->mode : HG_BATTLE_UI_COMMAND;
     BOOL nextMon=displayMode==HG_BATTLE_UI_NEXT_MON;
-    _battleBar.accessibilityLabel=nextMon ? @"是否使用下一只宝可梦" : displayMode==HG_BATTLE_UI_TARGETS ? @"选择招式目标" : @"战斗操作";
+    BOOL choice=OriginalBattleChoiceMode(displayMode);
+    NSArray *choices=nextMon ? nextMonChoices : displayMode==HG_BATTLE_UI_KEEP_FORGET ? @[@"忘记一个招式",@"保留原有招式"] : @[@"放弃学习",@"不放弃学习"];
+    _battleBar.accessibilityLabel=nextMon ? @"是否使用下一只宝可梦" : displayMode==HG_BATTLE_UI_KEEP_FORGET ? @"是否遗忘招式以学习新招式"
+        : displayMode==HG_BATTLE_UI_GIVE_UP ? @"是否放弃学习新招式" : displayMode==HG_BATTLE_UI_TARGETS ? @"选择招式目标" : @"战斗操作";
     for (NSUInteger i = 0; i < 6; i++) {
         UIButton *button = i < 4 ? _battleButtons[i] : i == 4 ? _battleBack : _battleBall;
-        button.hidden = nextMon ? i >= 2 : (i == 4 && displayMode == HG_BATTLE_UI_COMMAND) || (i == 5 && displayMode != HG_BATTLE_UI_COMMAND);
+        button.hidden = choice ? i >= 2 : (i == 4 && displayMode == HG_BATTLE_UI_COMMAND) || (i == 5 && displayMode != HG_BATTLE_UI_COMMAND);
         button.enabled = state->ready && (state->enabledMask & (1u << i));
         button.alpha = button.enabled ? 1 : 0.5;
         if (!changed) continue;
@@ -1327,11 +1374,13 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (i == 5) { config.title = @"精灵球"; config.cornerStyle = UIButtonConfigurationCornerStyleCapsule; button.accessibilityHint = @"打开精灵球口袋"; }
         else if (i == 4) { config.title = @"返回"; if (displayMode==HG_BATTLE_UI_TARGETS) button.accessibilityHint=@"返回招式选择"; }
         else if (displayMode == HG_BATTLE_UI_COMMAND) config.title = commands[i];
-        else if (nextMon ? i<2 : (displayMode==HG_BATTLE_UI_TARGETS ? state->targetSpecies[i] : state->move[i])) {
+        else if (choice ? i<2 : (displayMode==HG_BATTLE_UI_TARGETS ? state->targetSpecies[i] : state->move[i])) {
             NSString *name;
-            if (nextMon) {
-                name=nextMonChoices[i]; config.title=name; button.accessibilityLabel=name;
-                button.accessibilityHint=i ? @"按原版规则尝试逃跑" : @"选择可继续战斗的宝可梦";
+            if (choice) {
+                name=choices[i]; config.title=name; button.accessibilityLabel=name;
+                button.accessibilityHint=nextMon ? (i ? @"按原版规则尝试逃跑" : @"选择可继续战斗的宝可梦")
+                    : displayMode==HG_BATTLE_UI_KEEP_FORGET ? (i ? @"保留原有招式，进入原版放弃学习确认" : @"选择要遗忘的招式")
+                    : (i ? @"返回原版招式学习流程" : @"按原版流程放弃本次学习");
             } else if (displayMode==HG_BATTLE_UI_TARGETS) {
                 uint32_t species=state->targetSpecies[i];
                 name=species<_speciesNames.count ? _speciesNames[species] : [NSString stringWithFormat:@"宝可梦 %u",species];
@@ -1352,11 +1401,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                 CGImageRef image = CGImageCreate(width, HG_BATTLE_NAME_HEIGHT, 8, 32, HG_BATTLE_NAME_WIDTH * 4, color, kCGBitmapByteOrder32Big | kCGImageAlphaLast, provider, NULL, NO, kCGRenderingIntentDefault);
                 config.image = [UIImage imageWithCGImage:image scale:0.75 orientation:UIImageOrientationUp];
                 config.imagePlacement = NSDirectionalRectEdgeTop; config.imagePadding = 2;
-                if (nextMon) config.title=nil;
+                if (choice) config.title=nil;
                 CGImageRelease(image); CGColorSpaceRelease(color); CGDataProviderRelease(provider);
-            } else if (!nextMon) config.title = [NSString stringWithFormat:@"%@ · %@", name, config.title];
+            } else if (!choice) config.title = [NSString stringWithFormat:@"%@ · %@", name, config.title];
         } else config.title = @"—";
-        if (i >= 4 || displayMode == HG_BATTLE_UI_COMMAND || (!nextMon && (displayMode==HG_BATTLE_UI_TARGETS ? !state->targetSpecies[i] : !state->move[i]))) button.accessibilityLabel = config.title;
+        if (i >= 4 || displayMode == HG_BATTLE_UI_COMMAND || (!choice && (displayMode==HG_BATTLE_UI_TARGETS ? !state->targetSpecies[i] : !state->move[i]))) button.accessibilityLabel = config.title;
         button.configuration = config;
     }
 }
@@ -1635,7 +1684,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     else if (_automaticMenuEngine) _selectedEngine=_touchEngine;
     if ((!fieldMap || battleChild) && (_joystickKeys || _pendingJoystickKeys)) { _joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0; _joystickNeedsReset=YES; }
     // The owner can reach this choice before UIKit hides the previous message's A/B controls.
-    if (currentBattle->active && currentBattle->mode==HG_BATTLE_UI_NEXT_MON) { _keys&=~3u; _pendingKeys&=~3u; _submittedKeys&=~3u; _touchPressed=NO; }
+    if (currentBattle->active && OriginalBattleChoiceMode(currentBattle->mode)) { _keys&=~3u; _pendingKeys&=~3u; _submittedKeys&=~3u; _touchPressed=NO; }
     if (_audio.failure) { _failure = _audio.failure; _stopping = YES; }
     BOOL stopping = _stopping;
     uint32_t keys = [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth,preferredBattleWidth=_preferredBattleWidth;

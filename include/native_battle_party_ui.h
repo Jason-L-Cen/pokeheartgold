@@ -3,10 +3,13 @@
 #define HEARTGOLD_NATIVE_BATTLE_PARTY_UI_H
 
 #include "native_party_ui.h"
+#include "constants/moves.h"
 
 enum { HG_BATTLE_PARTY_UI_ROSTER = 1, HG_BATTLE_PARTY_UI_MON_MENU = 2, HG_BATTLE_PARTY_UI_SUMMARY = 3,
-    HG_BATTLE_PARTY_UI_CHECK_MOVES = 4, HG_BATTLE_PARTY_UI_MOVE_DETAIL = 5, HG_BATTLE_PARTY_UI_MESSAGE = 17, HG_BATTLE_PARTY_UI_ACK = 18 };
-enum { HG_BATTLE_PARTY_UI_SWITCH = 0, HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL = 1, HG_BATTLE_PARTY_UI_USE_ITEM = 2, HG_BATTLE_PARTY_UI_POTION = 17 };
+    HG_BATTLE_PARTY_UI_CHECK_MOVES = 4, HG_BATTLE_PARTY_UI_MOVE_DETAIL = 5, HG_BATTLE_PARTY_UI_MESSAGE = 17, HG_BATTLE_PARTY_UI_ACK = 18,
+    HG_BATTLE_PARTY_UI_LEARN_LIST = 19, HG_BATTLE_PARTY_UI_LEARN_DETAIL = 20 };
+enum { HG_BATTLE_PARTY_UI_SWITCH = 0, HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL = 1, HG_BATTLE_PARTY_UI_USE_ITEM = 2,
+    HG_BATTLE_PARTY_UI_LEARN_MOVE = 3, HG_BATTLE_PARTY_UI_POTION = 17 };
 enum { HG_BATTLE_PARTY_UI_MONS = 6, HG_BATTLE_PARTY_UI_BUTTONS = 8 };
 
 typedef struct HGNativeBattlePartyUIMon {
@@ -27,6 +30,7 @@ typedef struct HGNativeBattlePartyUIState {
     HGNativeBattlePartyUIButton buttons[HG_BATTLE_PARTY_UI_BUTTONS];
     uint32_t selectedMove;
     HGNativeBattlePartyUIMove moves[4];
+    uint32_t moveToLearn;
     HGNativePartyUIWindow prompt, message;
 } HGNativeBattlePartyUIState;
 
@@ -34,15 +38,25 @@ typedef struct HGNativeBattlePartyUIState {
 const HGNativeBattlePartyUIState *HGNativeBattlePartyUIGetState(void);
 
 // Original indexes: roster mons 0..5/back 6; mon menu SHIFT/SUMMARY/CHECK MOVES/back; summary prev/next/moves/back;
-// check moves 0..3/prev/next/summary/back; detail moves 0..3/back; ACK 0.
+// check moves 0..3/prev/next/summary/back; detail moves 0..3/back; ACK 0;
+// learn list moves 0..4/disabled toggle/back; learn detail confirm/disabled toggle/back.
 static inline uint32_t HGNativeBattlePartyUIResolveTouch(const HGNativeBattlePartyUIState *state, uint32_t revision,
     uint32_t phase, uint32_t index, uint32_t *x, uint32_t *y) {
     if (!state || !x || !y || !state->active || !state->ready || state->revision != revision || state->phase != phase
         || state->partyCount > HG_BATTLE_PARTY_UI_MONS
         || (state->mode != HG_BATTLE_PARTY_UI_SWITCH && state->mode != HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL
+            && state->mode != HG_BATTLE_PARTY_UI_LEARN_MOVE
             && (state->mode != HG_BATTLE_PARTY_UI_USE_ITEM || state->itemId != HG_BATTLE_PARTY_UI_POTION))) return 0;
     uint32_t count;
-    if (phase == HG_BATTLE_PARTY_UI_ROSTER && state->page == 0) count = 7;
+    if (state->mode == HG_BATTLE_PARTY_UI_LEARN_MOVE) {
+        if (state->selectedSlot >= state->partyCount || !state->mons[state->selectedSlot].slotType || state->mons[state->selectedSlot].isEgg
+            || !state->moveToLearn || state->moveToLearn > NUM_MOVES || state->selectedMove > 4) return 0;
+        for (uint32_t i = 0; i < 4; ++i) if (!state->moves[i].moveId || state->moves[i].moveId > NUM_MOVES) return 0;
+        if (phase == HG_BATTLE_PARTY_UI_LEARN_LIST && state->page == 6 && state->enabledMask == 0x5F) count = 7;
+        else if (phase == HG_BATTLE_PARTY_UI_LEARN_DETAIL && state->page == 7 && state->enabledMask == 5) count = 3;
+        else return 0;
+    }
+    else if (phase == HG_BATTLE_PARTY_UI_ROSTER && state->page == 0) count = 7;
     else if (phase == HG_BATTLE_PARTY_UI_MON_MENU && state->page == 1
         && (state->mode == HG_BATTLE_PARTY_UI_SWITCH || state->mode == HG_BATTLE_PARTY_UI_SWITCH_NO_CANCEL)
         && state->selectedSlot < state->partyCount && state->mons[state->selectedSlot].slotType) count = 4;

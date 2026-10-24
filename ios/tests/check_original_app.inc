@@ -423,7 +423,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
     party.page=2; party.partyCount=HG_BATTLE_PARTY_UI_MONS+1; party.selectedSlot=HG_BATTLE_PARTY_UI_MONS;
     contextFallback&=OriginalBattleMenuKind(&emptyBag,&party)==0; party.partyCount=1; party.selectedSlot=0;
     report[@"battlePartyInfoKeepsContextFallback"]=@(contextFallback);
-    party.mode=3; // Original LEARN_MOVE mode remains unsupported; mode1 is forced replacement.
+    party.mode=4; // Modes0..3 are supported; an unknown mode keeps the original canvas fallback.
     _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)];
     [_condition lock]; _selectedEngine=1; [_condition unlock]; [self displayFrame];
     report[@"battleMenuUnsupportedModeFallback"]=@(!_battleMenuKind && _battleMenuPanel.hidden && !_canvas.hidden && _canvas.userInteractionEnabled && !_buttons[@1].hidden);
@@ -760,17 +760,26 @@ static const NSUInteger sPrivateSampleLimit=1024;
 }
 - (void)checkPrivateNativeCase:(NSString *)kind {
     BOOL forced=[kind isEqual:@"forced-switch"];
+    BOOL learn=[kind isEqual:@"learn-moves"];
     [_condition lock];
     sPrivateUICase=[kind copy]; sPrivatePublished=[NSMutableArray new]; sPrivateDisplayed=[NSMutableArray new];
     sPrivateCaptures=[NSMutableArray new]; sPrivateVisibleHP=[NSMutableSet new]; sPrivateObserving=YES; sPrivateOverflow=NO;
     [_condition unlock];
-    NSArray *requiredKeys=forced
+    NSArray *requiredKeys=learn
+        ? @[@"caseBinding",@"muted",@"originalPrerequisite",@"originalVineWhip",@"originalStatAdvances",@"originalExpLevelUp",@"autoStockpile",
+            @"promptRawInputBlocked",@"keepContinue",@"nativeLearnList",@"infoPreservesBattle",@"hmRejected",@"fifthCancelled",@"continueAfterFifth",
+            @"replacementOriginalPP",@"finalRefusal",@"savedPartyPreserved",@"learnRejectsStale",@"resetBeforeSettlement",@"resetQuiescent",@"capturesComplete",@"samplesWithinBound"]
+        : forced
         ? @[@"caseBinding",@"muted",@"originalPrerequisite",@"nextMonPrompt",@"naturalKO",@"nativeRoster",@"typedCancelRejected",@"originalCancelRejected",
             @"faintedShiftAck",@"eggInfoDisabled",@"eggShiftAck",@"reserveActive",@"resetBeforeSettlement",@"resetQuiescent",@"capturesComplete",@"samplesWithinBound"]
         : @[@"caseBinding",@"muted",@"originalPrerequisite",@"naturalDamage",@"runSettled",@"targetPrompt",@"targetCancelPreserves",@"reopenRejectsStale",
             @"hpRestored",@"hpPublicationObserved",@"phase5ReadOnly",@"successOriginalMessage",@"consumedOnePotion",@"fullHpNoEffect",
             @"noEffectOriginalMessage",@"noEffectConsumesNothing",@"continueExactlyOnceEach",@"returnedField",@"resetQuiescent",@"capturesComplete",@"samplesWithinBound"];
-    NSArray *requiredPNGs=forced
+    NSArray *requiredPNGs=learn
+        ? @[@"private-learn-stats-difference.png",@"private-learn-stats-total.png",@"private-learn-spit-up-keep.png",@"private-learn-spit-up-give-up.png",@"private-learn-spit-up-list.png",@"private-learn-cut-detail.png",
+            @"private-learn-hm-rejection.png",@"private-learn-new-move-detail.png",@"private-learn-fifth-give-up.png",@"private-learn-spit-up-retry-list.png",
+            @"private-learn-replace-vine-whip.png",@"private-learn-swallow-keep.png",@"private-learn-swallow-give-up.png",@"private-learn-complete.png"]
+        : forced
         ? @[@"private-forced-next-mon-prompt.png",@"private-forced-switch-roster.png",@"private-forced-switch-cancel.png",@"private-forced-switch-fainted-menu.png",@"private-forced-switch-fainted-ack.png",
             @"private-forced-switch-egg-menu.png",@"private-forced-switch-egg-ack.png",@"private-forced-switch-reserve-menu.png",@"private-forced-switch-active.png"]
         : @[@"private-field-potion-bag.png",@"private-field-potion-target-cancel.png",@"private-field-potion-cancel-bag.png",@"private-field-potion-target-heal.png",
@@ -782,6 +791,10 @@ static const NSUInteger sPrivateSampleLimit=1024;
     __block NSUInteger stage=0,polls=0,growls=0,runs=0,waits=0,continues=0,lastStage=NSNotFound;
     __block uint32_t turnBefore=0,requestRevision=0,runRevision=0,bagRevision=0,targetRevision=0,beforeHP=0,rawCancelRevision=0,lastWaitFrame=0;
     __block BOOL finishing=NO; __block NSData *successMessage=nil;
+    __block NSUInteger learnStatPulses=0,learnStale=0;
+    __block uint32_t learnReleaseReads=0,learnRevision=0,learnRawPromptMask=0;
+    __block BOOL learnReleaseStarted=NO;
+    __block NSData *learnBefore=nil,*learnHMBody=nil;
     __block void (^step)(void);
     void (^finish)(NSString *)=^(NSString *status) {
         if (finishing) return; finishing=YES; step=nil;
@@ -799,7 +812,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
                 && [row[@"rawABHidden"] boolValue] && [row[@"canvasBlocked"] boolValue]
                 && (![row[@"backEnabled"] boolValue] || [row[@"ready"] boolValue]);
         }
-        if (!forced) {
+        if (!forced && !learn) {
             record(@"hpPublicationObserved",publishedHP.count && [publishedHP containsObject:@20] && beforeHP>0 && beforeHP<20);
             record(@"phase5ReadOnly",phase5Displays && readonly);
         }
@@ -828,15 +841,18 @@ static const NSUInteger sPrivateSampleLimit=1024;
                 BOOL passed=[status isEqual:@"completed"]; for (NSString *key in requiredKeys) passed&=[checks[key] boolValue];
                 NSMutableArray *words=[NSMutableArray new]; if (finalQA.length==sizeof(HGNativeBattleMenusQAState))
                     for (NSUInteger i=0;i<finalQA.length/4;i++) [words addObject:@(((const uint32_t *)finalQA.bytes)[i])];
-                NSDictionary *result=@{@"version":@1,@"case":kind,@"complete":@(stopped),@"passed":@(passed),@"status":status,@"checks":checks,
+                NSMutableDictionary *result=[@{@"version":@1,@"case":kind,@"complete":@(stopped),@"passed":@(passed),@"status":status,@"checks":checks,
                     @"requiredKeys":requiredKeys,@"requiredPNGs":requiredPNGs,@"captures":[sPrivateCaptures copy],@"events":events,@"qaWordsBeforeReset":words,
                     @"growlChoices":@(growls),@"runAttempts":@(runs),@"continues":@(continues),@"sampleLimit":@(sPrivateSampleLimit),@"sampleOverflow":@(overflow),
                     @"publishedSamples":publicationMetadata,@"displayedSamples":displayed,@"phase5PublishedHP":[publishedHP allObjects],@"phase5DisplayedHP":[displayedHP allObjects],
                     @"animationScope":@"Owner publications and actual 30Hz displays are separate. One HP means one observed update; missing intermediate display values are not a full animation proof.",
-                    @"fixtureScope":forced ? @"Test-owned copied battle party and original-created stronger opponent; reset before results copy. Provided save still has one starter." : @"Original one-starter save; natural battle damage and flee, then original field Potion. Native CQA owns full-attribute/Bag proof.",
-                    @"businessStatePatched":@NO,@"privateRawCancelDiagnostic":@(forced),@"privateNextMonRawInputDiagnostic":@(forced),@"newProductionAPI":@NO};
+                    @"fixtureScope":learn ? @"Battle-owned Carnivine/Magikarp fixture; original EXP/learning and HM rejection. Reset before results copy; original saved party/EXP/Bag remain private-guest checks."
+                        : forced ? @"Test-owned copied battle party and original-created stronger opponent; reset before results copy. Provided save still has one starter." : @"Original one-starter save; natural battle damage and flee, then original field Potion. Native CQA owns full-attribute/Bag proof.",
+                    @"businessStatePatched":@NO,@"privateRawCancelDiagnostic":@(forced),@"privateNextMonRawInputDiagnostic":@(forced),@"newProductionAPI":@NO} mutableCopy];
+                if (learn) [result addEntriesFromDictionary:@{@"learningStatPulses":@(learnStatPulses),@"learningRawPromptMask":@(learnRawPromptMask),
+                    @"learningStaleRejects":@(learnStale),@"privateLearnRawInputDiagnostic":@YES}];
                 NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-                NSString *file=forced ? @"private-forced-switch-check.json" : @"private-field-potion-check.json";
+                NSString *file=learn ? @"private-learn-moves-check.json" : forced ? @"private-forced-switch-check.json" : @"private-field-potion-check.json";
                 [[NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:file] options:NSDataWritingAtomic error:nil];
                 stopStep=nil;
             }; stopStep();
@@ -860,10 +876,21 @@ static const NSUInteger sPrivateSampleLimit=1024;
         BOOL target=HGNativePartyUIIsPotionUse(party) && party->phase==HG_PARTY_UI_ITEM_TARGET && party->ready;
         BOOL bagReady=bag && bag->active && !bag->mode && bag->ready;
         if (failed || ++polls>3600 || (q && q->errorLine) || overflow) { finish(failed ? @"engine_failed" : q && q->errorLine ? @"guest_failed" : overflow ? @"sample_overflow" : @"flow_timeout"); return; }
-        if (q && q->returned && (forced || q->outcome!=5)) { finish(@"battle_ended_otherwise"); return; }
+        if (q && q->returned && (forced || learn || q->outcome!=5)) { finish(@"battle_ended_otherwise"); return; }
+        if (learn && learnBefore.length==sizeof(*q) && q && ((stage>=302 && stage<=308) || stage==311 || stage==312)) {
+            HGNativeBattleMenusQAState before=*(const HGNativeBattleMenusQAState *)learnBefore.bytes,after=*q;
+            before.revision=after.revision=before.fieldFrame=after.fieldFrame=0;
+            if (memcmp(&before,&after,sizeof(before))) { finish(@"learning_info_changed_battle_state"); return; }
+        }
         if (lastStage!=stage) { [events addObject:@{@"stage":@(stage),@"displayFrame":@(sPrivateDisplayFrame),@"turns":@(q ? q->totalTurns : 0),
             @"fieldPhase":@(party ? party->phase : 0),@"battlePartyPhase":@(bp ? bp->phase : 0),@"battleSelectedSlot":@(bp ? bp->selectedSlot : 0),
-            @"fieldHP":@(party ? party->mons[0].hp : 0)}]; lastStage=stage; }
+            @"fieldHP":@(party ? party->mons[0].hp : 0)}];
+            if (learn && q) [events addObject:@{@"stage":@(stage),@"displayFrame":@(sPrivateDisplayFrame),@"candidate":@(q->replyItem),@"exp":@(q->replyPocket),
+                @"semanticsMask":@(q->semanticsMask),@"commandMode":@(battle ? battle->mode : 0),@"commandRevision":@(battle ? battle->revision : 0),
+                @"partyPhase":@(bp ? bp->phase : 0),@"partyRevision":@(bp ? bp->revision : 0),@"selectedMove":@(bp ? bp->selectedMove : 0),
+                @"replyCount":@(q->replyCount),@"replyTarget":@(q->replyTarget),@"hp":@(q->playerHp),@"enemyHp":@(q->enemyHp),
+                @"moves":@[@(q->moves[0]),@(q->moves[1]),@(q->moves[2]),@(q->moves[3])],@"pp":@[@(q->pp[0]),@(q->pp[1]),@(q->pp[2]),@(q->pp[3])]}];
+            lastStage=stage; }
         NSString *capture=nil; dispatch_block_t action=nil;
         if (stage==0 && q && q->fieldReady && map==MAP_ROUTE_29) {
             record(@"muted",[audio[@"muted"] boolValue]);
@@ -874,11 +901,14 @@ static const NSUInteger sPrivateSampleLimit=1024;
             requestRevision=q->revision; stage=2;
         } else if (stage==2 && q && !q->requested && q->fieldReady && q->revision!=requestRevision) stage=1;
         else if (stage==2 && command && q && q->battleActive) {
-            BOOL valid=q->playerHp==20 && q->playerMaxHp==20 && q->potionQuantity==5 && q->moves[1]==45
-                && q->enemySpecies==(forced ? 19 : 10) && q->enemyLevel==(forced ? 20 : 1) && q->partyCount==(forced ? 3 : 1);
+            BOOL valid=learn ? q->semanticsMask==2063 && q->partyCount==1 && !q->activePartySlot && q->playerHp && q->playerHp==q->playerMaxHp
+                && !q->playerStatus && q->potionQuantity==5 && q->enemySpecies==129 && q->enemyLevel==1 && q->enemyHp
+                && q->moves[0]==22 && q->moves[1]==15 && q->moves[2]==74 && !q->moves[3] && q->pp[0]==24 && q->replyPocket==37237 && !q->replyCount
+                : q->playerHp==20 && q->playerMaxHp==20 && q->potionQuantity==5 && q->moves[1]==45
+                    && q->enemySpecies==(forced ? 19 : 10) && q->enemyLevel==(forced ? 20 : 1) && q->partyCount==(forced ? 3 : 1);
             record(@"originalPrerequisite",valid); if (!valid) { finish(@"original_prerequisite_failed"); return; } stage=3;
         } else if (stage==3 && command && self->_battleButtons[0].enabled) {
-            turnBefore=q->totalTurns; action=^{ [self->_battleButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; }; stage=4;
+            turnBefore=q->totalTurns; action=^{ [self->_battleButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; }; stage=learn ? 300 : 4;
         } else if (stage==4 && moves && battle->move[1]==45 && battle->pp[1] && self->_battleButtons[1].enabled) {
             growls++; action=^{ [self->_battleButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; }; stage=5;
         } else if (stage==5 && forced && battle && battle->active && battle->ready && battle->mode==HG_BATTLE_UI_NEXT_MON) {
@@ -901,7 +931,128 @@ static const NSUInteger sPrivateSampleLimit=1024;
             else if (q->playerHp && growls<12) stage=3;
             else { finish(forced ? @"natural_ko_not_observed" : @"natural_damage_not_observed"); return; }
         }
-        if (!forced) {
+        if (learn) {
+            [self->_condition lock];
+            BOOL inputIdle=!self->_battleChoicePending && !self->_battleMenuChoicePending && !self->_battleMenuTouchActive && !self->_battleMenuTouchCooling;
+            [self->_condition unlock];
+            BOOL (^promptValid)(uint32_t,uint32_t)=^BOOL(uint32_t mode,uint32_t candidate) {
+                if (!q || !battle || !battle->active || !battle->ready || battle->mode!=mode || q->replyItem!=candidate
+                    || battle->enabledMask!=3 || battle->cancelRun || self->_battleBar.hidden || self->_battleMenuScene
+                    || !self->_battleButtons[0].enabled || !self->_battleButtons[1].enabled || !self->_battleButtons[2].hidden
+                    || !self->_battleButtons[3].hidden || !self->_battleBack.hidden || !self->_battleBall.hidden) return NO;
+                for (NSUInteger i=0;i<4;i++) if (battle->move[i] || battle->pp[i] || battle->maxPP[i]) return NO;
+                for (NSUInteger i=0;i<2;i++) if (!battle->nameWidth[i] || battle->nameWidth[i]>HG_BATTLE_NAME_WIDTH
+                    || !self->_battleButtons[i].configuration.image || self->_battleButtons[i].configuration.title.length
+                    || self->_battleButtons[i].hidden || ![self checkPrivatePixels:self->_battleButtons[i].configuration.image]) return NO;
+                return YES;
+            };
+            BOOL (^partyValid)(uint32_t,uint32_t)=^BOOL(uint32_t phase,uint32_t selectedMove) {
+                BOOL list=phase==HG_BATTLE_PARTY_UI_LEARN_LIST; uint32_t x=0,y=0;
+                if (!q || !bpReady || bp->mode!=HG_BATTLE_PARTY_UI_LEARN_MOVE || bp->phase!=phase || bp->page!=(list ? 6 : 7)
+                    || bp->partyCount!=1 || bp->selectedSlot || bp->mons[0].species!=455 || bp->mons[0].level!=31 || bp->mons[0].partyIndex
+                    || bp->mons[0].isEgg || bp->itemId || bp->pocket || bp->moveToLearn!=255 || q->replyItem!=255 || q->replyPocket!=37239
+                    || bp->buttonCount!=(list ? 7 : 3) || bp->enabledMask!=(list ? 0x5F : 5)
+                    || !self->_canvas.hidden || !self->_battleMenuPreview.hidden || !self->_buttons[@1].hidden || !self->_buttons[@2].hidden
+                    || !self->_battleMenuMessage.hidden || HGNativeBattlePartyUIResolveTouch(bp,bp->revision,phase,list ? 5 : 1,&x,&y)) return NO;
+                for (NSUInteger i=0;i<4;i++) if (bp->moves[i].moveId!=q->moves[i] || bp->moves[i].pp!=q->pp[i]) return NO;
+                if (list) {
+                    if (bp->selectedMove!=selectedMove || !self->_battleMenuButtons[5].hidden || self->_battleMenuButtons[5].enabled || !self->_battleMenuButtons[6].enabled
+                        || !self->_battleMenuDescription.hidden || !self->_battleMenuSelected.hidden) return NO;
+                    for (NSUInteger i=0;i<5;i++) {
+                        uint32_t move=i<4 ? bp->moves[i].moveId : bp->moveToLearn;
+                        NSString *name=move<self->_moveNames.count ? self->_moveNames[move] : nil;
+                        if (!self->_battleMenuButtons[i].enabled || self->_battleMenuButtons[i].hidden || !name.length
+                            || ![self->_battleMenuButtons[i].accessibilityLabel containsString:name] || ![self checkPrivatePixels:self->_battleMenuImages[i].image]) return NO;
+                    }
+                } else if (bp->selectedMove!=selectedMove || !bp->message.pixelBuffer || bp->message.tileWidth!=15 || bp->message.tileHeight!=10
+                    || bp->message.engine!=1 || self->_battleMenuDescription.hidden || !self->_battleMenuButtons[1].hidden
+                    || self->_battleMenuButtons[1].enabled || !self->_battleMenuButtons[0].enabled || !self->_battleMenuButtons[2].enabled
+                    || self->_battleMenuDescription.image.size.width!=256 || self->_battleMenuDescription.image.size.height!=152
+                    || ![self checkPrivatePixels:self->_battleMenuDescription.image]) return NO;
+                return YES;
+            };
+            BOOL prompt=battle && battle->active && battle->ready && (battle->mode==HG_BATTLE_UI_KEEP_FORGET || battle->mode==HG_BATTLE_UI_GIVE_UP);
+            if (stage==300 && moves && battle->move[0]==22 && battle->pp[0]==24 && self->_battleButtons[0].enabled) {
+                record(@"originalVineWhip",YES); action=^{ [self->_battleButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; }; stage=301;
+            } else if (stage==301 && q && (q->semanticsMask&0x100) && !(q->semanticsMask&16)
+                && battle && battle->mode==HG_BATTLE_UI_NONE && !self->_battleMenuScene && !q->enemyHp && !self->_buttons[@1].hidden) {
+                [self->_condition lock]; BOOL idle=!(self->_keys&3) && !(self->_pendingKeys&3) && !(self->_submittedKeys&3);
+                uint32_t reads=self->_lastPadReadCount; [self->_condition unlock];
+                if (learnStatPulses==1 && idle && !learnReleaseStarted) { learnReleaseReads=reads; learnReleaseStarted=YES; }
+                if (idle && learnStatPulses<2 && (!learnStatPulses || (learnReleaseStarted && reads-learnReleaseReads>=2))) {
+                    learnStatPulses++;
+                    [events addObject:@{@"statPulse":@(learnStatPulses),@"displayFrame":@(sPrivateDisplayFrame),@"semanticsMask":@(q->semanticsMask),
+                        @"commandMode":@(battle->mode),@"commandReady":@(battle->ready),@"rawAVisible":@(!self->_buttons[@1].hidden),
+                        @"padReads":@(reads),@"releasePadReads":@(learnStatPulses==2 ? reads-learnReleaseReads : 0)}];
+                    capture=learnStatPulses==1 ? @"private-learn-stats-difference.png" : @"private-learn-stats-total.png";
+                    action=^{ [self->_buttons[@1] accessibilityActivate]; };
+                }
+            } else if ((stage==301 || stage==302 || stage==303 || stage==309 || stage==310 || stage==313 || stage==314) && prompt && inputIdle
+                && self->_battleButtons[0].enabled && self->_battleButtons[1].enabled) {
+                uint32_t mode=(stage==302 || stage==309 || stage==314) ? HG_BATTLE_UI_GIVE_UP : HG_BATTLE_UI_KEEP_FORGET;
+                uint32_t candidate=stage>=313 ? 256 : 255;
+                if (battle->mode==mode && q && q->replyItem==candidate) {
+                    if (!promptValid(mode,candidate)) { finish(@"learning_prompt_contract_failed"); return; }
+                    if ((stage==301 && (learnStatPulses!=2 || q->semanticsMask!=2207 || q->replyPocket!=37239 || q->moves[3]!=254 || q->pp[3]!=20 || q->enemyHp || q->replyCount))
+                        || (stage==309 && (q->replyCount!=1 || q->replyTarget!=255))
+                        || (stage==313 && (q->semanticsMask!=2239 || q->replyCount!=2 || q->replyTarget!=1 || q->moves[0]!=255 || q->pp[0]!=10 || q->moves[3]!=254 || q->pp[3]!=20))) {
+                        finish(@"learning_original_state_mismatch"); return;
+                    }
+                    if ((stage==301 || stage==302) && !waits) {
+                        [self->_condition lock]; self->_keys|=1; self->_pendingKeys|=1; self->_touchX=128; self->_touchY=68; self->_touchPressed=YES; [self->_condition unlock]; waits=1;
+                    } else {
+                        [self->_condition lock]; BOOL cleared=!(self->_keys&3) && !(self->_pendingKeys&3) && !(self->_submittedKeys&3) && !self->_touchPressed;
+                        [self->_condition unlock];
+                        if ((stage==301 || stage==302) && !cleared) { finish(@"learning_prompt_raw_input_not_cleared"); return; }
+                        NSUInteger choice=(stage==303 || stage==310 || stage==314) ? 0 : 1;
+                        if (stage==301) {
+                            learnRawPromptMask|=1; learnBefore=[qaData copy]; record(@"originalStatAdvances",learnStatPulses==2);
+                            record(@"originalExpLevelUp",q->replyPocket==37239 && (q->semanticsMask&128)); record(@"autoStockpile",q->moves[3]==254 && q->pp[3]==20 && (q->semanticsMask&16));
+                            capture=@"private-learn-spit-up-keep.png";
+                        } else if (stage==302) { learnRawPromptMask|=2; record(@"promptRawInputBlocked",learnRawPromptMask==3); capture=@"private-learn-spit-up-give-up.png"; }
+                        else if (stage==303) record(@"keepContinue",YES);
+                        else if (stage==309) { record(@"fifthCancelled",YES); capture=@"private-learn-fifth-give-up.png"; }
+                        else if (stage==310) learnBefore=[qaData copy];
+                        else if (stage==313) { record(@"replacementOriginalPP",(q->semanticsMask&32) && q->pp[0]==10 && q->pp[1]==30 && q->pp[2]==40 && q->pp[3]==20); capture=@"private-learn-swallow-keep.png"; }
+                        else capture=@"private-learn-swallow-give-up.png";
+                        action=^{ [self->_battleButtons[choice] sendActionsForControlEvents:UIControlEventTouchUpInside]; }; waits=0; stage++;
+                    }
+                }
+            } else if ((stage==304 || stage==307 || stage==311) && bpReady && bp->phase==HG_BATTLE_PARTY_UI_LEARN_LIST && inputIdle
+                && self->_battleMenuButtons[stage==304 ? 1 : stage==307 ? 4 : 0].enabled) {
+                if (!partyValid(HG_BATTLE_PARTY_UI_LEARN_LIST,stage==307 ? 1 : 0)) { finish(@"learning_list_contract_failed"); return; }
+                if (stage==304) { record(@"nativeLearnList",YES); capture=@"private-learn-spit-up-list.png"; }
+                else if (stage==311) { record(@"continueAfterFifth",q && q->replyCount==1 && q->replyTarget==255); capture=@"private-learn-spit-up-retry-list.png"; }
+                NSUInteger index=stage==304 ? 1 : stage==307 ? 4 : 0; learnRevision=bp->revision;
+                action=^{ [self->_battleMenuButtons[index] sendActionsForControlEvents:UIControlEventTouchUpInside]; }; stage++;
+            } else if ((stage==305 || stage==306 || stage==308 || stage==312) && bpReady && bp->phase==HG_BATTLE_PARTY_UI_LEARN_DETAIL && bp->revision!=learnRevision
+                && inputIdle && self->_battleMenuButtons[stage==306 ? 2 : 0].enabled) {
+                uint32_t selected=stage==305 || stage==306 ? 1 : stage==308 ? 4 : 0,x=0,y=0;
+                if (!partyValid(HG_BATTLE_PARTY_UI_LEARN_DETAIL,selected)
+                    || HGNativeBattlePartyUIResolveTouch(bp,learnRevision,bp->phase,0,&x,&y)) { finish(@"learning_detail_or_stale_contract_failed"); return; }
+                learnStale++;
+                if (stage==305) {
+                    learnHMBody=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(self->_battleMenuDescription.image.CGImage)));
+                    learnRevision=bp->revision; capture=@"private-learn-cut-detail.png";
+                } else if (stage==306) {
+                    NSData *body=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(self->_battleMenuDescription.image.CGImage)));
+                    if ([body isEqualToData:learnHMBody] || !q || q->replyCount || q->moves[1]!=15) { finish(@"original_hm_rejection_not_observed"); return; }
+                    record(@"hmRejected",YES); capture=@"private-learn-hm-rejection.png";
+                } else if (stage==308) { record(@"infoPreservesBattle",YES); capture=@"private-learn-new-move-detail.png"; }
+                else { if (!q || q->replyCount!=1 || q->replyTarget!=255 || bp->moves[0].maxPP!=24) { finish(@"learning_replacement_prerequisite_failed"); return; }
+                    capture=@"private-learn-replace-vine-whip.png"; }
+                NSUInteger index=stage==306 ? 2 : 0;
+                action=^{ [self->_battleMenuButtons[index] sendActionsForControlEvents:UIControlEventTouchUpInside]; }; stage++;
+            } else if (stage==315 && q && q->semanticsMask==2303) {
+                BOOL final=q->replyItem==256 && q->replyPocket==37239 && q->replyCount==2 && q->replyTarget==1
+                    && q->moves[0]==255 && q->moves[1]==15 && q->moves[2]==74 && q->moves[3]==254
+                    && q->pp[0]==10 && q->pp[1]==30 && q->pp[2]==40 && q->pp[3]==20;
+                record(@"finalRefusal",final && (q->semanticsMask&64)); record(@"savedPartyPreserved",(q->semanticsMask&2)!=0);
+                record(@"learnRejectsStale",learnStale>=2); record(@"resetBeforeSettlement",q->battleActive && !q->returned && !q->lifecycleCleared);
+                if (!final) { finish(@"learning_final_state_mismatch"); return; } capture=@"private-learn-complete.png"; stage=99;
+            }
+        }
+        if (!forced && !learn) {
             if (stage==6 && command && self->_battleButtons[3].enabled) {
                 if (runs>=6) { finish(@"escape_not_observed"); return; } runRevision=battle->revision; runs++;
                 action=^{ [self->_battleButtons[3] sendActionsForControlEvents:UIControlEventTouchUpInside]; }; stage=7;
@@ -987,7 +1138,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
                     capture=@"private-field-potion-return.png"; stage=99;
                 }
             }
-        } else if (stage>=20) {
+        } else if (forced && stage>=20) {
             if (stage==20 && bpReady && bp->phase==HG_BATTLE_PARTY_UI_ROSTER) {
                 uint32_t x=0,y=0; BOOL reject=!HGNativeBattlePartyUIResolveTouch(bp,bp->revision,bp->phase,6,&x,&y);
                 [self->_battleMenuButtons[6] sendActionsForControlEvents:UIControlEventTouchUpInside];
@@ -1034,14 +1185,15 @@ static const NSUInteger sPrivateSampleLimit=1024;
         if (capture) [self checkPrivateCapture:capture kind:@"UIKit" image:nil];
         if (action) action();
         if (stage==99) { finish(@"completed"); return; }
-        if (q && q->started && !q->returned && !self->_battleMenuScene && battle && battle->mode==HG_BATTLE_UI_NONE && !self->_buttons[@1].hidden && !(polls%3))
+        if (q && q->started && !q->returned && !self->_battleMenuScene && battle && battle->mode==HG_BATTLE_UI_NONE
+            && (!learn || (!(q->semanticsMask&0x100) && (q->enemyHp || (q->semanticsMask&16)))) && !self->_buttons[@1].hidden && !(polls%3))
             [self->_buttons[@1] accessibilityActivate];
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step);
     }; step();
 }
 - (void)checkControls {
     NSString *privateCase=NSProcessInfo.processInfo.environment[@"HEARTGOLD_CHECK_CASE"];
-    if ([privateCase isEqual:@"field-potion"] || [privateCase isEqual:@"forced-switch"]) { [self checkPrivateNativeCase:privateCase]; return; }
+    if ([privateCase isEqual:@"field-potion"] || [privateCase isEqual:@"forced-switch"] || [privateCase isEqual:@"learn-moves"]) { [self checkPrivateNativeCase:privateCase]; return; }
     NSMutableDictionary *report = [NSMutableDictionary new];
     report[@"actualCapturesComplete"]=@YES;
     uint8_t tiles[65]={0}; tiles[1]=0x21; tiles[33]=0x03;

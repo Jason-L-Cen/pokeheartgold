@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #define BattleSystem_GetBattlerIdsByType TargetCheckBattlerIds
+#define BattleSystem_GetBattleType BattleUICheckBattleType
 #include "../../../src/battle/battle_input.c"
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,16 +10,20 @@ static u32 targetLookups;
 void BattleSystem_GetBattlerIdsByType(BattleSystem *system, u8 *ids) {
     (void)system; memcpy(ids, targetIds, sizeof(targetIds)); targetLookups++;
 }
+u32 BattleSystem_GetBattleType(BattleSystem *system) { return system->battleType; }
 
 u32 CheckOriginalBattleUI(void) {
     BattleInput input = {0}, other = {0};
+    BattleSystem system = {0}; input.battleSystem=other.battleSystem=&system;
     NativeBattleUIBind(&input);
     const HGNativeBattleUIState *state = HGNativeBattleUIGetState();
-    CHECK(sizeof(*state)==65688 && offsetof(HGNativeBattleUIState,namePixels)==152 && HG_BATTLE_UI_NEXT_MON==4);
+    CHECK(sizeof(*state)==65688 && offsetof(HGNativeBattleUIState,namePixels)==152
+        && HG_BATTLE_UI_NEXT_MON==4 && HG_BATTLE_UI_KEEP_FORGET==5 && HG_BATTLE_UI_GIVE_UP==6);
     CHECK(state->active && !state->mode && !state->ready);
     input.curMenuId = BATTLE_MENU_3; CHECK(NativeBattleUIMode(&input) == HG_BATTLE_UI_COMMAND);
     input.curMenuId = BATTLE_MENU_4; CHECK(NativeBattleUIMode(&input) == HG_BATTLE_UI_COMMAND);
     input.curMenuId = BATTLE_MENU_MAIN;
+    input.textObj[MENUTXT_FIGHT].textObj=(void *)1;
     CHECK(NativeBattleUIPoll(&input) == -1);
     state = HGNativeBattleUIGetState();
     u32 revision = state->revision;
@@ -36,9 +41,12 @@ u32 CheckOriginalBattleUI(void) {
     CHECK(HGNativeBattleUIChoose(revision, 5));
     CHECK(!HGNativeBattleUIConsumeBallPocket(&input));
     CHECK(sTouchArrayMainMenu[NativeBattleUIPoll(&input)] == BATTLE_INPUT_BAG);
-    NativeBattleUIInvalidate(&input); // The original command path closes the main menu before opening Bag.
+    input.textObj[MENUTXT_FIGHT].textObj=NULL; NativeBattleUIResourcesFreed(&input);
+    CHECK(state->active && !state->mode && !state->ready && !state->enabledMask);
     CHECK(!HGNativeBattleUIConsumeBallPocket(&other));
     CHECK(HGNativeBattleUIConsumeBallPocket(&input) && !HGNativeBattleUIConsumeBallPocket(&input));
+    input.textObj[MENUTXT_FIGHT].textObj=(void *)1; NativeBattleUIInvalidate(&input); NativeBattleUIPublish();
+    CHECK(state->mode==HG_BATTLE_UI_COMMAND && !state->ready);
     NativeBattleUIPoll(&input); revision = HGNativeBattleUIGetState()->revision;
     CHECK(HGNativeBattleUIChoose(revision, 5));
     NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input);
@@ -117,32 +125,47 @@ u32 CheckOriginalBattleUI(void) {
     CHECK(state->nameWidth[0]==16 && state->namePixels[0][0]==250 && state->namePixels[0][4]==45 && !state->namePixels[0][11]);
     u32 lookups=targetLookups; CHECK(HGNativeBattleUIGetState()==state && targetLookups==lookups);
     BattleInputTargetMenu targetMenu=input.menu.target;
-    input.curMenuId=BATTLE_MENU_SWITCH_OR_FLEE; NativeBattleUITargetReset();
-    tiles[0]=0x21; NativeBattleUICacheName(&input,&input.textObj[MENUTXT_USE_NEXT_MON],&targetWindow,16,MAKE_TEXT_COLOR(1,2,3));
-    tiles[0]=0xBA; NativeBattleUICacheName(&input,&input.textObj[MENUTXT_FLEE],&targetWindow,16,MAKE_TEXT_COLOR(10,11,12));
-    memset(tiles,0,sizeof(tiles)); NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input);
-    state=HGNativeBattleUIGetState(); revision=state->revision;
-    CHECK(state->mode==HG_BATTLE_UI_NEXT_MON && state->ready && state->enabledMask==3 && !state->cancelRun);
-    other.curMenuId=BATTLE_MENU_SWITCH_OR_FLEE;
-    CHECK(NativeBattleUIMode(&other)==HG_BATTLE_UI_NONE && NativeBattleUIPoll(&other)==-1);
-    CHECK(state->nameWidth[0]==16 && state->nameWidth[1]==16 && !state->nameWidth[2] && !state->nameWidth[3]
-        && state->namePixels[0][0]==250 && state->namePixels[0][4]==45 && state->namePixels[1][0]==250 && state->namePixels[1][4]==45);
-    CHECK(!state->move[0] && !state->pp[0] && !state->maxPP[0] && !state->targetSpecies[0] && !state->targetMask[0]);
-    NativeBattleUICacheName(&other,&input.textObj[0],&targetWindow,8,MAKE_TEXT_COLOR(1,2,3));
-    NativeBattleUIPoll(&input); CHECK(state->nameWidth[0]==16 && state->namePixels[0][0]==250);
-    CHECK(!HGNativeBattleUIChoose(revision+1,0));
-    for (u32 i=2;i<6;i++) CHECK(!HGNativeBattleUIChoose(revision,i));
-    CHECK(HGNativeBattleUIChoose(revision,0) && !HGNativeBattleUIChoose(revision,1));
-    CHECK(NativeBattleUIPoll(&other)==-1); // A foreign menu cannot consume the owner's queued choice.
-    CHECK(sTouchArrayTwoOptionsMenu[NativeBattleUIPoll(&input)]==BATTLE_INPUT_YES && !state->ready);
-    NativeBattleUIPoll(&input); CHECK(HGNativeBattleUIChoose(revision,1));
-    CHECK(sTouchArrayTwoOptionsMenu[NativeBattleUIPoll(&input)]==BATTLE_INPUT_CANCEL && !HGNativeBattleUIConsumeBallPocket(&input));
-    NativeBattleUIPoll(&input); CHECK(HGNativeBattleUIChoose(revision,0)); NativeBattleUIInvalidate(&input);
-    CHECK(NativeBattleUIPoll(&input)==-1 && !HGNativeBattleUIChoose(revision,0));
-    revision=state->revision;
-    input.isTouchDisabled=TRUE; NativeBattleUIPoll(&input); CHECK(!state->ready && !HGNativeBattleUIChoose(revision,0));
-    input.isTouchDisabled=FALSE;
-    const u32 unsupportedYesNo[]={BATTLE_MENU_YES_NO,BATTLE_MENU_KEEP_FORGET_MOVE,BATTLE_MENU_GIVE_UP_ON_MOVE,BATTLE_MENU_SWITCH_OR_KEEP};
+    const u32 twoOptionMenus[]={BATTLE_MENU_SWITCH_OR_FLEE,BATTLE_MENU_KEEP_FORGET_MOVE,BATTLE_MENU_GIVE_UP_ON_MOVE};
+    const u32 twoOptionModes[]={HG_BATTLE_UI_NEXT_MON,HG_BATTLE_UI_KEEP_FORGET,HG_BATTLE_UI_GIVE_UP};
+    for (u32 choiceMenu=0;choiceMenu<NELEMS(twoOptionMenus);choiceMenu++) {
+        input.curMenuId=other.curMenuId=twoOptionMenus[choiceMenu]; NativeBattleUITargetReset();
+        CHECK(!sNativeTargetUI.nameWidth[0] && !sNativeTargetUI.namePixels[0][3]);
+        tiles[0]=0x21; NativeBattleUICacheName(&input,&input.textObj[0],&targetWindow,16,MAKE_TEXT_COLOR(1,2,3));
+        tiles[0]=0xBA; NativeBattleUICacheName(&input,&input.textObj[1],&targetWindow,16,MAKE_TEXT_COLOR(10,11,12));
+        NativeBattleUICacheName(&input,&input.textObj[2],&targetWindow,16,MAKE_TEXT_COLOR(1,2,3));
+        memset(tiles,0,sizeof(tiles)); NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input);
+        state=HGNativeBattleUIGetState(); revision=state->revision;
+        CHECK(state->mode==twoOptionModes[choiceMenu] && state->ready && state->enabledMask==3 && !state->cancelRun);
+        CHECK(NativeBattleUIMode(&other)==HG_BATTLE_UI_NONE && NativeBattleUIPoll(&other)==-1);
+        CHECK(state->nameWidth[0]==16 && state->nameWidth[1]==16 && !state->nameWidth[2] && !state->nameWidth[3]
+            && state->namePixels[0][0]==250 && state->namePixels[0][4]==45 && state->namePixels[1][0]==250 && state->namePixels[1][4]==45);
+        CHECK(!state->move[0] && !state->pp[0] && !state->maxPP[0] && !state->targetSpecies[0] && !state->targetMask[0]);
+        NativeBattleUICacheName(&other,&input.textObj[0],&targetWindow,8,MAKE_TEXT_COLOR(1,2,3));
+        NativeBattleUIPoll(&input); CHECK(state->nameWidth[0]==16 && state->namePixels[0][0]==250);
+        CHECK(!HGNativeBattleUIChoose(revision+1,0));
+        for (u32 i=2;i<6;i++) CHECK(!HGNativeBattleUIChoose(revision,i));
+        CHECK(HGNativeBattleUIChoose(revision,0) && !HGNativeBattleUIChoose(revision,1));
+        CHECK(NativeBattleUIPoll(&other)==-1); // A foreign menu cannot consume the owner's queued choice.
+        CHECK(sTouchArrayTwoOptionsMenu[NativeBattleUIPoll(&input)]==BATTLE_INPUT_YES && !state->ready);
+        NativeBattleUIPoll(&input); CHECK(HGNativeBattleUIChoose(revision,1));
+        CHECK(sTouchArrayTwoOptionsMenu[NativeBattleUIPoll(&input)]==BATTLE_INPUT_CANCEL && !HGNativeBattleUIConsumeBallPocket(&input));
+        NativeBattleUIPoll(&input); CHECK(HGNativeBattleUIChoose(revision,0)); NativeBattleUIInvalidate(&input);
+        CHECK(NativeBattleUIPoll(&input)==-1 && !HGNativeBattleUIChoose(revision,0));
+        revision=state->revision;
+        input.isTouchDisabled=TRUE; NativeBattleUIPoll(&input); CHECK(!state->ready && !HGNativeBattleUIChoose(revision,0));
+        input.isTouchDisabled=FALSE; input.tutorial.finger=(void *)1;
+        NativeBattleUICacheName(&input,&input.textObj[0],&targetWindow,8,MAKE_TEXT_COLOR(1,2,3));
+        CHECK(sNativeTargetUI.nameWidth[0]==16 && sNativeTargetUI.namePixels[0][0]==250);
+        NativeBattleUIPoll(&input); CHECK(NativeBattleUIMode(&input)==HG_BATTLE_UI_NONE && !state->ready);
+        input.tutorial.finger=NULL; system.battleType=BATTLE_TYPE_TUTORIAL;
+        NativeBattleUICacheName(&input,&input.textObj[0],&targetWindow,8,MAKE_TEXT_COLOR(1,2,3));
+        CHECK(sNativeTargetUI.nameWidth[0]==16 && sNativeTargetUI.namePixels[0][0]==250);
+        NativeBattleUIPoll(&input); CHECK(NativeBattleUIMode(&input)==HG_BATTLE_UI_NONE && !state->ready && !HGNativeBattleUIChoose(state->revision,0));
+        system.battleType=0;
+        NativeBattleUIBind(NULL); CHECK(NativeBattleUIMode(&input)==HG_BATTLE_UI_NONE && NativeBattleUIPoll(&input)==-1);
+        NativeBattleUIBind(&input);
+    }
+    const u32 unsupportedYesNo[]={BATTLE_MENU_YES_NO,BATTLE_MENU_SWITCH_OR_KEEP,BATTLE_MENU_5,BATTLE_MENU_6};
     for (u32 i=0;i<NELEMS(unsupportedYesNo);i++) {
         input.curMenuId=unsupportedYesNo[i]; NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input);
         CHECK(!state->mode && !state->ready && !state->enabledMask && !state->nameWidth[0] && !HGNativeBattleUIChoose(state->revision,0));
@@ -155,6 +178,50 @@ u32 CheckOriginalBattleUI(void) {
     input.menu.target=targetMenu; input.curMenuId=BATTLE_MENU_TARGET; NativeBattleUITargetReset(); NativeBattleUICacheTargets(&input,targetIds,species);
     NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input);
     CHECK(state->mode==HG_BATTLE_UI_TARGETS && !state->nameWidth[0] && !state->nameWidth[1] && state->targetSpecies[0]);
+    const u32 resourceMenus[]={BATTLE_MENU_MAIN,BATTLE_MENU_FIGHT,BATTLE_MENU_TARGET,
+        BATTLE_MENU_SWITCH_OR_FLEE,BATTLE_MENU_KEEP_FORGET_MOVE,BATTLE_MENU_GIVE_UP_ON_MOVE};
+    const u32 resourceModes[]={HG_BATTLE_UI_COMMAND,HG_BATTLE_UI_MOVES,HG_BATTLE_UI_TARGETS,
+        HG_BATTLE_UI_NEXT_MON,HG_BATTLE_UI_KEEP_FORGET,HG_BATTLE_UI_GIVE_UP};
+    for (u32 menu=0;menu<NELEMS(resourceMenus);menu++) {
+        input.curMenuId=resourceMenus[menu];
+        if (menu==1) input.menu.fight=(BattleInputFightMenu){.moveNo={33,45,0,0},.pp={32,40,0,0},.ppMax={35,40,0,0},.battlerType=BATTLER_TYPE_PLAYER_SIDE_SLOT_1};
+        if (menu==2) input.menu.target=targetMenu;
+        for (u32 i=0;i<NELEMS(input.textObj);i++) input.textObj[i].textObj=NULL;
+        u32 font=menu==1 ? MENUTXT_CANCEL : menu==2 ? MENUTXT_TARGET_CANCEL : menu>=3 ? 1 : MENUTXT_FIGHT;
+        input.textObj[font].textObj=(void *)1;
+        NativeBattleUIInvalidate(&input); NativeBattleUIPublish();
+        CHECK(state->mode==resourceModes[menu] && !state->ready);
+        NativeBattleUIPoll(&input); CHECK(state->ready);
+        NativeBattleUISelected(&input); NativeBattleUIPublish();
+        CHECK(state->mode==resourceModes[menu] && !state->ready);
+        NativeBattleUIInvalidate(&input); NativeBattleUIPublish();
+        CHECK(state->mode==resourceModes[menu] && !state->ready);
+        input.isTouchDisabled=TRUE; NativeBattleUIPoll(&input);
+        CHECK(state->mode==resourceModes[menu] && !state->ready);
+        input.isTouchDisabled=FALSE; NativeBattleUIPoll(&input);
+        revision=state->revision; u32 choice=menu==1 || menu==2 ? 4 : 0;
+        CHECK(HGNativeBattleUIChoose(revision,choice));
+        u32 enabled=state->enabledMask;
+        NativeBattleUIResourcesFreed(&other); NativeBattleUIResourcesFreed(NULL);
+        CHECK(state->active && state->mode==resourceModes[menu] && !state->ready && state->revision==revision
+            && state->enabledMask==enabled && sNativeBattleChoice==(int)choice);
+        for (u32 i=0;i<NELEMS(input.textObj);i++) input.textObj[i].textObj=NULL;
+        NativeBattleUIResourcesFreed(&input);
+        CHECK(state->active && !state->mode && !state->ready && !state->enabledMask && state->revision==revision+1 && sNativeBattleChoice==-1);
+        CHECK(NativeBattleUIMode(&input)==resourceModes[menu]);
+        for (u32 i=0;i<4;i++) CHECK(!state->move[i] && !state->pp[i] && !state->maxPP[i] && !state->nameWidth[i]
+            && !state->targetSpecies[i] && !state->targetHp[i] && !state->targetMaxHp[i] && !state->targetMask[i]);
+        u32 pixels=0; for (u32 i=0;i<sizeof(state->namePixels);i++) pixels|=((const u8 *)state->namePixels)[i]; CHECK(!pixels);
+        for (u32 i=0;i<3;i++) {
+            NativeBattleUIPublish(); CHECK(NativeBattleUIPoll(&input)==-1);
+            CHECK(state->active && !state->mode && !state->ready && !state->enabledMask && state->revision==revision+1);
+            CHECK(!HGNativeBattleUIChoose(revision,choice) && !HGNativeBattleUIChoose(state->revision,choice));
+        }
+        NativeBattleUIInvalidate(&input); NativeBattleUIPublish(); CHECK(!state->mode);
+        input.textObj[font].textObj=(void *)1; NativeBattleUIPublish();
+        CHECK(state->mode==resourceModes[menu] && !state->ready);
+        NativeBattleUIPoll(&input); CHECK(state->mode==resourceModes[menu] && state->ready);
+    }
     input.isTouchDisabled = TRUE; NativeBattleUIPoll(&input); CHECK(!HGNativeBattleUIGetState()->ready);
     input.isTouchDisabled = FALSE; input.tutorial.finger = (void *)1;
     NativeBattleUIPoll(&input);
@@ -167,5 +234,5 @@ u32 CheckOriginalBattleUI(void) {
     return 0;
 }
 #ifndef HEARTGOLD_ABI32
-int main(void) { u32 line = CheckOriginalBattleUI(); if (line) { fprintf(stderr,"Battle UI check line %u\n",line); return 1; } puts("PASS: native battle menu revisions, original choices, PP, glyph tiles, stale/duplicate rejection and lifetime."); return 0; }
+int main(void) { u32 line = CheckOriginalBattleUI(); if (line) { fprintf(stderr,"Battle UI check line %u\n",line); return 1; } puts("PASS: native battle choices, owned glyphs, busy/completed resource projections, stale inputs and owner/tutorial boundaries."); return 0; }
 #endif

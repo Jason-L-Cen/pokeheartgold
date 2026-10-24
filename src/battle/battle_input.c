@@ -29,6 +29,7 @@ static void NativeBattleUIInvalidate(BattleInput *input);
 static int NativeBattleUIPoll(BattleInput *input);
 static u32 NativeBattleUIMode(const BattleInput *input);
 static void NativeBattleUISelected(BattleInput *input);
+static void NativeBattleUIResourcesFreed(BattleInput *input);
 static void NativeBattleUIPublish(void);
 static void NativeBattleUITargetReset(void);
 static void NativeBattleUICacheName(BattleInput *input, BattleInputTextObject *text, const Window *window, u32 length, u32 color);
@@ -1739,7 +1740,8 @@ int BattleInput_CheckTouch(BattleInput *battleInput) {
 #ifdef HEARTGOLD_NATIVE
     rectHit = NativeBattleUIPoll(battleInput);
     // Native buttons enter the original feedback, cursor and controller path below.
-    if (rectHit == -1 && NativeBattleUIMode(battleInput) != HG_BATTLE_UI_NEXT_MON) {
+    u32 nativeMode = NativeBattleUIMode(battleInput);
+    if (rectHit == -1 && (nativeMode < HG_BATTLE_UI_NEXT_MON || nativeMode > HG_BATTLE_UI_GIVE_UP)) {
 #endif
     if (BattleSystem_GetBattleType(battleInput->battleSystem) & BATTLE_TYPE_TUTORIAL) {
         rectHit = BattleInput_CatchingTutorialMain(battleInput);
@@ -2166,6 +2168,9 @@ static void BattleInput_CreateKeepForgetMenuObjects(BattleInput *battleInput, in
     String *strForget = NewString_ReadMsgData(msgLoader, msg_0197_01181); // Forget a move!
     String *strKeep = NewString_ReadMsgData(msgLoader, msg_0197_01182);   // Keep old moves!
 
+#ifdef HEARTGOLD_NATIVE
+    if (NativeBattleUIMode(battleInput) == HG_BATTLE_UI_KEEP_FORGET) NativeBattleUITargetReset();
+#endif
     BattleInput_CreateTextObject(battleInput, &battleInput->textObj[MENUTXT_FORGET_MOVE], strForget, 4, MAKE_TEXT_COLOR(1, 2, 3), 2, 20023, 128, 67, 1, NULL);
     BattleInput_CreateTextObject(battleInput, &battleInput->textObj[MENUTXT_KEEP_MOVE], strKeep, 4, MAKE_TEXT_COLOR(10, 11, 12), 2, 20023, 128, 139, 1, NULL);
 
@@ -2182,6 +2187,9 @@ static void BattleInput_CreateGiveUpOnMoveMenuObjects(BattleInput *battleInput, 
     String *strGiveUpFormated = String_New(100, HEAP_ID_BATTLE);
     String *strDontGiveUpFormated = String_New(100, HEAP_ID_BATTLE);
 
+#ifdef HEARTGOLD_NATIVE
+    if (NativeBattleUIMode(battleInput) == HG_BATTLE_UI_GIVE_UP) NativeBattleUITargetReset();
+#endif
     BufferMoveName(strTemplate, 0, menu->moveNo);
     StringExpandPlaceholders(strTemplate, strGiveUpFormated, strGiveUp);
     StringExpandPlaceholders(strTemplate, strDontGiveUpFormated, strDontGiveUp);
@@ -2231,7 +2239,7 @@ static void BattleInput_CreateSwitchOrFleeMenuObjects(BattleInput *battleInput, 
     String *strFleeFormated = String_New(100, HEAP_ID_BATTLE);
 
 #ifdef HEARTGOLD_NATIVE
-    NativeBattleUITargetReset();
+    if (NativeBattleUIMode(battleInput) == HG_BATTLE_UI_NEXT_MON) NativeBattleUITargetReset();
 #endif
     BufferMoveName(strTemplate, 0, menu->moveNo);
     StringExpandPlaceholders(strTemplate, strNextPokemonFormated, strNextPokemon);
@@ -3137,6 +3145,9 @@ static void BattleInput_FreePersistentResources(BattleInput *battleInput) {
     BattleInput_FreePokemonIconResources(battleInput);
     BattleInput_DeletePokemonIconSprites(battleInput);
     BattleInput_DeleteBugContestGraphics(battleInput);
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleUIResourcesFreed(battleInput);
+#endif
 }
 
 static void BattleInput_GetMonsHitArray(BattleInput *battleInput, u8 *monsHit, int checkMonExists) {
@@ -4686,8 +4697,13 @@ static u32 NativeBattleUIMode(const BattleInput *input) {
         return HG_BATTLE_UI_MOVES;
     case BATTLE_MENU_TARGET:
         return HG_BATTLE_UI_TARGETS;
+    case BATTLE_MENU_KEEP_FORGET_MOVE:
+    case BATTLE_MENU_GIVE_UP_ON_MOVE:
     case BATTLE_MENU_SWITCH_OR_FLEE:
-        return input == sNativeBattleInput ? HG_BATTLE_UI_NEXT_MON : HG_BATTLE_UI_NONE;
+        if (input != sNativeBattleInput || (BattleSystem_GetBattleType(input->battleSystem) & BATTLE_TYPE_TUTORIAL)) return HG_BATTLE_UI_NONE;
+        if (input->curMenuId == BATTLE_MENU_KEEP_FORGET_MOVE) return HG_BATTLE_UI_KEEP_FORGET;
+        if (input->curMenuId == BATTLE_MENU_GIVE_UP_ON_MOVE) return HG_BATTLE_UI_GIVE_UP;
+        return HG_BATTLE_UI_NEXT_MON;
     default:
         return HG_BATTLE_UI_NONE;
     }
@@ -4734,6 +4750,12 @@ static void NativeBattleUISelected(BattleInput *input) {
     }
 }
 
+static void NativeBattleUIResourcesFreed(BattleInput *input) {
+    if (input == NULL || input != sNativeBattleInput) return;
+    NativeBattleUIInvalidate(input);
+    NativeBattleUIPublish();
+}
+
 static u32 NativeBattleUIName(const Window *window, u32 length, u32 textColor, u8 *pixels) {
     if (!window->pixelBuffer || window->colorMode || !window->width || window->width > HG_BATTLE_NAME_WIDTH / 8 || window->height != 2 || !length || length > window->width * 8) return 0;
     u32 foreground = (textColor >> 16) & 15, shadow = (textColor >> 8) & 15;
@@ -4755,9 +4777,10 @@ static u32 NativeBattleUIName(const Window *window, u32 length, u32 textColor, u
 static void NativeBattleUITargetReset(void) { MI_CpuClear8(&sNativeTargetUI, sizeof(sNativeTargetUI)); }
 
 static void NativeBattleUICacheName(BattleInput *input, BattleInputTextObject *text, const Window *window, u32 length, u32 color) {
-    if (input != sNativeBattleInput || (input->curMenuId != BATTLE_MENU_TARGET && input->curMenuId != BATTLE_MENU_SWITCH_OR_FLEE)) return;
-    BOOL nextMon = input->curMenuId == BATTLE_MENU_SWITCH_OR_FLEE;
-    for (u32 i = 0; i < (nextMon ? 2 : 4); i++) if (text == &input->textObj[nextMon ? i : sNativeTargetHitboxes[i]]) {
+    if (input != sNativeBattleInput) return;
+    BOOL twoOptions = input->curMenuId == BATTLE_MENU_KEEP_FORGET_MOVE || input->curMenuId == BATTLE_MENU_GIVE_UP_ON_MOVE || input->curMenuId == BATTLE_MENU_SWITCH_OR_FLEE;
+    if ((input->curMenuId != BATTLE_MENU_TARGET && !twoOptions) || (twoOptions && NativeBattleUIMode(input) == HG_BATTLE_UI_NONE)) return;
+    for (u32 i = 0; i < (twoOptions ? 2 : 4); i++) if (text == &input->textObj[twoOptions ? i : sNativeTargetHitboxes[i]]) {
         sNativeTargetUI.nameWidth[i] = NativeBattleUIName(window, length, color, sNativeTargetUI.namePixels[i]);
         return;
     }
@@ -4785,7 +4808,14 @@ static void NativeBattleUICacheTargets(BattleInput *input, const u8 *battlerIds,
 static void NativeBattleUIPublish(void) {
     u32 revision = gNativeBattleUIState.revision;
     u32 mode = NativeBattleUIMode(sNativeBattleInput);
-    if (mode == HG_BATTLE_UI_TARGETS || mode == HG_BATTLE_UI_NEXT_MON) gNativeBattleUIState = sNativeTargetUI;
+    if (mode) {
+        BOOL live = FALSE;
+        for (u32 i = 0; i < NELEMS(sNativeBattleInput->textObj); ++i) if (sNativeBattleInput->textObj[i].textObj != NULL) { live = TRUE; break; }
+        // The original menu ID survives feedback, but its deleted FontOAM objects do not.
+        if (!live) mode = HG_BATTLE_UI_NONE;
+    }
+    BOOL twoOptions = mode >= HG_BATTLE_UI_NEXT_MON && mode <= HG_BATTLE_UI_GIVE_UP;
+    if (mode == HG_BATTLE_UI_TARGETS || twoOptions) gNativeBattleUIState = sNativeTargetUI;
     else MI_CpuClear8(&gNativeBattleUIState, sizeof(gNativeBattleUIState));
     gNativeBattleUIState.active = sNativeBattleInput != NULL;
     gNativeBattleUIState.revision = revision;
@@ -4794,7 +4824,7 @@ static void NativeBattleUIPublish(void) {
     if (gNativeBattleUIState.mode == HG_BATTLE_UI_COMMAND) {
         gNativeBattleUIState.enabledMask = 15 | 32;
         gNativeBattleUIState.cancelRun = sNativeBattleInput->cancelShown;
-    } else if (gNativeBattleUIState.mode == HG_BATTLE_UI_NEXT_MON) {
+    } else if (twoOptions) {
         gNativeBattleUIState.enabledMask = 3;
     } else if (gNativeBattleUIState.mode == HG_BATTLE_UI_MOVES) {
         BattleInputFightMenu *menu = &sNativeBattleInput->menu.fight;
