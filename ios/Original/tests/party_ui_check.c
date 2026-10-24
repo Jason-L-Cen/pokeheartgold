@@ -32,6 +32,14 @@ static void PartyCheckCopy16(const void *source, void *destination, u32 size);
 #include "../../../src/party_context_menu.c"
 #include "../../../src/pm_string.c"
 #include "../../../src/list_menu_items.c"
+// New TM waits use the real printer table/query; old Give/Take active-printer boundary stays scoped.
+#undef AddTextPrinterParameterizedWithColor
+#undef TextPrinterCheckActive
+#include "../../../src/text.c"
+#include "../../../src/sys_task.c"
+#include "../../../src/item.c"
+#define AddTextPrinterParameterizedWithColor PartyCheckPrintText
+#define TextPrinterCheckActive PartyCheckTextActive
 
 #define CHECK(value) do { if (!(value)) return __LINE__; } while (0)
 #define BOUNDARY(value) do { if (!(value)) { fprintf(stderr, "Party boundary line %d: %s\n", __LINE__, #value); abort(); } } while (0)
@@ -441,6 +449,76 @@ u32 CheckOriginalPartyUI(void) {
         CHECK(!HGNativePartyUIIsPotionUse(state) && !state->ready && !state->count && checkSpriteReads==reads);
     }
     NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits); CHECK(state->ready && !sNativePartyMessageWaiting);
+    // Reuse the existing real windows and original TM mapping; never dispatch item-use callbacks.
+    args.context=PARTY_MENU_CONTEXT_TM_HM; args.itemId=ITEM_TM17; args.moveId=TMHMGetMove(ITEM_TM17);
+    menu.partyMonIndex=0; menu.cancelDisabled=FALSE; NativePartyUIBind(NULL); NativePartyUIBind(&menu);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_TM_TARGET,checkRosterHits);
+    CHECK(sizeof(*state)==1480 && HGNativePartyUIIsTMHM(state) && state->ready && state->actionCount==1
+        && state->actions[0].textId==HG_PARTY_UI_TEXT_TM_TARGET && !state->actionEnabledMask && state->message.tileWidth==20 && state->message.tileHeight==2);
+    CHECK(HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y) && x==64 && y==24);
+    CHECK(HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y) && x==228 && y==172
+        && !HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    revision=state->revision; menu.partyMonIndex=HG_PARTY_UI_CONFIRM; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_TARGET,checkRosterHits);
+    CHECK(HGNativePartyUIIsTMHM(state) && !state->ready && state->revision>revision);
+    menu.partyMonIndex=HG_PARTY_UI_SLOTS; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_TARGET,checkRosterHits);
+    CHECK(state->ready && HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    menu.partyMonIndex=0; menu.cancelDisabled=TRUE; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_TARGET,checkRosterHits);
+    CHECK(state->ready && !HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y)); menu.cancelDisabled=FALSE;
+    SysTask tmTask={.data=&printer}; sTextPrinterTasks[3]=&tmTask;
+    printer=(TextPrinter){.template={.window=&menu.windows[PARTY_MENU_WINDOW_ID_34]},.active=TRUE,.id=3,.state=2};
+    menu.textPrinterId=3; NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits); revision=state->revision;
+    CHECK(HGNativePartyUIIsTMHM(state) && state->ready && state->actionEnabledMask==1 && !state->cancelEnabled
+        && HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y) && x==124 && y==168);
+    CHECK(!HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    printer.callbackParam=1; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits);
+    CHECK(!state->ready && state->revision>revision && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_TM_MESSAGE,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    printer.callbackParam=0; printer.template.window=&menu.windows[PARTY_MENU_WINDOW_ID_32]; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits); CHECK(!state->ready);
+    printer.template.window=&menu.windows[PARTY_MENU_WINDOW_ID_34];
+    for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+        u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled;
+        *pending=1u<<layer; NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits);
+        CHECK(HGNativePartyUIIsTMHM(state) && !state->ready && !state->actionEnabledMask && !state->mons[0].nickname.pixelBuffer && state->message.pixelBuffer);
+        *pending=0; CHECK(!state->ready); NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits); CHECK(state->ready && state->mons[0].nickname.pixelBuffer);
+    }
+    YesNoPrompt tmYesNo={.bgConfig=&bg,.bgId=GF_BG_LYR_MAIN_0,.x=25,.y=10,.width=6,.height=4,
+        .buttonsAreInit=1,.touchHitboxController=(TouchHitboxController *)(uintptr_t)1,.result=3};
+    for (u32 i=0;i<2;++i) {
+        tmYesNo.hitboxes[i]=(TouchscreenHitbox){.rect={80+32*i,112+32*i,200,248}};
+        tmYesNo.buttons[i].bgConfig=&bg; tmYesNo.buttons[i].bgId=GF_BG_LYR_MAIN_0;
+    }
+    menu.yesNoPrompt=&tmYesNo;
+    for (u32 context=PARTY_MENU_CONTEXT_TM_HM;context<=PARTY_MENU_CONTEXT_REPLACE_MOVE_TMHM;++context) {
+        args.context=context; NativePartyUIBind(NULL); NativePartyUIBind(&menu); NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]);
+        NativePartyUIPublish(&menu,HG_PARTY_UI_TM_YES_NO,checkRosterHits);
+        CHECK(HGNativePartyUIIsTMHM(state) && state->ready && state->actionCount==2 && state->actionEnabledMask==3
+            && !state->actions[0].text.pixelBuffer && !state->actions[1].text.pixelBuffer);
+        for (u32 i=0;i<2;++i) CHECK(HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,i,&x,&y) && x==224 && y==96+32*i);
+        revision=state->revision; tmYesNo.confirmSelectionTimer=1; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_YES_NO,checkRosterHits);
+        CHECK(!state->ready && !state->actionEnabledMask && state->revision>revision); tmYesNo.confirmSelectionTimer=0;
+        tmYesNo.ignoreTouch=TRUE; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_YES_NO,checkRosterHits); CHECK(!state->ready); tmYesNo.ignoreTouch=FALSE;
+        tmYesNo.buttons[1].bgId=GF_BG_LYR_SUB_0; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_YES_NO,checkRosterHits); CHECK(!state->ready); tmYesNo.buttons[1].bgId=GF_BG_LYR_MAIN_0;
+        const u32 tmBusy[]={0,3,22,25,26,32,33};
+        for (u32 i=0;i<NELEMS(tmBusy);++i) {
+            NativePartyUIPublish(&menu,tmBusy[i],checkRosterHits);
+            CHECK(HGNativePartyUIIsTMHM(state) && !state->ready && state->actionCount==1 && !state->actionEnabledMask);
+            copy=*state; copy.ready=TRUE; copy.actionEnabledMask=1; copy.actions[0].enabled=TRUE;
+            CHECK(!HGNativePartyUIResolveTouch(&copy,copy.revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+        }
+        NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits); CHECK(state->ready);
+    }
+    checkFade=FALSE; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits); CHECK(!state->ready && !state->mons[0].nickname.pixelBuffer); checkFade=TRUE;
+    args.context=PARTY_MENU_CONTEXT_REPLACE_MOVE_LEVELUP; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits);
+    CHECK(!HGNativePartyUIIsTMHM(state) && !state->ready && !state->count);
+    args.context=PARTY_MENU_CONTEXT_TM_HM; args.moveId=MOVE_TACKLE; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_TARGET,checkRosterHits);
+    CHECK(!HGNativePartyUIIsTMHM(state) && !state->ready && !state->count);
+    args.moveId=TMHMGetMove(args.itemId); args.panelLayout=1; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_TARGET,checkRosterHits);
+    CHECK(!HGNativePartyUIIsTMHM(state) && !state->ready && !state->count); args.panelLayout=0;
+    revision=state->revision; NativePartyUIBind(NULL); CHECK(!HGNativePartyUIIsTMHM(state) && !state->message.pixelBuffer);
+    CHECK(!HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_TM_MESSAGE,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    sTextPrinterTasks[3]=NULL; menu.yesNoPrompt=NULL; menu.partyMonIndex=0; args.moveId=MOVE_NONE;
+    NativePartyUIBind(&menu);
     args.context=PARTY_MENU_CONTEXT_0; args.itemId=ITEM_NONE; menu.monsDrawState[0].hp=18;
     NativePartyUIBegin(&menu); CHECK(!state->message.pixelBuffer && !state->mons[0].nickname.pixelBuffer);
     RemoveWindow(&menu.windows[PARTY_MENU_WINDOW_ID_34]);

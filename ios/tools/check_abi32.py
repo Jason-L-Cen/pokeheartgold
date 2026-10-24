@@ -559,6 +559,7 @@ def main():
     sources.append('ios/Original/tests/battle_emitter_check.c')
     sources.append('ios/Original/tests/battle_ui_check.c')
     sources += ['ios/Original/tests/battle_bag_ui_check.c', 'ios/Original/tests/battle_party_ui_check.c']
+    sources.append('ios/Original/tests/bag_ui_check.c')
     sources.append(str(battle_menu_component_data(BUILD / 'data-check').relative_to(ROOT)))
     sources.append('src/battle/battle_setup.c')
     sources.append('src/party.c')
@@ -983,6 +984,7 @@ def main():
     exports.append('CheckOriginalBattleEmitter')
     exports.append('CheckOriginalBattleUI')
     exports += ['CheckOriginalBattleBagUI', 'CheckOriginalBattlePartyUI']
+    exports.append('CheckOriginalBagPacketUI')
     exports.append('CheckOriginalSummaryUI')
     exports.append('CheckOriginalBallPocket')
     exports.append('CheckOriginalItemReply')

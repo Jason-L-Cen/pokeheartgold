@@ -37,7 +37,10 @@ static u32 originalMonData[HG_PARTY_UI_SLOTS][MON_ATTRIBUTES];
 static u8 *originalBag;
 static Choice oldRoster,oldPartyAction,oldSummary;
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
-enum { OWNER_RAW = 3 };
+enum { OWNER_BAG = 3 };
+static u32 tmLeaseQARevision;
+static HGNativeBagUIState readTmBag(Capture *capture);
+static void tmPeripheralLeaseEvent(Capture *capture,const char *event,u32 reads,BOOL changed);
 static const void *guest(Capture *capture,u32 address,size_t size);
 static HGSummaryLearnQAState readLearn(Capture *capture) {
     static u32 lastRevision;
@@ -96,13 +99,28 @@ static BOOL settleInput(Capture *capture,const HGNativePartyUIState *party,const
     BOOL changed=leaseOwner==OWNER_PARTY ? !party->active || party->revision!=leaseRevision || party->phase!=leasePhase
         : leaseOwner==OWNER_SUMMARY ? !summary->active || summary->revision!=leaseRevision || summary->phase!=leasePhase : FALSE;
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
-    if (leaseOwner==OWNER_RAW) changed=readLearn(capture).revision!=leaseRevision;
+    if (leaseOwner==OWNER_BAG) {
+        HGNativeBagUIState bag=readTmBag(capture);
+        changed=!bag.active || !bag.ready || bag.revision!=leaseRevision || bag.phase!=leasePhase;
+    }
+    if (leaseOwner==OWNER_PARTY && !party->ready) changed=TRUE;
+    if (tmLeaseQARevision && (leaseOwner==OWNER_BAG || leaseOwner==OWNER_PARTY))
+        changed=changed || readLearn(capture).revision!=tmLeaseQARevision;
 #endif
     if (!leaseReleased && (changed || reads-leaseReads>=4)) {
         QA_CHECK(HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE)); leaseReleased=TRUE; leaseReleaseReads=reads;
         printf("Summary input evidence: {\"stage\":%u,\"event\":\"release\",\"owner\":%u,\"revision\":%u,\"phase\":%u,\"padReads\":%u,\"ownerChanged\":%u}\n",stage,leaseOwner,leaseRevision,leasePhase,reads,changed);
+#ifdef HG_SUMMARY_TM_LEARN_CHECK
+        if (tmLeaseQARevision) tmPeripheralLeaseEvent(capture,"released",reads,changed);
+#endif
     }
     if (!leaseReleased || reads-leaseReleaseReads<2) return FALSE;
+#ifdef HG_SUMMARY_TM_LEARN_CHECK
+    if (tmLeaseQARevision) {
+        tmPeripheralLeaseEvent(capture,"settled",reads,FALSE);
+        tmLeaseQARevision=0;
+    }
+#endif
     leaseActive=FALSE; return TRUE;
 }
 static void chooseParty(Capture *capture,const HGNativePartyUIState *state,u32 kind,u32 index) {
@@ -236,32 +254,128 @@ static u32 tmInitialFriendship,tmInitialMood,tmFinalFriendship,tmFinalMood,tmMap
 static u8 *tmOriginalFlags;
 static Choice tmFirstChoice,tmOldChoice;
 
+typedef struct TMRequest {
+    Choice choice;
+    HGSummaryLearnQAState owner;
+    u32 producer,sequence,stage,advance;
+} TMRequest;
+static TMRequest tmPending,tmLeaseRequest;
+static u32 tmSequence,tmTypedAccepted,tmTypedRejected,tmTypedReleased,tmTypedSettled,tmPartyReturnAcks;
+static u32 tmExitFadeSeen,tmExitFadeRejected;
+static Choice tmBagYesChoice;
+
 static HGNativeBagUIState readTmBag(Capture *capture) {
+    static u32 lastRevision;
     u32 address=w2c_hgengine_HGNativeBagUIGetState(capture->game);
-    HGNativeBagUIState state; memcpy(&state,guest(capture,address,sizeof(state)),sizeof(state)); return state;
+    HGNativeBagUIState state; memcpy(&state,guest(capture,address,sizeof(state)),sizeof(state));
+    QA_CHECK(w2c_hgengine_HGNativeBagUIGetState(capture->game)==address && !memcmp(&state,guest(capture,address,sizeof(state)),sizeof(state)));
+    QA_CHECK(state.visibleCount<=HG_BAG_UI_ITEMS && state.actionCount<=HG_BAG_UI_ACTIONS
+        && !(state.actionMask&~((1u<<state.actionCount)-1)) && state.revision>=lastRevision);
+    lastRevision=state.revision; return state;
 }
-static void tmRaw(Capture *capture,const HGSummaryLearnQAState *qa,u32 keys,u32 x,u32 y,BOOL pressed,const char *reason) {
-    QA_CHECK(!leaseActive && qa->execState==2 && qa->graphicsReady && qa->fadeFinished && x<256 && y<192);
-    QA_CHECK(qa->owner==HG_SUMMARY_LEARN_BAG || qa->owner==HG_SUMMARY_LEARN_PARTY);
-    QA_CHECK(HGNativeSetInput(capture->env,keys,FALSE,x,y,pressed));
-    leaseActive=TRUE; leaseReleased=FALSE; leaseReads=HGNativeInputPadReads(capture->env);
-    leaseOwner=OWNER_RAW; leaseRevision=qa->revision; leasePhase=qa->phase;
-    printf("Summary TM raw evidence: {\"stage\":%u,\"reason\":\"%s\",\"owner\":%u,\"generation\":%u,\"revision\":%u,\"phase\":%u,\"context\":%u,\"taskState\":%u,\"taskMatches\":%u,\"printerActive\":%u,\"printerMatches\":%u,\"printerState\":%u,\"printerWaiting\":%u,\"yesNoResult\":%u,\"yesNoTimer\":%u,\"keys\":%u,\"touch\":[%u,%u,%u],\"padReads\":%u}\n",
-        stage,reason,qa->owner,qa->generation,qa->revision,qa->phase,qa->context,qa->taskState,qa->tmTaskMatches,
-        qa->printerActive,qa->printerMatches,qa->printerState,qa->printerWaiting,qa->yesNoResult,qa->yesNoTimer,
-        keys,pressed,x,y,leaseReads);
+static BOOL tmPromptReady(const HGSummaryLearnQAState *qa,u32 row) {
+    return row<2 && qa->yesNoReady && qa->yesNoActive==1 && qa->yesNoResult==3 && !qa->yesNoTimer
+        && qa->yesNoX==25 && qa->yesNoWidth==6 && qa->yesNoHeight==4
+        && qa->yesNoY==(qa->owner==HG_SUMMARY_LEARN_BAG ? 6u : 10u)
+        && qa->yesHitX[row]==224 && qa->yesHitY[row]==qa->yesNoY*8+16+row*32;
 }
-static void tmPrompt(Capture *capture,const HGSummaryLearnQAState *qa,u32 row) {
-    QA_CHECK(row<2 && qa->yesNoReady && qa->yesNoActive==1 && qa->yesNoResult==3 && !qa->yesNoTimer);
-    QA_CHECK(qa->yesNoX==25 && qa->yesNoWidth==6 && qa->yesNoHeight==4
-        && qa->yesNoY==(qa->owner==HG_SUMMARY_LEARN_BAG ? 6u : 10u));
-    QA_CHECK(qa->yesHitX[row]==224 && qa->yesHitY[row]==qa->yesNoY*8+16+row*32);
-    tmRaw(capture,qa,0,qa->yesHitX[row],qa->yesHitY[row],TRUE,row ? "original-no" : "original-yes");
+static BOOL tmPrinterReady(const HGSummaryLearnQAState *qa) {
+    return qa->printerId<8 && qa->printerActive && qa->printerMatches && qa->printerState==2 && qa->printerWaiting;
 }
-static void tmChooseBag(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,u32 kind,u32 index) {
-    u32 x,y; QA_CHECK(qa->owner==HG_SUMMARY_LEARN_BAG && qa->phase==bag->phase);
-    QA_CHECK(HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,kind,index,&x,&y));
-    tmRaw(capture,qa,0,x,y,TRUE,"existing-native-bag-resolver");
+static BOOL tmPeripheralReady(const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,
+    const HGNativePartyUIState *party,u32 producer,u32 kind,u32 index) {
+    if (qa->execState!=2 || !qa->graphicsReady || !qa->fadeFinished) return FALSE;
+    if (producer==OWNER_BAG) {
+        if (qa->owner!=HG_SUMMARY_LEARN_BAG || !bag->active || !bag->ready || qa->phase!=bag->phase) return FALSE;
+        if (HGNativeBagUIIsList(bag) || bag->phase==HG_BAG_UI_ITEM_MENU) return TRUE;
+        if (!HGNativeBagUIIsTMHM(bag) || bag->phase!=HG_BAG_UI_TM_MESSAGE || !qa->tmTaskMatches
+            || qa->itemId!=ITEM_TM17 || bag->selectedItemId!=ITEM_TM17 || kind!=HG_BAG_UI_TOUCH_ACTION) return FALSE;
+        if (qa->taskState==3) return tmPromptReady(qa,index);
+        return !index && ((qa->taskState==1 && qa->printerId<8 && !qa->printerActive)
+            || (qa->taskState==2 && tmPrinterReady(qa)));
+    }
+    if (producer!=OWNER_PARTY || qa->owner!=HG_SUMMARY_LEARN_PARTY || !party->active || !party->ready
+        || qa->phase!=party->phase || qa->context!=party->context || !HGNativePartyUIIsTMHM(party)
+        || (qa->context!=6 && qa->context!=7) || qa->partyBusy || qa->itemId!=ITEM_TM17 || qa->moveId!=MOVE_PROTECT) return FALSE;
+    if (party->phase==HG_PARTY_UI_TM_TARGET)
+        return qa->context==6 && !qa->partyBusy && !qa->partySlot
+            && ((kind==HG_PARTY_UI_TOUCH_MON && !index) || (kind==HG_PARTY_UI_TOUCH_CANCEL && !index));
+    if (kind!=HG_PARTY_UI_TOUCH_ACTION) return FALSE;
+    if (party->phase==HG_PARTY_UI_TM_MESSAGE) return !index && tmPrinterReady(qa);
+    return party->phase==HG_PARTY_UI_TM_YES_NO && tmPromptReady(qa,index);
+}
+static void tmTypedEvidence(Capture *capture,const TMRequest *request,const char *event,u32 reads,BOOL changed,u32 x,u32 y) {
+    const HGSummaryLearnQAState *qa=&request->owner;
+    printf("Summary TM typed evidence: {\"event\":\"%s\",\"sequence\":%u,\"stage\":%u,\"advance\":%u,\"producer\":%u,\"revision\":%u,\"phase\":%u,\"kind\":%u,\"index\":%u,\"owner\":%u,\"generation\":%u,\"qaRevision\":%u,\"manager\":%u,\"data\":%u,\"execState\":%u,\"context\":%u,\"itemId\":%u,\"moveId\":%u,\"partySlot\":%u,\"selectedMoveSlot\":%u,\"taskState\":%u,\"taskMatches\":%u,\"printerId\":%u,\"printerActive\":%u,\"printerMatches\":%u,\"printerState\":%u,\"printerWaiting\":%u,\"yesNoActive\":%u,\"yesNoReady\":%u,\"yesNoResult\":%u,\"yesNoTimer\":%u,\"yesNoX\":%u,\"yesNoY\":%u,\"yesNoWidth\":%u,\"yesNoHeight\":%u,\"yesHitX\":[%u,%u],\"yesHitY\":[%u,%u],\"partyBusy\":%u,\"graphicsReady\":%u,\"fadeFinished\":%u,\"padReads\":%u,\"invalidated\":%u,\"keys\":0,\"touch\":[%u,%u,%u]}\n",
+        event,request->sequence,request->stage,request->advance,request->producer,request->choice.revision,request->choice.phase,request->choice.kind,request->choice.index,
+        qa->owner,qa->generation,qa->revision,qa->manager,qa->data,qa->execState,qa->context,qa->itemId,qa->moveId,qa->partySlot,qa->selectedMoveSlot,qa->taskState,qa->tmTaskMatches,qa->printerId,
+        qa->printerActive,qa->printerMatches,qa->printerState,qa->printerWaiting,qa->yesNoActive,qa->yesNoReady,qa->yesNoResult,qa->yesNoTimer,
+        qa->yesNoX,qa->yesNoY,qa->yesNoWidth,qa->yesNoHeight,qa->yesHitX[0],qa->yesHitX[1],qa->yesHitY[0],qa->yesHitY[1],
+        qa->partyBusy,qa->graphicsReady,qa->fadeFinished,reads,changed,!strcmp(event,"accepted"),x,y);
+    (void)capture;
+}
+static void tmPeripheralLeaseEvent(Capture *capture,const char *event,u32 reads,BOOL changed) {
+    QA_CHECK(tmLeaseRequest.sequence && (leaseOwner==OWNER_BAG || leaseOwner==OWNER_PARTY));
+    tmTypedEvidence(capture,&tmLeaseRequest,event,reads,changed,0,0);
+    if (!strcmp(event,"released")) ++tmTypedReleased;
+    else { QA_CHECK(!strcmp(event,"settled") && reads-leaseReleaseReads>=2); ++tmTypedSettled; }
+}
+static void tmQueue(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,
+    const HGNativePartyUIState *party,u32 producer,u32 kind,u32 index,BOOL advance) {
+    u32 x,y;
+    QA_CHECK(!leaseActive && !tmPending.sequence && tmPeripheralReady(qa,bag,party,producer,kind,index));
+    Choice choice=producer==OWNER_BAG ? (Choice){bag->revision,bag->phase,kind,index} : (Choice){party->revision,party->phase,kind,index};
+    QA_CHECK(producer==OWNER_BAG ? HGNativeBagUIResolveTouch(bag,choice.revision,choice.phase,kind,index,&x,&y)
+        : HGNativePartyUIResolveTouch(party,choice.revision,choice.phase,kind,index,&x,&y));
+    tmPending=(TMRequest){.choice=choice,.owner=*qa,.producer=producer,.sequence=++tmSequence,.stage=stage,.advance=advance};
+    tmTypedEvidence(capture,&tmPending,"queued",HGNativeInputPadReads(capture->env),FALSE,0,0);
+}
+static BOOL tmTakeChoice(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,const HGNativePartyUIState *party) {
+    if (!tmPending.sequence) return FALSE;
+    u32 x,y; TMRequest request=tmPending; tmPending.sequence=0;
+    BOOL current=qa->revision==request.owner.revision && qa->owner==request.owner.owner && qa->generation==request.owner.generation
+        && qa->manager==request.owner.manager && qa->data==request.owner.data && stage==request.stage
+        && tmPeripheralReady(qa,bag,party,request.producer,request.choice.kind,request.choice.index);
+    BOOL resolved=current && (request.producer==OWNER_BAG
+        ? HGNativeBagUIResolveTouch(bag,request.choice.revision,request.choice.phase,request.choice.kind,request.choice.index,&x,&y)
+        : HGNativePartyUIResolveTouch(party,request.choice.revision,request.choice.phase,request.choice.kind,request.choice.index,&x,&y));
+    if (!resolved) {
+        tmTypedEvidence(capture,&request,"rejected",HGNativeInputPadReads(capture->env),TRUE,0,0); ++tmTypedRejected; return TRUE;
+    }
+    tmLeaseRequest=request; tmLeaseQARevision=qa->revision;
+    pulse(capture,request.producer,request.choice.revision,request.choice.phase,(HGNativeSummaryUIInput){.touchPressed=1,.touchX=x,.touchY=y});
+    tmTypedEvidence(capture,&request,"accepted",leaseReads,FALSE,x,y); ++tmTypedAccepted;
+    if (request.producer==OWNER_BAG && bag->phase==HG_BAG_UI_TM_MESSAGE && qa->taskState==3 && !request.choice.index)
+        tmBagYesChoice=request.choice;
+    if (request.producer==OWNER_PARTY && party->phase==HG_PARTY_UI_TM_MESSAGE && stage>=TM_STOP_NO) ++tmPartyReturnAcks;
+    if (request.advance) nextStage();
+    return TRUE;
+}
+static void tmChooseBag(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,
+    const HGNativePartyUIState *party,u32 kind,u32 index,BOOL advance) {
+    if (tmPeripheralReady(qa,bag,party,OWNER_BAG,kind,index))
+        tmQueue(capture,qa,bag,party,OWNER_BAG,kind,index,advance);
+}
+static void tmChooseParty(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,
+    const HGNativePartyUIState *party,u32 kind,u32 index,BOOL advance) {
+    if (tmPeripheralReady(qa,bag,party,OWNER_PARTY,kind,index))
+        tmQueue(capture,qa,bag,party,OWNER_PARTY,kind,index,advance);
+}
+static void tmObserveExitFade(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag) {
+    if (tmExitFadeSeen || !bag->active || bag->phase!=HG_BAG_UI_TM_EXIT_FADE
+        || qa->owner!=HG_SUMMARY_LEARN_BAG || qa->execState!=2 || qa->phase!=HG_BAG_UI_TM_EXIT_FADE) return;
+    u32 x,y,reads=HGNativeInputPadReads(capture->env);
+    QA_CHECK(stage==TM_TARGET && tmBagYesChoice.revision && qa->owner==HG_SUMMARY_LEARN_BAG && qa->execState==2
+        && qa->phase==HG_BAG_UI_TM_EXIT_FADE && HGNativeBagUIIsTMHM(bag) && !bag->ready
+        && bag->selectedItemId==ITEM_TM17 && bag->actionCount==1 && !bag->actionMask && !bag->actions[0].enabled && !bag->cancelEnabled);
+    QA_CHECK(!HGNativeBagUIResolveTouch(bag,tmBagYesChoice.revision,tmBagYesChoice.phase,tmBagYesChoice.kind,tmBagYesChoice.index,&x,&y));
+    HGNativeBagUIState forged=*bag; forged.ready=TRUE;
+    QA_CHECK(!HGNativeBagUIResolveTouch(&forged,forged.revision,forged.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    HGNativeBagUIState after=readTmBag(capture);
+    QA_CHECK(!memcmp(bag,&after,sizeof(after)) && HGNativeInputPadReads(capture->env)==reads);
+    tmExitFadeSeen=1; tmExitFadeRejected=2; staleRejected+=2;
+    printf("Summary TM exit fade evidence: {\"stage\":%u,\"owner\":%u,\"generation\":%u,\"qaRevision\":%u,\"revision\":%u,\"phase\":%u,\"ready\":%u,\"actionCount\":%u,\"actionMask\":%u,\"enabled\":%u,\"oldChoiceRejected\":true,\"forgedReadyRejected\":true,\"inputUnchanged\":true,\"oldRevision\":%u,\"oldPhase\":%u,\"oldKind\":%u,\"oldIndex\":%u}\n",
+        stage,qa->owner,qa->generation,qa->revision,bag->revision,bag->phase,bag->ready,bag->actionCount,bag->actionMask,bag->actions[0].enabled,tmBagYesChoice.revision,tmBagYesChoice.phase,tmBagYesChoice.kind,tmBagYesChoice.index);
 }
 static void tmSemantics(Capture *capture,BOOL learned) {
     u32 target=w2c_hgengine_Party_GetMonByIndex(capture->game,partyAddress,0);
@@ -355,12 +469,13 @@ static void tmPrepare(Capture *capture) {
     tmSemantics(capture,FALSE);
     printf("Summary TM fixture evidence: {\"preparedBeforeFirstFieldAction\":true,\"species\":152,\"partyCount\":1,\"moves\":[33,45,75,15],\"item\":344,\"quantity\":2,\"tmSlotOffset\":%u,\"flagsBytes\":%u,\"initialFriendship\":%u,\"initialMood\":%u,\"mapSection\":%u,\"eggLocation\":0,\"otNameProfileMatched\":true,\"otNameLength\":%u,\"fixtureUsesExistingStarter\":true,\"originalPersonality\":%u,\"originalOtId\":%u,\"privateSaveMemoryOnly\":true}\n",tmSlotOffset,tmFlagsSize,tmInitialFriendship,tmInitialMood,tmMapSection,nameLength,originalPersonality,originalOtId);
 }
-static BOOL tmContinuePrinter(Capture *capture,const HGSummaryLearnQAState *qa) {
-    BOOL bag=qa->owner==HG_SUMMARY_LEARN_BAG && qa->phase==13 && qa->taskState==2 && qa->tmTaskMatches;
-    BOOL party=qa->owner==HG_SUMMARY_LEARN_PARTY && (qa->context==6 || qa->context==7) && qa->phase==24;
-    if (!(bag || party) || !qa->graphicsReady || !qa->fadeFinished || !qa->printerActive
-        || !qa->printerMatches || qa->printerState!=2 || !qa->printerWaiting) return FALSE;
-    tmRaw(capture,qa,1,0,0,FALSE,"original-printer-state2"); return TRUE;
+static BOOL tmContinuePrinter(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,const HGNativePartyUIState *party) {
+    BOOL bagWait=qa->owner==HG_SUMMARY_LEARN_BAG && qa->phase==HG_BAG_UI_TM_MESSAGE && qa->taskState==2 && qa->tmTaskMatches;
+    BOOL partyWait=qa->owner==HG_SUMMARY_LEARN_PARTY && (qa->context==6 || qa->context==7) && qa->phase==HG_PARTY_UI_TM_MESSAGE;
+    if (!(bagWait || partyWait) || !qa->graphicsReady || !qa->fadeFinished || !tmPrinterReady(qa)) return FALSE;
+    u32 producer=bagWait ? OWNER_BAG : OWNER_PARTY,kind=bagWait ? HG_BAG_UI_TOUCH_ACTION : HG_PARTY_UI_TOUCH_ACTION;
+    if (!tmPeripheralReady(qa,bag,party,producer,kind,0)) return FALSE;
+    tmQueue(capture,qa,bag,party,producer,kind,0,FALSE); return TRUE;
 }
 static BOOL tmBootReady(u32 map,u32 ready,u32 owner,u32 inputStep,u32 inputFrame) {
     return map && ready==TRUE && !owner && inputStep==3 && !inputFrame;
@@ -410,8 +525,11 @@ static void TMLearnPresent(Capture *capture) {
     if (frame-stageFrame>3600) { tmFinish(capture,"tm_scene_or_input_handshake_timeout",FALSE); return; }
     HGNativePartyUIState party=readParty(capture); HGNativeSummaryUIState summary=readSummary(capture);
     HGNativeBagUIState bag=readTmBag(capture);
+    // Observe the original disabled exit-fade owner before a changed lease is settled.
+    tmObserveExitFade(capture,&qa,&bag);
     if (!settleInput(capture,&party,&summary)) return;
-    if (tmContinuePrinter(capture,&qa)) return;
+    if (tmTakeChoice(capture,&qa,&bag,&party)) return;
+    if (tmContinuePrinter(capture,&qa,&bag,&party)) return;
     HGNativeSummaryUIInput ignored;
     if (stage==TM_OPEN_BAG) {
         if (!qa.fieldReady || w2c_hgengine_HGNativeFieldMap(capture->game)!=33) return;
@@ -422,30 +540,33 @@ static void TMLearnPresent(Capture *capture) {
     } else if (stage==TM_POCKET && bag.active && bag.ready && HGNativeBagUIIsList(&bag)) {
         u32 pocket=HG_BAG_UI_POCKETS;
         for (u32 i=0;i<HG_BAG_UI_POCKETS;++i) if (bag.pockets[i].enabled && bag.pockets[i].pocketId==POCKET_TMHMS) pocket=i;
-        QA_CHECK(pocket<HG_BAG_UI_POCKETS); tmChooseBag(capture,&qa,&bag,HG_BAG_UI_TOUCH_POCKET,pocket); nextStage();
+        QA_CHECK(pocket<HG_BAG_UI_POCKETS); tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_POCKET,pocket,TRUE);
     } else if (stage==TM_ITEM && bag.active && bag.ready && HGNativeBagUIIsList(&bag) && bag.pocketId==POCKET_TMHMS) {
         u32 row=HG_BAG_UI_ITEMS;
         for (u32 i=0;i<bag.visibleCount;++i) if (bag.items[i].enabled && bag.items[i].itemId==ITEM_TM17) row=i;
-        QA_CHECK(row<HG_BAG_UI_ITEMS && bag.items[row].quantity==2); tmChooseBag(capture,&qa,&bag,HG_BAG_UI_TOUCH_ITEM,row); nextStage();
+        QA_CHECK(row<HG_BAG_UI_ITEMS && bag.items[row].quantity==2); tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_ITEM,row,TRUE);
     } else if (stage==TM_USE && bag.active && bag.ready && bag.phase==HG_BAG_UI_ITEM_MENU) {
         u32 row=HG_BAG_UI_ACTIONS;
         for (u32 i=0;i<bag.actionCount;++i) if (bag.actions[i].enabled && bag.actions[i].actionId==0) row=i;
-        QA_CHECK(row<HG_BAG_UI_ACTIONS && bag.selectedItemId==ITEM_TM17); tmChooseBag(capture,&qa,&bag,HG_BAG_UI_TOUCH_ACTION,row); nextStage();
+        QA_CHECK(row<HG_BAG_UI_ACTIONS && bag.selectedItemId==ITEM_TM17); tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_ACTION,row,TRUE);
     } else if (stage==TM_BOOT_ACK && qa.owner==HG_SUMMARY_LEARN_BAG && qa.execState==2 && qa.phase==13
-        && qa.tmTaskMatches && qa.taskState==1 && qa.printerId<8 && !qa.printerActive && qa.graphicsReady && qa.fadeFinished) {
-        tmRaw(capture,&qa,1,0,0,FALSE,"original-boot-task-inactive-printer-ack"); nextStage();
+        && qa.tmTaskMatches && qa.taskState==1 && qa.printerId<8 && !qa.printerActive && qa.graphicsReady && qa.fadeFinished
+        && bag.active && bag.ready && HGNativeBagUIIsTMHM(&bag)) {
+        tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_ACTION,0,TRUE);
     } else if (stage==TM_BAG_YES && qa.owner==HG_SUMMARY_LEARN_BAG && qa.phase==13 && qa.tmTaskMatches && qa.taskState==3
-        && qa.yesNoReady && qa.graphicsReady && qa.fadeFinished) {
-        tmPrompt(capture,&qa,0); nextStage();
+        && qa.yesNoReady && qa.graphicsReady && qa.fadeFinished && bag.active && bag.ready && HGNativeBagUIIsTMHM(&bag)) {
+        tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_ACTION,0,TRUE);
     } else if (stage==TM_TARGET && qa.owner==HG_SUMMARY_LEARN_PARTY && qa.context==6 && qa.phase==21
-        && qa.execState==2 && !qa.partyBusy && qa.graphicsReady && qa.fadeFinished) {
-        QA_CHECK(qa.partySlot==0 && qa.itemId==ITEM_TM17 && qa.moveId==MOVE_PROTECT);
-        tmRaw(capture,&qa,1,0,0,FALSE,"original-tm-target-slot0"); nextStage();
+        && qa.execState==2 && !qa.partyBusy && qa.graphicsReady && qa.fadeFinished
+        && party.active && party.ready && HGNativePartyUIIsTMHM(&party)) {
+        QA_CHECK(tmExitFadeSeen && tmExitFadeRejected==2 && qa.partySlot==0 && qa.itemId==ITEM_TM17 && qa.moveId==MOVE_PROTECT);
+        tmChooseParty(capture,&qa,&bag,&party,HG_PARTY_UI_TOUCH_MON,0,TRUE);
     } else if ((stage==TM_FORGET_YES || stage==TM_STOP_NO || stage==TM_RETRY_YES) && qa.owner==HG_SUMMARY_LEARN_PARTY
-        && qa.phase==27 && qa.execState==2 && qa.yesNoReady && qa.graphicsReady && qa.fadeFinished) {
+        && qa.phase==27 && qa.execState==2 && qa.yesNoReady && qa.graphicsReady && qa.fadeFinished
+        && party.active && party.ready && HGNativePartyUIIsTMHM(&party)) {
         QA_CHECK(qa.context==(stage==TM_FORGET_YES ? 6u : 7u) && qa.itemId==ITEM_TM17 && qa.moveId==MOVE_PROTECT);
         if (stage==TM_STOP_NO) { QA_CHECK(qa.selectedMoveSlot==4); tmFifthCancelled=1; }
-        tmPrompt(capture,&qa,stage==TM_STOP_NO ? 1 : 0); nextStage();
+        tmChooseParty(capture,&qa,&bag,&party,HG_PARTY_UI_TOUCH_ACTION,stage==TM_STOP_NO ? 1 : 0,TRUE);
     } else if ((stage==TM_FIRST_SUMMARY || stage==TM_SECOND_SUMMARY) && summary.active && summary.ready
         && summary.phase==HG_SUMMARY_UI_FORGET_MOVE && qa.owner==HG_SUMMARY_LEARN_SUMMARY && qa.execState==2) {
         QA_CHECK(HGNativeSummaryUIIsLearning(&summary) && summary.monDataType==1 && summary.partySlot==0
@@ -490,10 +611,12 @@ static void TMLearnPresent(Capture *capture) {
         tmFinalQuantity=w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,ITEM_TM17,HEAP_ID_FIELD2);
         QA_CHECK(snapshot(capture,summary)); nextStage();
     } else if (stage==TM_CLOSE_BAG && bag.active && bag.ready && HGNativeBagUIIsList(&bag)) {
-        tmChooseBag(capture,&qa,&bag,HG_BAG_UI_TOUCH_CANCEL,0); nextStage();
+        tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_CANCEL,0,TRUE);
     } else if (stage==TM_FIELD && qa.fieldReady && !bag.active && !party.active && !summary.active) {
         QA_CHECK(tmFixturePrepared && tmFifthCancelled && tmContinuedTrying && tmHmRejected && tmConfirmationBack && tmReplacement
-            && summaryLifetimes==2 && staleRejected>=4 && seenPhases==((1u<<8)|(1u<<9)));
+            && summaryLifetimes==2 && staleRejected>=4 && seenPhases==((1u<<8)|(1u<<9))
+            && !tmPending.sequence && !tmLeaseQARevision && tmTypedAccepted && tmTypedAccepted==tmTypedReleased
+            && tmTypedAccepted==tmTypedSettled && tmPartyReturnAcks && tmExitFadeSeen && tmExitFadeRejected==2);
         QA_CHECK(snapshot(capture,summary)); tmFinish(capture,"passed_original_summary_tm_learning",TRUE);
     }
 }
@@ -626,10 +749,11 @@ int main(int argc,char **argv) {
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
     if (casePassed) QA_CHECK(seenPhases==((1u<<8)|(1u<<9)));
     const char *preserved=casePassed ? "true" : "false";
-    printf("Summary TM learning evidence: {\"status\":\"%s\",\"fixturePrepared\":%u,\"summaryLifetimes\":%u,\"fifthCancelled\":%u,\"continuedTrying\":%u,\"hmRejected\":%u,\"confirmationBack\":%u,\"replacement\":%u,\"finalMove\":%u,\"finalPpUps\":%u,\"finalPp\":%u,\"finalMaxPp\":%u,\"initialTmQuantity\":%u,\"finalTmQuantity\":%u,\"staleRejected\":%u,\"initialFriendship\":%u,\"finalFriendship\":%u,\"initialMood\":%u,\"finalMood\":%u,\"partyFieldsPreserved\":%s,\"otherBagBytesPreserved\":%s,\"flagsMoneyDexPreserved\":%s,\"friendshipMoodPreservedBeforeLearning\":%s,\"resetFinished\":true,\"peripheralUiNative\":false}\n",
+    printf("Summary TM learning evidence: {\"status\":\"%s\",\"fixturePrepared\":%u,\"summaryLifetimes\":%u,\"fifthCancelled\":%u,\"continuedTrying\":%u,\"hmRejected\":%u,\"confirmationBack\":%u,\"replacement\":%u,\"finalMove\":%u,\"finalPpUps\":%u,\"finalPp\":%u,\"finalMaxPp\":%u,\"initialTmQuantity\":%u,\"finalTmQuantity\":%u,\"staleRejected\":%u,\"initialFriendship\":%u,\"finalFriendship\":%u,\"initialMood\":%u,\"finalMood\":%u,\"partyFieldsPreserved\":%s,\"otherBagBytesPreserved\":%s,\"flagsMoneyDexPreserved\":%s,\"friendshipMoodPreservedBeforeLearning\":%s,\"resetFinished\":true,\"peripheralUiNative\":true,\"typedAccepted\":%u,\"typedRejected\":%u,\"typedReleased\":%u,\"typedSettled\":%u,\"partyReturnAcks\":%u,\"exitFadeSeen\":%u,\"exitFadeRejected\":%u}\n",
         caseStatus,tmFixturePrepared,summaryLifetimes,tmFifthCancelled,tmContinuedTrying,tmHmRejected,tmConfirmationBack,tmReplacement,
         tmFinalMove,tmFinalPpUps,tmFinalPp,tmFinalMaxPp,tmInitialQuantity,tmFinalQuantity,staleRejected,
-        tmInitialFriendship,tmFinalFriendship,tmInitialMood,tmFinalMood,preserved,preserved,preserved,preserved);
+        tmInitialFriendship,tmFinalFriendship,tmInitialMood,tmFinalMood,preserved,preserved,preserved,preserved,
+        tmTypedAccepted,tmTypedRejected,tmTypedReleased,tmTypedSettled,tmPartyReturnAcks,tmExitFadeSeen,tmExitFadeRejected);
 #else
     if (casePassed) QA_CHECK(seenPhases==((1u<<2)|(1u<<5)));
 #endif
@@ -642,7 +766,7 @@ int main(int argc,char **argv) {
     wasm2c_hgengine_free(game); for (u32 i=0;i<3;i++) close(wasi->fds[i]); free(originalBag); free(game); free(env); free(wasi); free(capture); summaryEnv=NULL; wasm_rt_free();
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
     free(tmOriginalFlags);
-    if (casePassed) puts("PASS: original TM route and native Summary learning, original HM refusal/cancel/replace, original item/PP result and reset; peripheral UI used raw input.");
+    if (casePassed) puts("PASS: original TM route and native Summary learning, original HM refusal/cancel/replace, original item/PP result and reset; Bag/Party used revision-bound native typed queues.");
 #else
     if (casePassed) puts("PASS: original Summary pages and move details, original Party returns, unchanged party/items/money/flags, stale owners, original frames and reset.");
 #endif

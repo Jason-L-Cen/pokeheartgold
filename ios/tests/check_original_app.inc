@@ -1199,10 +1199,11 @@ static const NSUInteger sPrivateSampleLimit=1024;
     NSArray *requiredKeys=@[@"caseBinding",@"muted",@"completeFixture",@"otNameMatchesProfile",@"nativeFiveMoveList",
         @"fifthCancelled",@"continuedTrying",@"secondSummaryLifetime",@"originalHMWarning",@"hmRejected",@"originalConfirm",
         @"confirmBack",@"replacementProtect",@"replacementPP",@"consumedOneTM",@"otherStatePreserved",@"rawLeaseReleased",
-        @"staleRejected",@"nativeSummaryButtons",@"returnedField",@"privateSave4Preserved",@"resetQuiescent",@"capturesComplete"];
+        @"staleRejected",@"nativeSummaryButtons",@"returnedField",@"privateSave4Preserved",@"resetQuiescent",@"capturesComplete",@"nativeBagButtons",@"nativePartyButtons"];
     NSArray *requiredPNGs=@[@"private-summary-tm-first-list.png",@"private-summary-tm-fifth-cancel.png",
         @"private-summary-tm-retry-list.png",@"private-summary-tm-hm-warning.png",@"private-summary-tm-confirm.png",
-        @"private-summary-tm-back-to-list.png",@"private-summary-tm-final-bag.png"];
+        @"private-summary-tm-back-to-list.png",@"private-summary-tm-final-bag.png",@"private-summary-tm-bag-continue.png",
+        @"private-summary-tm-bag-question.png",@"private-summary-tm-party-target.png",@"private-summary-tm-party-continue.png",@"private-summary-tm-party-question.png"];
     NSMutableDictionary *checks=[NSMutableDictionary new]; for (NSString *key in requiredKeys) checks[key]=@NO;
     NSMutableArray *events=[NSMutableArray new];
     NSURL *support=[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
@@ -1215,7 +1216,9 @@ static const NSUInteger sPrivateSampleLimit=1024;
     [_condition lock]; sPrivateUICase=@"summary-tm"; sPrivateCaptures=[NSMutableArray new]; sPrivateObserving=NO; [_condition unlock];
     __block NSUInteger stage=0,polls=0,lastStage=NSNotFound,lifetimes=0,stale=0,summaryClicks=0;
     __block uint32_t stageFrame=0,lastRevision=0,firstGeneration=0,firstRevision=0,oldRevision=0,hmCalls=0,releaseReads=0;
-    __block BOOL finishing=NO,summaryRelease=NO,releaseStarted=NO;
+    __block BOOL finishing=NO,typedRelease=NO,releaseStarted=NO;
+    __block NSUInteger bagClicks=0,partyClicks=0; __block uint32_t bagKinds=0,bagRoles=0,partyKinds=0,partyRoles=0;
+    NSMutableSet *capturedNames=[NSMutableSet new];
     __block void (^step)(void);
     BOOL (^unchanged)(NSDictionary *)=^BOOL(NSDictionary *facts) {
         return [facts[@"fixturePrepared"] boolValue] && ![facts[@"fixtureError"] length]
@@ -1253,8 +1256,10 @@ static const NSUInteger sPrivateSampleLimit=1024;
                     @"stage":@(stage),@"polls":@(polls),@"checks":checks,@"requiredKeys":requiredKeys,@"requiredPNGs":requiredPNGs,
                     @"captures":[sPrivateCaptures copy],@"events":events,@"qaWordsBeforeReset":words,@"factsBeforeReset":finalFacts,
                     @"summaryLifetimes":@(lifetimes),@"staleRejected":@(stale),@"summaryButtonActions":@(summaryClicks),
-                    @"privateSaveFileCount":@(privateBefore.count),@"privateRawPeripheralInputDiagnostic":@YES,@"newProductionAPI":@NO,
-                    @"scope":@"Actual native Summary phase8/9 controls on the original private TM route. Bag/Party remain precisely gated original raw input. Seven current UIKit captures; no full-game, complete native TM/HM, full-animation, audible-audio or physical-device claim."};
+                    @"privateSaveFileCount":@(privateBefore.count),@"privateRawPeripheralInputDiagnostic":@NO,@"newProductionAPI":@NO,
+                    @"peripheralInputMode":@"native-UIKit-controls",@"bagButtonActions":@(bagClicks),@"partyButtonActions":@(partyClicks),
+                    @"bagInputKinds":@(bagKinds),@"bagTMRoles":@(bagRoles),@"partyInputKinds":@(partyKinds),@"partyTMRoles":@(partyRoles),
+                    @"scope":@"Actual native Bag/Party and Summary controls on the private TM17 route. Original bounded boot input is unchanged. Twelve UIKit captures; no full-game, all TM/HM, full-animation, audible-audio or physical-device claim."};
                 NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
                 [[NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:nil]
                     writeToURL:[folder URLByAppendingPathComponent:@"private-summary-tm-check.json"] options:NSDataWritingAtomic error:nil];
@@ -1265,19 +1270,8 @@ static const NSUInteger sPrivateSampleLimit=1024;
     NSString *built=[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivateCheckCase"] ?: @"default";
     checks[@"caseBinding"]=@([built isEqual:@"summary-tm"] && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_TEST_MUTE"] isEqual:@"1"]);
     if (![checks[@"caseBinding"] boolValue] || privateBefore.count!=4) { finish(@"case_or_private_save_binding_failed"); return; }
-    BOOL (^raw)(const HGSummaryLearnQAState *,uint32_t,uint32_t,uint32_t,BOOL,NSString *)=
-        ^BOOL(const HGSummaryLearnQAState *q,uint32_t keys,uint32_t x,uint32_t y,BOOL pressed,NSString *reason) {
-            if (events.count>=1024 || !q || q->execState!=2 || !q->graphicsReady || !q->fadeFinished || x>=256 || y>=192
-                || (q->owner!=HG_SUMMARY_LEARN_BAG && q->owner!=HG_SUMMARY_LEARN_PARTY)) return NO;
-            BOOL queued=[self queueSummaryTMRaw:q keys:keys x:x y:y pressed:pressed];
-            if (queued) { NSMutableArray *words=[NSMutableArray new]; const uint32_t *p=(const uint32_t *)q;
-                for (NSUInteger i=0;i<sizeof(*q)/4;i++) [words addObject:@(p[i])];
-                [events addObject:@{@"event":@"raw-queued",@"stage":@(stage),@"reason":reason,@"qaWords":words,
-                    @"keys":@(keys),@"touch":@[@(pressed),@(x),@(y)]}]; }
-            return queued;
-        };
     step=^{
-        [self->_condition lock]; NSData *qaData=[self->_summaryTMQAState copy],*ownerSummary=[self->_summaryUIState copy],*ownerBag=[self->_bagUIState copy];
+        [self->_condition lock]; NSData *qaData=[self->_summaryTMQAState copy],*ownerSummary=[self->_summaryUIState copy],*ownerBag=[self->_bagUIState copy],*ownerParty=[self->_partyUIState copy];
         NSDictionary *facts=[self->_summaryTMFacts copy] ?: @{}; UIImage *hmImage=self->_summaryTMHMWarningImage;
         uint32_t map=self->_fieldMapId,reads=self->_summaryTMPadReads,bootStep=self->_summaryTMBootInputStep,bootFrame=self->_summaryTMBootInputFrame;
         BOOL failed=self->_failure!=nil || self->_finished,accepted=self->_summaryTMRequestAccepted,rawIdle=self->_summaryTMRawIdle;
@@ -1298,12 +1292,12 @@ static const NSUInteger sPrivateSampleLimit=1024;
         }
         if (q && stageFrame && q->frame-stageFrame>3600) { finish(@"original_scene_or_input_handshake_timeout"); return; }
         if (!q) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step); return; }
-        if (summaryRelease) {
+        if (typedRelease) {
             if (!inputIdle) releaseStarted=NO;
             else if (!releaseStarted) { releaseStarted=YES; releaseReads=reads; }
-            else if (reads-releaseReads>=2) { summaryRelease=NO; releaseStarted=NO; }
+            else if (reads-releaseReads>=2) { typedRelease=NO; releaseStarted=NO; }
         }
-        if (!inputIdle || summaryRelease) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step); return; }
+        if (!inputIdle || typedRelease) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step); return; }
         const HGNativeSummaryUIState *summary=self->_displayedSummaryUIState.length==sizeof(*summary) ? self->_displayedSummaryUIState.bytes : NULL;
         const HGNativePartyUIState *party=self->_displayedPartyUIState.length==sizeof(*party) ? self->_displayedPartyUIState.bytes : NULL;
         const HGNativeBagUIState *bag=self->_displayedBagUIState.length==sizeof(*bag) ? self->_displayedBagUIState.bytes : NULL;
@@ -1311,7 +1305,10 @@ static const NSUInteger sPrivateSampleLimit=1024;
             && ownerSummary.length==sizeof(*summary) && !memcmp(ownerSummary.bytes,summary,sizeof(*summary))
             && q->owner==HG_SUMMARY_LEARN_SUMMARY && q->execState==2 && q->graphicsReady && q->fadeFinished;
         BOOL bagReady=bag && bag->active && bag->ready && !bag->mode && q->owner==HG_SUMMARY_LEARN_BAG && q->phase==bag->phase
-            && ownerBag.length==sizeof(*bag) && !memcmp(ownerBag.bytes,bag,sizeof(*bag));
+            && q->execState==2 && q->graphicsReady && q->fadeFinished && ownerBag.length==sizeof(*bag) && !memcmp(ownerBag.bytes,bag,sizeof(*bag));
+        BOOL partyReady=party && party->active && party->ready && HGNativePartyUIIsTMHM(party) && q->owner==HG_SUMMARY_LEARN_PARTY
+            && q->phase==party->phase && q->context==party->context && q->execState==2 && q->graphicsReady && q->fadeFinished
+            && ownerParty.length==sizeof(*party) && !memcmp(ownerParty.bytes,party,sizeof(*party));
         BOOL (^nativeSummary)(void)=^BOOL {
             if (!summaryReady || summary->mode!=2 || summary->monDataType!=1 || summary->partyCount!=1 || summary->partySlot
                 || summary->moveToLearn!=182 || summary->page!=1 || self->_summaryPanel.hidden || !self->_canvas.hidden
@@ -1333,14 +1330,20 @@ static const NSUInteger sPrivateSampleLimit=1024;
             }
             return YES;
         };
-        BOOL printer=(q->owner==HG_SUMMARY_LEARN_BAG && q->phase==13 && q->taskState==2 && q->tmTaskMatches)
-            || (q->owner==HG_SUMMARY_LEARN_PARTY && (q->context==6 || q->context==7) && q->phase==24);
-        if (printer && q->printerId<8 && q->printerActive && q->printerMatches && q->printerState==2 && q->printerWaiting
-            && q->graphicsReady && q->fadeFinished && raw(q,1,0,0,NO,@"original-printer-state2")) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step); return;
-        }
         NSString *capture=nil; dispatch_block_t action=nil; HGNativeSummaryUIInput ignored;
-        if (!stage && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && bootStep==3 && !bootFrame) {
+        UIButton *peripheralButton=nil; BOOL peripheralBag=NO; uint32_t peripheralKind=0,peripheralIndex=0,touchX=0,touchY=0; NSUInteger originStage=stage;
+        BOOL bagTM=bagReady && HGNativeBagUIIsTMHM(bag),partyTM=partyReady && HGNativePartyUIIsTMHM(party);
+        BOOL printer=(bagTM && q->phase==HG_BAG_UI_TM_MESSAGE && q->taskState==2 && q->tmTaskMatches)
+            || (partyTM && q->phase==HG_PARTY_UI_TM_MESSAGE && (q->context==6 || q->context==7));
+        if (printer && q->printerId<8 && q->printerActive && q->printerMatches && q->printerState==2 && q->printerWaiting) {
+            if (bagTM && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_ACTION,0,&touchX,&touchY)) {
+                peripheralButton=self->_bagActions[0];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_ACTION;
+                if (![capturedNames containsObject:@"private-summary-tm-bag-continue.png"]) capture=@"private-summary-tm-bag-continue.png";
+            } else if (partyTM && HGNativePartyUIResolveTouch(party,party->revision,party->phase,HG_PARTY_UI_TOUCH_ACTION,0,&touchX,&touchY)) {
+                peripheralButton=self->_partyActions[0];peripheralKind=HG_PARTY_UI_TOUCH_ACTION;
+                if (![capturedNames containsObject:@"private-summary-tm-party-continue.png"]) capture=@"private-summary-tm-party-continue.png";
+            }
+        } else if (!stage && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && bootStep==3 && !bootFrame) {
             checks[@"muted"]=@([audio[@"muted"] boolValue]);
             if ([self queueSummaryTMFixture:q->revision]) stage=TM_OPEN_BAG;
         } else if (stage==TM_OPEN_BAG && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && accepted && [facts[@"fixturePrepared"] boolValue]) {
@@ -1358,27 +1361,28 @@ static const NSUInteger sPrivateSampleLimit=1024;
                 for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==2 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=TM_POCKET; break; }
             }
         } else if (stage==TM_POCKET && bagReady && HGNativeBagUIIsList(bag)) {
-            for (uint32_t i=0;i<HG_BAG_UI_POCKETS;i++) if (bag->pockets[i].enabled && bag->pockets[i].pocketId==3) {
-                uint32_t x,y; if (HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_POCKET,i,&x,&y)
-                    && raw(q,0,x,y,YES,@"existing-native-bag-resolver")) stage=TM_ITEM; break;
+            for (uint32_t i=0;i<HG_BAG_UI_POCKETS;i++) if (bag->pockets[i].enabled && bag->pockets[i].pocketId==3
+                && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_POCKET,i,&touchX,&touchY)) {
+                peripheralButton=self->_bagPockets[i];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_POCKET;peripheralIndex=i;stage=TM_ITEM;break;
             }
         } else if (stage==TM_ITEM && bagReady && HGNativeBagUIIsList(bag) && bag->pocketId==3) {
-            for (uint32_t i=0;i<MIN(bag->visibleCount,HG_BAG_UI_ITEMS);i++) if (bag->items[i].enabled && bag->items[i].itemId==344 && bag->items[i].quantity==2) {
-                uint32_t x,y; if (HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_ITEM,i,&x,&y)
-                    && raw(q,0,x,y,YES,@"existing-native-bag-resolver")) stage=TM_USE; break;
+            for (uint32_t i=0;i<MIN(bag->visibleCount,HG_BAG_UI_ITEMS);i++) if (bag->items[i].enabled && bag->items[i].itemId==344 && bag->items[i].quantity==2
+                && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_ITEM,i,&touchX,&touchY)) {
+                peripheralButton=self->_bagItems[i];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_ITEM;peripheralIndex=i;stage=TM_USE;break;
             }
         } else if (stage==TM_USE && bagReady && bag->phase==HG_BAG_UI_ITEM_MENU && bag->selectedItemId==344) {
-            for (uint32_t i=0;i<MIN(bag->actionCount,HG_BAG_UI_ACTIONS);i++) if (bag->actions[i].enabled && !bag->actions[i].actionId) {
-                uint32_t x,y; if (HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_ACTION,i,&x,&y)
-                    && raw(q,0,x,y,YES,@"existing-native-bag-resolver")) stage=TM_BOOT_ACK; break;
+            for (uint32_t i=0;i<MIN(bag->actionCount,HG_BAG_UI_ACTIONS);i++) if (bag->actions[i].enabled && !bag->actions[i].actionId
+                && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_ACTION,i,&touchX,&touchY)) {
+                peripheralButton=self->_bagActions[i];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_ACTION;peripheralIndex=i;stage=TM_BOOT_ACK;break;
             }
-        } else if (stage==TM_BOOT_ACK && q->owner==HG_SUMMARY_LEARN_BAG && q->phase==13 && q->tmTaskMatches
-            && q->taskState==1 && q->printerId<8 && !q->printerActive) {
-            if (raw(q,1,0,0,NO,@"original-boot-task-inactive-printer-ack")) stage=TM_BAG_YES;
+        } else if (stage==TM_BOOT_ACK && bagTM && q->taskState==1 && q->printerId<8 && !q->printerActive
+            && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_ACTION,0,&touchX,&touchY)) {
+            peripheralButton=self->_bagActions[0];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_ACTION;stage=TM_BAG_YES;
+            if (![capturedNames containsObject:@"private-summary-tm-bag-continue.png"]) capture=@"private-summary-tm-bag-continue.png";
         } else if ((stage==TM_BAG_YES || stage==TM_FORGET_YES || stage==TM_STOP_NO || stage==TM_RETRY_YES)
             && q->yesNoReady && q->yesNoActive==1 && q->yesNoResult==3 && !q->yesNoTimer) {
-            BOOL bagPrompt=stage==TM_BAG_YES && q->owner==HG_SUMMARY_LEARN_BAG && q->phase==13 && q->tmTaskMatches && q->taskState==3;
-            BOOL partyPrompt=stage!=TM_BAG_YES && q->owner==HG_SUMMARY_LEARN_PARTY && q->phase==27
+            BOOL bagPrompt=stage==TM_BAG_YES && bagTM && q->phase==HG_BAG_UI_TM_MESSAGE && q->tmTaskMatches && q->taskState==3;
+            BOOL partyPrompt=stage!=TM_BAG_YES && partyTM && q->phase==HG_PARTY_UI_TM_YES_NO
                 && q->context==(stage==TM_FORGET_YES ? 6u : 7u) && q->itemId==344 && q->moveId==182;
             uint32_t row=stage==TM_STOP_NO ? 1 : 0;
             if ((bagPrompt || partyPrompt) && q->yesNoX==25 && q->yesNoY==(bagPrompt ? 6u : 10u)
@@ -1387,11 +1391,20 @@ static const NSUInteger sPrivateSampleLimit=1024;
                     checks[@"fifthCancelled"]=@(q->selectedMoveSlot==4 && unchanged(facts));
                     if (![checks[@"fifthCancelled"] boolValue]) { finish(@"fifth_did_not_cancel"); return; }
                 }
-                if (raw(q,0,q->yesHitX[row],q->yesHitY[row],YES,row ? @"original-no" : @"original-yes")) stage++;
+                if (bagPrompt && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_ACTION,row,&touchX,&touchY)) {
+                    peripheralButton=self->_bagActions[row];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_ACTION;peripheralIndex=row;
+                    if (![capturedNames containsObject:@"private-summary-tm-bag-question.png"]) capture=@"private-summary-tm-bag-question.png";
+                } else if (partyPrompt && HGNativePartyUIResolveTouch(party,party->revision,party->phase,HG_PARTY_UI_TOUCH_ACTION,row,&touchX,&touchY)) {
+                    peripheralButton=self->_partyActions[row];peripheralKind=HG_PARTY_UI_TOUCH_ACTION;peripheralIndex=row;
+                    if (![capturedNames containsObject:@"private-summary-tm-party-question.png"]) capture=@"private-summary-tm-party-question.png";
+                }
+                if (peripheralButton) stage++;
             }
-        } else if (stage==TM_TARGET && q->owner==HG_SUMMARY_LEARN_PARTY && q->context==6 && q->phase==21
-            && !q->partyBusy && !q->partySlot && q->itemId==344 && q->moveId==182) {
-            if (raw(q,1,0,0,NO,@"original-tm-target-slot0")) stage=TM_FORGET_YES;
+        } else if (stage==TM_TARGET && partyReady && q->context==6 && q->phase==HG_PARTY_UI_TM_TARGET
+            && !q->partyBusy && !q->partySlot && q->itemId==344 && q->moveId==182
+            && HGNativePartyUIResolveTouch(party,party->revision,party->phase,HG_PARTY_UI_TOUCH_MON,0,&touchX,&touchY)) {
+            peripheralButton=self->_partyMons[0];peripheralKind=HG_PARTY_UI_TOUCH_MON;stage=TM_FORGET_YES;
+            capture=@"private-summary-tm-party-target.png";
         } else if ((stage==TM_FIRST_SUMMARY || stage==TM_SECOND_SUMMARY) && summaryReady && summary->phase==HG_SUMMARY_UI_FORGET_MOVE) {
             BOOL native=nativeSummary() && summary->moveMask==31 && !self->_summaryNavigation[5].hidden
                 && self->_summaryNavigation[5].enabled && [self checkPrivatePixels:self->_summaryNavigation[5].configuration.image];
@@ -1444,21 +1457,54 @@ static const NSUInteger sPrivateSampleLimit=1024;
             if (!learned || !others || ![checks[@"consumedOneTM"] boolValue] || (summary && summary->active) || (party && party->active)) { finish(@"original_learning_delta_mismatch"); return; }
             capture=@"private-summary-tm-final-bag.png"; stage=TM_CLOSE_BAG;
         } else if (stage==TM_CLOSE_BAG && bagReady && HGNativeBagUIIsList(bag)) {
-            uint32_t x,y; if (HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y)
-                && raw(q,0,x,y,YES,@"existing-native-bag-resolver")) stage=TM_FIELD;
+            if (HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_CANCEL,0,&touchX,&touchY)) {
+                peripheralButton=self->_bagNavigation[0];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_CANCEL;stage=TM_FIELD;
+            }
         } else if (stage==TM_FIELD && q->fieldReady && !q->owner && map==MAP_ROUTE_29
             && (!bag || !bag->active) && (!party || !party->active) && (!summary || !summary->active)) {
             uint32_t presses=[facts[@"rawPresses"] unsignedIntValue],releases=[facts[@"rawReleases"] unsignedIntValue];
-            checks[@"rawLeaseReleased"]=@(rawIdle && presses && presses==releases && ![facts[@"rawRejected"] unsignedIntValue]);
+            checks[@"rawLeaseReleased"]=@(rawIdle && inputIdle && !typedRelease && !presses && !releases && ![facts[@"rawRejected"] unsignedIntValue]);
+            checks[@"nativeBagButtons"]=@(bagClicks>=6 && (bagKinds&0x27)==0x27 && (bagRoles&3)==3);
+            checks[@"nativePartyButtons"]=@(partyClicks>=4 && (partyKinds&3)==3 && (partyRoles&7)==7);
             checks[@"staleRejected"]=@(stale>=4); checks[@"nativeSummaryButtons"]=@(summaryClicks==7);
             checks[@"returnedField"]=@(self->_summaryPanel.hidden && self->_bagPanel.hidden && self->_partyPanel.hidden && lifetimes==2);
             finish(@"completed"); return;
         }
-        if (capture && ![self checkPrivateCapture:capture kind:@"UIKit-summary-tm" image:nil]) { finish(@"capture_failed"); return; }
+        if (peripheralButton) {
+            NSString *selector=peripheralBag ? (peripheralKind==HG_BAG_UI_TOUCH_CANCEL ? @"bagNavigate:" : @"bagPressed:")
+                : peripheralKind==HG_PARTY_UI_TOUCH_MON ? @"partyMonPressed:" : @"partyActionPressed:";
+            CGPoint point=[peripheralButton convertPoint:CGPointMake(CGRectGetMidX(peripheralButton.bounds),CGRectGetMidY(peripheralButton.bounds)) toView:self.view];
+            UIView *hit=[self.view hitTest:point withEvent:nil];
+            if (peripheralButton.hidden || !peripheralButton.enabled || !peripheralButton.window
+                || ![[peripheralButton actionsForTarget:self forControlEvent:UIControlEventTouchUpInside] containsObject:selector]
+                || (hit!=peripheralButton && ![hit isDescendantOfView:peripheralButton])) { finish(@"native_peripheral_button_not_reachable"); return; }
+            if ((peripheralBag && HGNativeBagUIIsTMHM(bag) && bag->actionCount==2)
+                || (!peripheralBag && party->phase==HG_PARTY_UI_TM_YES_NO)) {
+                UIImage *glyph=peripheralButton.configuration.image;
+                if (glyph.size.width!=48 || glyph.size.height!=32 || ![self checkPrivatePixels:glyph]) { finish(@"native_original_yes_no_glyph_missing"); return; }
+            }
+        }
+        if (capture) {
+            if (![self checkPrivateCapture:capture kind:@"UIKit-summary-tm" image:nil]) { finish(@"capture_failed"); return; }
+            [capturedNames addObject:capture];
+        }
+        if (peripheralButton) {
+            uint32_t role=peripheralBag ? (peripheralKind==HG_BAG_UI_TOUCH_ACTION ? bag->actions[peripheralIndex].actionId : 0)
+                : peripheralKind==HG_PARTY_UI_TOUCH_ACTION ? party->actions[peripheralIndex].textId : 0;
+            NSMutableArray *words=[NSMutableArray new];for (NSUInteger i=0;i<sizeof(*q)/4;i++) [words addObject:@(((const uint32_t *)q)[i])];
+            [events addObject:@{@"event":@"native-peripheral-button-sent",@"stage":@(originStage),@"nextStage":@(stage),@"owner":@(q->owner),@"generation":@(q->generation),
+                @"observerRevision":@(q->revision),@"nativeRevision":@(peripheralBag ? bag->revision : party->revision),@"phase":@(q->phase),
+                @"kind":@(peripheralKind),@"index":@(peripheralIndex),@"role":@(role),@"ready":@(peripheralBag ? bag->ready : party->ready),
+                @"padReads":@(reads),@"hit":@[@(touchX),@(touchY)],@"qaWords":words}];
+            [peripheralButton sendActionsForControlEvents:UIControlEventTouchUpInside];
+            if (peripheralBag) { bagClicks++;bagKinds|=1u<<peripheralKind;if (role>=HG_BAG_UI_ACTION_TM_ACK && role<=HG_BAG_UI_ACTION_TM_NO) bagRoles|=1u<<(role-HG_BAG_UI_ACTION_TM_ACK); }
+            else { partyClicks++;partyKinds|=1u<<peripheralKind;if (role>=HG_PARTY_UI_TEXT_TM_ACK && role<=HG_PARTY_UI_TEXT_TM_NO) partyRoles|=1u<<(role-HG_PARTY_UI_TEXT_TM_ACK); }
+            typedRelease=YES;releaseStarted=NO;
+        }
         if (action) {
             BOOL typed=summaryReady && (stage==TM_FIFTH_CONFIRM || stage==TM_STOP_NO || stage==TM_HM_RESULT
                 || stage==TM_CONFIRM_BACK || stage==TM_OLD_AGAIN || stage==TM_CONFIRM_REPLACE || stage==TM_RETURN_BAG);
-            action(); if (typed) { summaryClicks++; summaryRelease=YES; releaseStarted=NO; }
+            action(); if (typed) { summaryClicks++; typedRelease=YES; releaseStarted=NO; }
         }
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step);
     }; step();

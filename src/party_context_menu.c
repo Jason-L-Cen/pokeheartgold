@@ -16,6 +16,9 @@
 
 #ifdef HEARTGOLD_NATIVE
 #include "constants/items.h"
+#include "item.h"
+#include "constants/moves.h"
+#include "yes_no_prompt.h"
 #include "native_party_ui.h"
 #include "palette_vram_addr.h"
 #include "screen_fade.h"
@@ -1398,6 +1401,25 @@ static BOOL NativePartyUIPotionUse(const PartyMenu *partyMenu) {
         && partyMenu->args->itemId == ITEM_POTION;
 }
 
+static BOOL NativePartyUITMHM(const PartyMenu *partyMenu) {
+    const PartyMenuArgs *args = partyMenu->args;
+    return !args->panelLayout && (args->context == PARTY_MENU_CONTEXT_TM_HM || args->context == PARTY_MENU_CONTEXT_REPLACE_MOVE_TMHM)
+        && args->itemId >= ITEM_TM01 && args->itemId <= ITEM_HM08 && args->moveId != MOVE_NONE && args->moveId == TMHMGetMove(args->itemId);
+}
+
+static BOOL NativePartyUITMYesNo(const PartyMenu *partyMenu) {
+    const YesNoPrompt *prompt = partyMenu->yesNoPrompt;
+    if (prompt == NULL || prompt->bgConfig != partyMenu->bgConfig || prompt->bgId != GF_BG_LYR_MAIN_0
+        || prompt->x != 25 || prompt->y != 10 || prompt->width != 6 || prompt->height != 4 || prompt->buttonsAreInit != 1
+        || prompt->touchHitboxController == NULL || prompt->result != 3 || prompt->confirmSelectionTimer || prompt->ignoreTouch) return FALSE;
+    for (u32 i = 0; i < 2; ++i) {
+        const TouchscreenHitbox *hit = &prompt->hitboxes[i];
+        if (hit->rect.left != 200 || hit->rect.right != 248 || hit->rect.top != 80 + 32 * i || hit->rect.bottom != 112 + 32 * i
+            || prompt->buttons[i].bgConfig != partyMenu->bgConfig || prompt->buttons[i].bgId != GF_BG_LYR_MAIN_0) return FALSE;
+    }
+    return TRUE;
+}
+
 void NativePartyUIBind(PartyMenu *partyMenu) {
     if (partyMenu == sNativePartyMenu) return;
     u32 revision = sNativePartyUI.revision + 1;
@@ -1413,8 +1435,13 @@ void NativePartyUIBind(PartyMenu *partyMenu) {
         sNativePartyUI.context = partyMenu->args->context;
         sNativePartyUI.panelLayout = partyMenu->args->panelLayout;
         sNativePartyUI.selected = partyMenu->partyMonIndex;
-        if (partyMenu->args->context == PARTY_MENU_CONTEXT_0 || NativePartyUIPotionUse(partyMenu)) {
+        if (partyMenu->args->context == PARTY_MENU_CONTEXT_0 || NativePartyUIPotionUse(partyMenu)
+            || (NativePartyUITMHM(partyMenu) && partyMenu->args->context == PARTY_MENU_CONTEXT_TM_HM)) {
             sNativePartyMessage = &partyMenu->windows[PARTY_MENU_WINDOW_ID_32];
+        }
+        if (NativePartyUITMHM(partyMenu)) {
+            sNativePartyUI.actionCount = 1;
+            sNativePartyUI.actions[0].textId = HG_PARTY_UI_TEXT_TM_ACK;
         }
     }
 }
@@ -1499,7 +1526,8 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
         && ((next.context == PARTY_MENU_CONTEXT_0 && (phase == HG_PARTY_UI_ITEM_RESULT || phase == HG_PARTY_UI_TAKE_RESULT))
             || (next.context == HG_PARTY_UI_GIVE_CONTEXT && (phase == HG_PARTY_UI_GIVE_ITEM || phase == HG_PARTY_UI_ITEM_RESULT)));
     itemProgress = itemProgress || (potion && phase == HG_PARTY_UI_ITEM_USE);
-    BOOL supported = (next.context == PARTY_MENU_CONTEXT_0 && next.panelLayout == 0) || itemProgress || potion;
+    BOOL tm = NativePartyUITMHM(partyMenu);
+    BOOL supported = (next.context == PARTY_MENU_CONTEXT_0 && next.panelLayout == 0) || itemProgress || potion || tm;
     BOOL ready = supported && ((next.context == PARTY_MENU_CONTEXT_0 && (phase == HG_PARTY_UI_ROSTER || phase == HG_PARTY_UI_CONTEXT || phase == HG_PARTY_UI_SUBCONTEXT))
         || (potion && phase == HG_PARTY_UI_ITEM_TARGET))
         && !partyMenu->contextMenuButtonAnim.active && !partyMenu->swapMonsData.active && IsPaletteFadeFinished();
@@ -1565,6 +1593,39 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
             && IsPaletteFadeFinished()) {
             ready = next.cancelEnabled = TRUE;
             next.cancelX = 124; next.cancelY = 168;
+        }
+    }
+    if (tm) {
+        next.cancelEnabled = FALSE; next.cancelX = next.cancelY = 0;
+        next.actionCount = phase == HG_PARTY_UI_TM_YES_NO ? 2 : 1;
+        next.actionSelected = next.actionEnabledMask = 0;
+        MI_CpuClear8(next.actions, sizeof(next.actions));
+        BOOL idle = valid && graphicsReady && IsPaletteFadeFinished() && !partyMenu->contextMenuButtonAnim.active && !partyMenu->swapMonsData.active;
+        ready = FALSE;
+        if (phase == HG_PARTY_UI_TM_TARGET && next.context == PARTY_MENU_CONTEXT_TM_HM) {
+            next.actions[0].textId = HG_PARTY_UI_TEXT_TM_TARGET;
+            next.cancelEnabled = !partyMenu->cancelDisabled;
+            NativePartyUIHitCenter(&hitboxes[6], &next.cancelX, &next.cancelY);
+            ready = idle && sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_32]
+                && next.message.pixelBuffer && next.message.tileWidth == 20 && next.message.tileHeight == 2
+                && sNativePartyMessage->tilemapLeft == 2 && sNativePartyMessage->tilemapTop == 21
+                && (next.selected < HG_PARTY_UI_SLOTS ? next.mons[next.selected].active : next.selected == HG_PARTY_UI_SLOTS);
+        } else {
+            for (u32 i = 0; i < next.actionCount; ++i) {
+                HGNativePartyUIAction *action = &next.actions[i];
+                action->textId = phase == HG_PARTY_UI_TM_YES_NO ? HG_PARTY_UI_TEXT_TM_YES + i : HG_PARTY_UI_TEXT_TM_ACK;
+                action->hitX = phase == HG_PARTY_UI_TM_YES_NO ? 224 : 124; action->hitY = phase == HG_PARTY_UI_TM_YES_NO ? 96 + 32 * i : 168;
+            }
+            BOOL message = sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_34]
+                && next.message.pixelBuffer && next.message.tileWidth == 27 && next.message.tileHeight == 4
+                && sNativePartyMessage->tilemapLeft == 2 && sNativePartyMessage->tilemapTop == 19;
+            if (phase == HG_PARTY_UI_TM_MESSAGE) ready = idle && message && TextPrinterIsWaitingForInput(partyMenu->textPrinterId, sNativePartyMessage);
+            else if (phase == HG_PARTY_UI_TM_YES_NO) ready = idle && message && NativePartyUITMYesNo(partyMenu);
+            for (u32 i = 0; i < next.actionCount; ++i) {
+                next.actions[i].enabled = ready;
+                if (ready) next.actionEnabledMask |= 1u << i;
+            }
+            // Yes/No text lives on the original BG; no synthetic Window descriptor is published.
         }
     }
     next.ready = ready && graphicsReady && valid && next.count != 0;

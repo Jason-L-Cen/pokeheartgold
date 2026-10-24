@@ -72,6 +72,14 @@ void ResetAllTextPrinters(void) {
 u8 TextPrinterCheckActive(u8 printerId) {
     return TextPrinterSysTaskIsActive(printerId);
 }
+#ifdef HEARTGOLD_NATIVE
+BOOL TextPrinterIsWaitingForInput(u32 printerId, const Window *window) {
+    if (printerId >= MAX_TEXT_PRINTERS || window == NULL || sTextPrinterTasks[printerId] == NULL) return FALSE;
+    const TextPrinter *printer = SysTask_GetData(sTextPrinterTasks[printerId]);
+    return printer != NULL && printer->id == printerId && printer->template.window == window
+        && printer->active && printer->state == 2 && !printer->callbackResult && !printer->callbackParam;
+}
+#endif
 
 void RemoveTextPrinter(u8 printerId) {
     DestroyTextPrinterSysTask(printerId);

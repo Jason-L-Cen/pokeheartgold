@@ -6,9 +6,11 @@
 
 enum { HG_PARTY_UI_ROSTER = 1, HG_PARTY_UI_CONTEXT = 2, HG_PARTY_UI_ITEM_TARGET = 4, HG_PARTY_UI_ITEM_USE = 5,
     HG_PARTY_UI_ITEM_RESULT = 11, HG_PARTY_UI_SUBCONTEXT = 15,
-    HG_PARTY_UI_GIVE_ITEM = 16, HG_PARTY_UI_TAKE_RESULT = 17 };
+    HG_PARTY_UI_GIVE_ITEM = 16, HG_PARTY_UI_TAKE_RESULT = 17,
+    HG_PARTY_UI_TM_TARGET = 21, HG_PARTY_UI_TM_MESSAGE = 24, HG_PARTY_UI_TM_YES_NO = 27 };
 enum { HG_PARTY_UI_USE_CONTEXT = 5, HG_PARTY_UI_GIVE_CONTEXT = 10, HG_PARTY_UI_CONFIRM = 7 };
 enum { HG_PARTY_UI_SLOTS = 6, HG_PARTY_UI_ACTIONS = 8 };
+enum { HG_PARTY_UI_TEXT_TM_TARGET = 33, HG_PARTY_UI_TEXT_TM_ACK, HG_PARTY_UI_TEXT_TM_YES, HG_PARTY_UI_TEXT_TM_NO };
 enum { HG_PARTY_UI_TOUCH_MON, HG_PARTY_UI_TOUCH_ACTION, HG_PARTY_UI_TOUCH_CANCEL };
 
 typedef struct HGNativePartyUIWindow {
@@ -25,7 +27,7 @@ typedef struct HGNativePartyUIMon {
 } HGNativePartyUIMon;
 
 typedef struct HGNativePartyUIAction {
-    uint32_t enabled, hitX, hitY, textId; // textId is zero or 1 + PartyMonContextMenuItem.
+    uint32_t enabled, hitX, hitY, textId; // Zero, 1 + PartyMonContextMenuItem, or native TM roles 33..36.
     HGNativePartyUIWindow text;
 } HGNativePartyUIAction;
 
@@ -64,10 +66,46 @@ static inline uint32_t HGNativePartyUIIsItemProgress(const HGNativePartyUIState 
         || (state->context == HG_PARTY_UI_GIVE_CONTEXT && (state->phase == HG_PARTY_UI_GIVE_ITEM || state->phase == HG_PARTY_UI_ITEM_RESULT));
 }
 
+// Exact TM/HM producer roles identify the scene even while its original printer/fade is busy.
+static inline uint32_t HGNativePartyUIIsTMHM(const HGNativePartyUIState *state) {
+    if (!state || !state->active || state->panelLayout || (state->context != 6 && state->context != 7)
+        || state->count > HG_PARTY_UI_SLOTS || (state->slotMask >> HG_PARTY_UI_SLOTS)) return 0;
+    if (state->phase == HG_PARTY_UI_TM_TARGET)
+        return state->context == 6 && state->actionCount == 1 && state->actions[0].textId == HG_PARTY_UI_TEXT_TM_TARGET;
+    if (state->phase == HG_PARTY_UI_TM_YES_NO)
+        return state->actionCount == 2 && state->actions[0].textId == HG_PARTY_UI_TEXT_TM_YES && state->actions[1].textId == HG_PARTY_UI_TEXT_TM_NO;
+    return (state->phase == 0 || state->phase == 3 || state->phase == 22 || state->phase == HG_PARTY_UI_TM_MESSAGE
+            || state->phase == 25 || state->phase == 26 || state->phase == 32 || state->phase == 33)
+        && state->actionCount == 1 && state->actions[0].textId == HG_PARTY_UI_TEXT_TM_ACK;
+}
+
 static inline uint32_t HGNativePartyUIResolveTouch(const HGNativePartyUIState *state, uint32_t revision, uint32_t phase,
     uint32_t kind, uint32_t index, uint32_t *x, uint32_t *y) {
     if (!state || !x || !y || !state->active || !state->ready || state->panelLayout
         || state->revision != revision || state->phase != phase) return 0;
+    if (HGNativePartyUIIsTMHM(state)) {
+        if (!state->count || !state->message.pixelBuffer || state->message.engine || state->message.clearColor != 15) return 0;
+        if (phase == HG_PARTY_UI_TM_TARGET) {
+            if ((state->selected < HG_PARTY_UI_SLOTS ? !state->mons[state->selected].active : state->selected != HG_PARTY_UI_SLOTS)
+                || state->actionEnabledMask || state->message.tileWidth != 20 || state->message.tileHeight != 2
+                || state->cancelX != 228 || state->cancelY != 172) return 0;
+            if (kind == HG_PARTY_UI_TOUCH_MON) {
+                if (index >= state->count || !(state->slotMask & (1u << index)) || !state->mons[index].active
+                    || state->mons[index].hitX > 255 || state->mons[index].hitY > 191) return 0;
+                *x = state->mons[index].hitX; *y = state->mons[index].hitY; return 1;
+            }
+            if (kind != HG_PARTY_UI_TOUCH_CANCEL || index || !state->cancelEnabled) return 0;
+            *x = state->cancelX; *y = state->cancelY; return 1;
+        }
+        if (state->selected >= HG_PARTY_UI_SLOTS || !state->mons[state->selected].active
+            || (phase != HG_PARTY_UI_TM_MESSAGE && phase != HG_PARTY_UI_TM_YES_NO) || kind != HG_PARTY_UI_TOUCH_ACTION
+            || index >= state->actionCount || !state->actions[index].enabled || state->cancelEnabled
+            || state->actionEnabledMask != (1u << state->actionCount) - 1
+            || state->message.tileWidth != 27 || state->message.tileHeight != 4) return 0;
+        uint32_t hitX = phase == HG_PARTY_UI_TM_MESSAGE ? 124 : 224, hitY = phase == HG_PARTY_UI_TM_MESSAGE ? 168 : 96 + 32 * index;
+        if (state->actions[index].hitX != hitX || state->actions[index].hitY != hitY) return 0;
+        *x = hitX; *y = hitY; return 1;
+    }
     if (HGNativePartyUIIsItemProgress(state)) {
         if (phase == HG_PARTY_UI_GIVE_ITEM || kind != HG_PARTY_UI_TOUCH_CANCEL || index || !state->cancelEnabled
             || state->count > HG_PARTY_UI_SLOTS || state->actionCount || state->actionEnabledMask

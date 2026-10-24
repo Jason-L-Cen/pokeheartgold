@@ -1,3 +1,80 @@
+// The production publisher/dialogue path is checked by the actual ABI32 TM scenario; this entry checks only public packet input guards.
+#if defined(HG_NATIVE_BAG_UI_PACKET_CHECK_MAIN) || defined(HEARTGOLD_ABI32)
+#include "native_bag_ui.h"
+#include <stdio.h>
+#include <string.h>
+#define CHECK(value) do { if (!(value)) return __LINE__; } while (0)
+
+uint32_t CheckOriginalBagPacketUI(void) {
+    HGNativeBagUIState state={.active=1,.revision=7,.phase=HG_BAG_UI_TM_MESSAGE,.ready=1,.pocketId=POCKET_TMHMS,
+        .selectedItemId=ITEM_TM17,.selectedQuantity=2,.actionCount=1,.actionMask=1,
+        .actions={{.actionId=HG_BAG_UI_ACTION_TM_ACK,.enabled=1,.hitX=124,.hitY=24}},
+        .message={.pixelBuffer=0x10000,.engine=1,.tileWidth=27,.tileHeight=4,.clearColor=15}};
+    uint32_t x=0,y=0; HGNativeBagUIState copy=state;
+    CHECK(sizeof(state)==1568 && HGNativeBagUIIsTMHM(&state));
+    CHECK(HGNativeBagUIResolveTouch(&state,7,HG_BAG_UI_TM_MESSAGE,HG_BAG_UI_TOUCH_ACTION,0,&x,&y) && x==124 && y==24);
+    CHECK(!memcmp(&state,&copy,sizeof(state)));
+    CHECK(!HGNativeBagUIResolveTouch(&state,6,state.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y)
+        && !HGNativeBagUIResolveTouch(&state,7,HG_BAG_UI_ITEM_MENU,HG_BAG_UI_TOUCH_ACTION,0,&x,&y)
+        && !HGNativeBagUIResolveTouch(&state,7,state.phase,HG_BAG_UI_TOUCH_ACTION,1,&x,&y)
+        && !HGNativeBagUIResolveTouch(&state,7,state.phase,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y)
+        && !HGNativeBagUIResolveTouch(&state,7,state.phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y)
+        && !HGNativeBagUIResolveTouch(NULL,7,state.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y)
+        && !HGNativeBagUIResolveTouch(&state,7,state.phase,HG_BAG_UI_TOUCH_ACTION,0,NULL,&y));
+    copy=state; copy.ready=0; CHECK(HGNativeBagUIIsTMHM(&copy) && !HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.active=0; CHECK(!HGNativeBagUIIsTMHM(&copy) && !HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.mode=HG_BAG_UI_GIVE_MODE; CHECK(!HGNativeBagUIIsTMHM(&copy) && !HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.pocketId=POCKET_MEDICINE; CHECK(!HGNativeBagUIIsTMHM(&copy) && !HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    const uint32_t invalidItems[]={ITEM_TM01-1,ITEM_HM08+1};
+    for (uint32_t i=0;i<2;++i) { copy=state; copy.selectedItemId=invalidItems[i]; CHECK(!HGNativeBagUIIsTMHM(&copy) && !HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y)); }
+    copy=state; copy.selectedItemId=ITEM_TM01; CHECK(HGNativeBagUIIsTMHM(&copy)); copy.selectedItemId=ITEM_HM08; CHECK(HGNativeBagUIIsTMHM(&copy));
+    copy=state; copy.selectedQuantity=0; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.actions[0].enabled=0; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.actions[0].hitY++; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.actionMask=0; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.actionMask=3; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.cancelEnabled=1; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.message.pixelBuffer=0; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.message.engine=0; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.message.tileWidth=26; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.message.tileHeight=5; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.message.clearColor=0; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; ++copy.revision;
+    CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y)
+        && HGNativeBagUIResolveTouch(&copy,copy.revision,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    state.actionCount=2; state.actionMask=3;
+    for (uint32_t i=0;i<2;++i) state.actions[i]=(HGNativeBagUIAction){.actionId=HG_BAG_UI_ACTION_TM_YES+i,.enabled=1,.hitX=224,.hitY=64+32*i};
+    CHECK(HGNativeBagUIIsTMHM(&state));
+    for (uint32_t i=0;i<2;++i) CHECK(HGNativeBagUIResolveTouch(&state,7,state.phase,HG_BAG_UI_TOUCH_ACTION,i,&x,&y) && x==224 && y==64+32*i);
+    copy=state; copy.actions[1].actionId=HG_BAG_UI_ACTION_TM_YES; CHECK(!HGNativeBagUIIsTMHM(&copy) && !HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,1,&x,&y));
+    copy=state; copy.actionMask=1; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.actions[1].enabled=0; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,1,&x,&y));
+    copy=state; copy.actions[1].hitY=64; CHECK(!HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,1,&x,&y));
+    state.phase=HG_BAG_UI_TM_EXIT_FADE; state.actionCount=1; state.actionMask=0; state.ready=0;
+    state.actions[0]=(HGNativeBagUIAction){.actionId=HG_BAG_UI_ACTION_TM_ACK,.hitX=124,.hitY=24};
+    CHECK(HGNativeBagUIIsTMHM(&state) && !HGNativeBagUIResolveTouch(&state,7,state.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    copy=state; copy.ready=1; copy.actionMask=1; copy.actions[0].enabled=1;
+    CHECK(HGNativeBagUIIsTMHM(&copy) && !HGNativeBagUIResolveTouch(&copy,7,copy.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    state=(HGNativeBagUIState){.active=1,.revision=9,.phase=HG_BAG_UI_INPUT,.ready=1,.visibleCount=1,.itemMask=1,
+        .selectedItemId=ITEM_POTION,.selectedQuantity=5,.cancelEnabled=1,.cancelX=223,.cancelY=179,
+        .items={{.itemId=ITEM_POTION,.quantity=5,.enabled=1,.hitX=63,.hitY=52,.cropX=0,.cropY=32,.cropWidth=127,.cropHeight=41}}};
+    CHECK(HGNativeBagUIIsList(&state) && !HGNativeBagUIIsTMHM(&state)
+        && HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y) && x==63 && y==52
+        && HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y) && x==223 && y==179);
+    state.phase=HG_BAG_UI_ITEM_MENU; state.actionCount=1; state.actionMask=1;
+    state.actions[0]=(HGNativeBagUIAction){.actionId=0,.enabled=1,.hitX=46,.hitY=143};
+    CHECK(HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y) && x==46 && y==143);
+    state.mode=HG_BAG_UI_GIVE_MODE; CHECK(!HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    state.phase=HG_BAG_UI_GIVE_INPUT;
+    CHECK(HGNativeBagUIIsList(&state) && HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y)
+        && !HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    return 0;
+}
+#ifdef HG_NATIVE_BAG_UI_PACKET_CHECK_MAIN
+int main(void) { uint32_t line=CheckOriginalBagPacketUI(); if (line) { fprintf(stderr,"Bag packet UI check line %u\n",line); return 1; }
+    puts("PASS: public Bag TM ACK/YesNo, disabled fade identity, stale input guards and ordinary/Give packet regression."); return 0; }
+#endif
+#else
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Isolated check: include the real producers, window lifecycle and menu-label drawing.
 // bag_ui_check_data.h is generated byte-for-byte from asm/bag_app_data.s in the private check directory.
@@ -219,3 +296,5 @@ u32 CheckOriginalBagUI(void) {
 int main(void) { u32 line=CheckOriginalBagUI(); if (line) { fprintf(stderr,"Bag UI check line %u\n",line); return 1; }
     puts("PASS: original Bag layouts, action labels, window lifetime, bank selection, typed touch guard and stable revisions."); return 0; }
 #endif
+
+#endif // Header-only public packet check or legacy producer component.

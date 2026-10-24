@@ -3561,6 +3561,27 @@ static BOOL NativeBagUIHit(const TouchscreenHitbox *box, u32 *x, u32 *y) {
     return NativeBagUIRect(box, &left, &top, &width, &height, x, y);
 }
 
+static BOOL NativeBagUITMHM(const BagApp *app, u32 phase) {
+    const BagView *view = app->bagView;
+    return (phase == HG_BAG_UI_TM_MESSAGE || (phase == HG_BAG_UI_TM_EXIT_FADE && app->taskState == 3 && !view->selectedAction))
+        && !view->mode && view->pocketIndex < HG_BAG_UI_POCKETS
+        && view->pockets[view->pocketIndex].slots != NULL && view->pockets[view->pocketIndex].pocketId == POCKET_TMHMS
+        && view->itemId >= ITEM_TM01 && view->itemId <= ITEM_HM08 && app->task == BagApp_UseTMHMTask && app->taskState <= 3;
+}
+
+static BOOL NativeBagUITMYesNo(const BagApp *app) {
+    const YesNoPrompt *prompt = app->yesNoPrompt;
+    if (prompt == NULL || prompt->bgConfig != app->bgConfig || prompt->bgId != GF_BG_LYR_SUB_1
+        || prompt->x != 25 || prompt->y != 6 || prompt->width != 6 || prompt->height != 4 || prompt->buttonsAreInit != 1
+        || prompt->touchHitboxController == NULL || prompt->result != 3 || prompt->confirmSelectionTimer || prompt->ignoreTouch) return FALSE;
+    for (u32 i = 0; i < 2; ++i) {
+        const TouchscreenHitbox *hit = &prompt->hitboxes[i];
+        if (hit->rect.left != 200 || hit->rect.right != 248 || hit->rect.top != 48 + 32 * i || hit->rect.bottom != 80 + 32 * i
+            || prompt->buttons[i].bgConfig != app->bgConfig || prompt->buttons[i].bgId != GF_BG_LYR_SUB_1) return FALSE;
+    }
+    return TRUE;
+}
+
 static void NativeBagUIPublish(BagApp *app, u32 phase) {
     if (app != sNativeBagApp) return;
     HGNativeBagUIState next;
@@ -3569,6 +3590,7 @@ static void NativeBagUIPublish(BagApp *app, u32 phase) {
     next.mode = app->bagView->mode; next.phase = phase;
     BOOL list = HGNativeBagUIIsList(&next);
     BOOL menu = next.mode == 0 && phase == HG_BAG_UI_ITEM_MENU;
+    BOOL tm = NativeBagUITMHM(app, phase);
     BOOL graphicsReady = app->bgConfig != NULL && !((app->bgConfig->bufferTransferScheduled | app->bgConfig->scrollScheduled) & 0xFF);
     BOOL ready = (list || menu) && graphicsReady && !app->isMovingItem && IsPaletteFadeFinished();
     BOOL valid = TRUE;
@@ -3641,6 +3663,33 @@ static void NativeBagUIPublish(BagApp *app, u32 phase) {
         if (list || menu) sNativeBagMessage = 0;
         if (sNativeBagMessage == 1) NativeBagUIWindow(&next.message, app, &app->windows[3], GF_BG_LYR_SUB_0, 27, 4, 15);
         else if (sNativeBagMessage == 2) NativeBagUIWindow(&next.message, app, &app->dynWindows[21], GF_BG_LYR_SUB_0, 18, 4, 15);
+    }
+    if (tm) {
+        if (next.selectedItemId != app->bagView->itemId || !next.selectedQuantity) valid = FALSE;
+        next.selectedItemId = app->bagView->itemId;
+        next.cancelEnabled = next.previousEnabled = next.nextEnabled = FALSE;
+        BOOL prompt = phase == HG_BAG_UI_TM_MESSAGE && app->taskState == 3;
+        next.actionCount = prompt ? 2 : 1;
+        next.actionMask = next.menuCursor = 0;
+        MI_CpuClear8(next.actions, sizeof(next.actions));
+        if (graphicsReady && IsPaletteFadeFinished() && sNativeBagMenuLive
+            && !NativeBagUIWindow(&next.selectedEntry, app, &app->dynWindows[12], GF_BG_LYR_SUB_0, 11, 4, 0)) valid = FALSE;
+        BOOL message = sNativeBagMessage == 1 && app->windows[3].tilemapLeft == 2 && app->windows[3].tilemapTop == 1
+            && NativeBagUIWindow(&next.message, app, &app->windows[3], GF_BG_LYR_SUB_0, 27, 4, 15);
+        ready = phase == HG_BAG_UI_TM_MESSAGE && valid && message && graphicsReady && !app->isMovingItem && IsPaletteFadeFinished();
+        // The original YES callback destroyed the prompt before publishing exit fade.
+        if (prompt) ready = ready && NativeBagUITMYesNo(app);
+        else ready = ready && app->printerId < MAX_TEXT_PRINTERS
+            && ((app->taskState == 1 && !TextPrinterCheckActive(app->printerId))
+                || (app->taskState == 2 && TextPrinterIsWaitingForInput(app->printerId, &app->windows[3])));
+        for (u32 i = 0; i < next.actionCount; ++i) {
+            HGNativeBagUIAction *action = &next.actions[i];
+            action->actionId = prompt ? HG_BAG_UI_ACTION_TM_YES + i : HG_BAG_UI_ACTION_TM_ACK;
+            action->enabled = ready;
+            action->hitX = prompt ? 224 : 124; action->hitY = prompt ? 64 + 32 * i : 24;
+            if (ready) next.actionMask |= 1u << i;
+        }
+        // Yes/No are original BG buttons, not Window objects; the owner copies their 48x32 frame crops.
     }
     next.ready = ready && valid;
     BOOL changed = memcmp(&next, &gNativeBagUIState, offsetof(HGNativeBagUIState, ready)) != 0

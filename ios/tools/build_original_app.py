@@ -90,7 +90,8 @@ def summary_tm_guest(report_path, audit, link):
         if Path(name).is_absolute() or not path.resolve().is_relative_to(folder) or not path.is_file() or sha(path)!=value:
             raise RuntimeError('Native TM archive seal changed: '+name)
     if not (report.get('tmLearn') is True and report.get('passed') is True and report.get('complete') is True
-            and type(report.get('exitCode')) is int and report['exitCode']==0 and tm_evidence_passed(report.get('tmLearningEvidence',[]))
+            and type(report.get('exitCode')) is int and report['exitCode']==0 and tm_evidence_passed(report.get('tmLearningEvidence',[]),
+                report.get('tmTypedEvidence',[]),report.get('inputEvidence',[]),report.get('tmExitFadeEvidence',[]),report.get('tmRawEvidence',[]))
             and report.get('generatedArtifactsUnchanged') is True and report.get('privateSaveUnchanged') is True
             and report.get('headersUnchanged') is True and report.get('gitStateUnchanged') is True
             and report.get('sealsAfter') and all(value is True for value in report['sealsAfter'].values()) and not report.get('changedPaths')):

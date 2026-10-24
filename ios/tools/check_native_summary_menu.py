@@ -116,27 +116,226 @@ def prepare_tm_guest(destination, run, objects, audit, includes, native_content)
     return artifacts, provenance
 
 
-def tm_evidence_passed(rows):
-    if len(rows) != 1:
+def tm_evidence_passed(rows, typed=(), inputs=(), fades=(), raw=()):
+    """The new typed contract is intentionally distinct from immutable raw-peripheral evidence."""
+    if not isinstance(rows, list) or len(rows) != 1 or not isinstance(rows[0], dict) or not isinstance(raw, list) or raw:
         return False
     row = rows[0]
-    if not isinstance(row, dict):
-        return False
     exact = dict(status='passed_original_summary_tm_learning', fixturePrepared=1, summaryLifetimes=2,
                  fifthCancelled=1, continuedTrying=1, hmRejected=1, confirmationBack=1, replacement=1,
                  finalMove=182, finalPpUps=0, finalPp=10, finalMaxPp=10, initialTmQuantity=2, finalTmQuantity=1,
                  initialFriendship=70, finalFriendship=71, initialMood=0, finalMood=40,
                  partyFieldsPreserved=True, otherBagBytesPreserved=True, flagsMoneyDexPreserved=True,
-                 friendshipMoodPreservedBeforeLearning=True, resetFinished=True, peripheralUiNative=False)
-    return all(type(row.get(key)) is type(value) and row[key] == value for key, value in exact.items()) \
-        and type(row.get('staleRejected')) is int and row['staleRejected'] >= 4
+                 friendshipMoodPreservedBeforeLearning=True, resetFinished=True, peripheralUiNative=True,
+                 exitFadeSeen=1, exitFadeRejected=2)
+    if not all(type(row.get(key)) is type(value) and row[key] == value for key, value in exact.items()) \
+            or type(row.get('staleRejected')) is not int or row['staleRejected'] < 6:
+        return False
+    counts = ('typedAccepted', 'typedRejected', 'typedReleased', 'typedSettled', 'partyReturnAcks')
+    if any(type(row.get(key)) is not int or row[key] < 0 for key in counts) \
+            or not row['typedAccepted'] or not row['partyReturnAcks'] \
+            or row['typedAccepted'] != row['typedReleased'] or row['typedAccepted'] != row['typedSettled'] \
+            or not isinstance(typed, list) or not typed or not isinstance(inputs, list) or not isinstance(fades, list) or len(fades) != 1:
+        return False
+    integers = ('sequence', 'stage', 'advance', 'producer', 'revision', 'phase', 'kind', 'index', 'owner', 'generation',
+                'qaRevision', 'manager', 'data', 'execState', 'context', 'itemId', 'moveId', 'partySlot', 'selectedMoveSlot',
+                'taskState', 'taskMatches', 'printerId', 'printerActive', 'printerMatches', 'printerState', 'printerWaiting',
+                'yesNoActive', 'yesNoReady', 'yesNoResult', 'yesNoTimer', 'yesNoX', 'yesNoY', 'yesNoWidth', 'yesNoHeight',
+                'partyBusy', 'graphicsReady', 'fadeFinished', 'padReads', 'invalidated', 'keys')
+    groups = []
+    for event in typed:
+        if not isinstance(event, dict) or any(type(event.get(key)) is not int or not 0 <= event[key] <= 0xffffffff for key in integers) \
+                or any(not isinstance(event.get(key), list) or len(event[key]) != size
+                       or any(type(value) is not int or value < 0 for value in event[key])
+                       for key, size in (('touch', 3), ('yesHitX', 2), ('yesHitY', 2))) \
+                or not event['sequence'] or not event['revision'] or not event['qaRevision'] \
+                or not event['generation'] or not event['manager'] or not event['data'] \
+                or event['execState'] != 2 or event['graphicsReady'] != 1 or event['fadeFinished'] != 1 \
+                or event['keys'] or event['advance'] not in (0, 1) or event['invalidated'] not in (0, 1):
+            return False
+        if not groups or groups[-1][0]['sequence'] != event['sequence']:
+            if event['sequence'] != len(groups) + 1:
+                return False
+            groups.append([])
+        groups[-1].append(event)
+    accepted, rejected, expected_press, expected_release, roles = [], 0, [], [], set()
+    last_settled = 0
+    identity = (*integers[:-3], 'keys', 'yesHitX', 'yesHitY')  # padReads/invalidated/touch describe each event.
+    for group in groups:
+        queued = group[0]
+        events = [event.get('event') for event in group]
+        if events not in (['queued', 'rejected'], ['queued', 'accepted', 'released', 'settled']) \
+                or queued['padReads'] < last_settled or queued['invalidated'] or queued['touch'] != [0, 0, 0] \
+                or any(any(event[key] != queued[key] for key in identity) for event in group[1:]) \
+                or any(group[index]['padReads'] > group[index + 1]['padReads'] for index in range(len(group) - 1)):
+            return False
+        if events[-1] == 'rejected':
+            if group[1]['invalidated'] != 1 or group[1]['touch'] != [0, 0, 0]:
+                return False
+            rejected += 1
+            continue
+        _, action, release, settled = group
+        if action['invalidated'] or settled['invalidated'] or action['touch'][0] != 1 \
+                or not (0 <= action['touch'][1] < 256 and 0 <= action['touch'][2] < 192) \
+                or release['touch'] != [0, 0, 0] or settled['touch'] != [0, 0, 0] \
+                or not 0 <= release['padReads'] - action['padReads'] <= 4 \
+                or (release['padReads'] - action['padReads'] < 4 and not release['invalidated']) \
+                or settled['padReads'] - release['padReads'] < 2:
+            return False
+        producer, phase, kind, index, stage = (action[key] for key in ('producer', 'phase', 'kind', 'index', 'stage'))
+        printer = action['printerId'] < 8 and all(action[key] == 1 for key in ('printerActive', 'printerMatches', 'printerWaiting')) \
+            and action['printerState'] == 2
+        prompt_y = 6 if producer == 3 else 10
+        prompt = all(action[key] == 1 for key in ('yesNoActive', 'yesNoReady')) \
+            and action['yesNoResult'] == 3 and action['yesNoTimer'] == 0 \
+            and (action['yesNoX'], action['yesNoY'], action['yesNoWidth'], action['yesNoHeight']) == (25, prompt_y, 6, 4) \
+            and action['yesHitX'] == [224, 224] and action['yesHitY'] == [prompt_y * 8 + 16, prompt_y * 8 + 48]
+        role = None
+        if producer == 3 and action['owner'] == 1:
+            if (phase, stage, kind) in ((1, 2, 0), (1, 3, 1), (4, 4, 2), (1, 20, 5)):
+                if (kind == 0 and index < 8) or (kind == 1 and index < 6) or (kind == 2 and index < 4) or (kind == 5 and index == 0):
+                    role = {2: 'pocket', 3: 'item', 4: 'use', 20: 'cancel'}[stage]
+            elif phase == 13 and kind == 2 and index == 0 and action['taskMatches'] == 1 and action['itemId'] == 344:
+                if stage == 5 and action['taskState'] == 1 and action['printerId'] < 8 and not action['printerActive']:
+                    role = 'bag-boot-ack'
+                elif stage == 6 and action['taskState'] == 2 and printer:
+                    role = 'bag-printer'
+                elif stage == 6 and action['taskState'] == 3 and prompt:
+                    role = 'bag-yes'
+        elif producer == 1 and action['owner'] == 2 and not action['partyBusy'] and action['itemId'] == 344 and action['moveId'] == 182:
+            if phase == 21 and stage == 7 and kind == 0 and index == 0 and action['context'] == 6 and action['partySlot'] == 0:
+                role = 'target'
+            elif phase == 24 and stage in (8, 9, 11, 12, 13, 19) and kind == 1 and index == 0 \
+                    and action['context'] == (6 if stage in (8, 9) else 7) and printer:
+                role = 'party-printer-before' if stage in (8, 9) else 'party-printer-return'
+            elif phase == 27 and stage in (8, 11, 12) and kind == 1 and index == (1 if stage == 11 else 0) \
+                    and action['context'] == (6 if stage == 8 else 7) and prompt \
+                    and (stage != 11 or action['selectedMoveSlot'] == 4):
+                role = {8: 'forget-yes', 11: 'stop-no', 12: 'retry-yes'}[stage]
+        if role is None or action['advance'] != (0 if 'printer' in role else 1):
+            return False
+        if role in ('bag-boot-ack', 'bag-printer') and action['touch'] != [1, 124, 24] \
+                or role.startswith('party-printer') and action['touch'] != [1, 124, 168] \
+                or role in ('bag-yes', 'forget-yes', 'stop-no', 'retry-yes') \
+                and action['touch'] != [1, action['yesHitX'][index], action['yesHitY'][index]]:
+            return False
+        roles.add(role); accepted.append(action); last_settled = settled['padReads']
+        expected_press.append((stage, producer, action['revision'], phase, action['padReads'], 0, tuple(action['touch'])))
+        expected_release.append((stage + action['advance'], producer, action['revision'], phase, release['padReads'], release['invalidated']))
+    required = {'pocket', 'item', 'use', 'cancel', 'bag-boot-ack', 'bag-printer', 'bag-yes', 'target',
+                'party-printer-before', 'party-printer-return', 'forget-yes', 'stop-no', 'retry-yes'}
+    if not required <= roles or len(accepted) != row['typedAccepted'] or rejected != row['typedRejected'] \
+            or sum(action['producer'] == 1 and action['phase'] == 24 and action['stage'] >= 11 for action in accepted) != row['partyReturnAcks']:
+        return False
+    for event in inputs:
+        if not isinstance(event, dict) or event.get('event') not in ('press', 'release') \
+                or any(type(event.get(key)) is not int or event[key] < 0 for key in ('stage', 'owner', 'revision', 'phase', 'padReads')) or event['owner'] not in (0, 1, 2, 3):
+            return False
+        if event['event'] == 'press':
+            if type(event.get('keys')) is not int or not isinstance(event.get('touch'), list) or len(event['touch']) != 3 \
+                    or any(type(value) is not int or value < 0 for value in event['touch']):
+                return False
+        elif type(event.get('ownerChanged')) is not int or event['ownerChanged'] not in (0, 1):
+            return False
+    peripheral = [event for event in inputs if event['owner'] in (1, 3)]
+    try:
+        presses = [(event['stage'], event['owner'], event['revision'], event['phase'], event['padReads'], event['keys'], tuple(event['touch']))
+                   for event in peripheral if event['event'] == 'press']
+        releases = [(event['stage'], event['owner'], event['revision'], event['phase'], event['padReads'], event['ownerChanged'])
+                    for event in peripheral if event['event'] == 'release']
+    except (KeyError, TypeError):
+        return False
+    if len(peripheral) != len(presses) + len(releases) or sorted(presses) != sorted(expected_press) or sorted(releases) != sorted(expected_release):
+        return False
+    fade = fades[0]
+    if not isinstance(fade, dict) or any(type(fade.get(key)) is not int for key in ('stage', 'owner', 'generation', 'qaRevision', 'revision',
+            'phase', 'ready', 'actionCount', 'actionMask', 'enabled', 'oldRevision', 'oldPhase', 'oldKind', 'oldIndex')) \
+            or (fade['stage'], fade['owner'], fade['phase'], fade['ready'], fade['actionCount'], fade['actionMask'], fade['enabled'],
+                fade['oldPhase'], fade['oldKind'], fade['oldIndex']) != (7, 1, 37, 0, 1, 0, 0, 13, 2, 0) \
+            or any(fade.get(key) is not True for key in ('oldChoiceRejected', 'forgedReadyRejected', 'inputUnchanged')):
+        return False
+    yes = [action for action in accepted if action['producer'] == 3 and action['phase'] == 13 and action['taskState'] == 3]
+    target = [action for action in accepted if action['producer'] == 1 and action['phase'] == 21]
+    return len(yes) == len(target) == 1 and fade['oldRevision'] == yes[0]['revision'] < fade['revision'] \
+        and fade['generation'] == yes[0]['generation'] and fade['qaRevision'] > yes[0]['qaRevision'] \
+        and target[0]['generation'] > fade['generation']
 
+
+def tm_evidence_self_check():
+    """Pure in-memory positive trace and targeted negatives; no files, tools, guest or device."""
+    from copy import deepcopy
+    stages = [(3, 1, 2, 0, 0, 0), (3, 1, 3, 1, 0, 0), (3, 4, 4, 2, 0, 0),
+              (3, 13, 5, 2, 0, 1), (3, 13, 6, 2, 0, 2), (3, 13, 6, 2, 0, 3),
+              (1, 21, 7, 0, 0, 0), (1, 24, 8, 1, 0, 0), (1, 27, 8, 1, 0, 0), (1, 24, 9, 1, 0, 0),
+              (1, 24, 11, 1, 0, 0), (1, 27, 11, 1, 1, 0), (1, 24, 12, 1, 0, 0),
+              (1, 27, 12, 1, 0, 0), (1, 24, 13, 1, 0, 0), (1, 24, 19, 1, 0, 0), (3, 1, 20, 5, 0, 0)]
+    typed, inputs = [], []
+    for sequence, (producer, phase, stage, kind, index, task) in enumerate(stages, 1):
+        data = dict(sequence=sequence, stage=stage, advance=int(not (phase == 24 or (phase == 13 and task == 2))),
+                    producer=producer, revision=sequence, phase=phase, kind=kind, index=index, owner=1 if producer == 3 else 2,
+                    generation=1 if producer == 3 and stage < 7 else 5 if producer == 3 else 2, qaRevision=sequence,
+                    manager=100, data=200, execState=2, context=6 if stage in (7, 8, 9) else 7 if producer == 1 else 0,
+                    itemId=344, moveId=182, partySlot=0, selectedMoveSlot=4 if stage == 11 else 0,
+                    taskState=task, taskMatches=int(producer == 3 and phase == 13), printerId=0,
+                    printerActive=int(phase == 24 or task == 2), printerMatches=int(phase == 24 or task == 2),
+                    printerState=2 if phase == 24 or task == 2 else 0, printerWaiting=int(phase == 24 or task == 2),
+                    yesNoActive=int(phase == 27 or task == 3), yesNoReady=int(phase == 27 or task == 3), yesNoResult=3,
+                    yesNoTimer=0, yesNoX=25, yesNoY=6 if producer == 3 else 10, yesNoWidth=6, yesNoHeight=4,
+                    yesHitX=[224, 224], yesHitY=[64, 96] if producer == 3 else [96, 128],
+                    partyBusy=0, graphicsReady=1, fadeFinished=1, keys=0)
+        touch = [1, 124, 168 if producer == 1 else 24] if phase == 24 or (phase == 13 and task in (1, 2)) \
+            else [1, 224, data['yesHitY'][index]] if phase == 27 or task == 3 else [1, 50, 50]
+        reads = sequence * 8
+        for event, offset, point in [('queued', 0, [0, 0, 0]), ('accepted', 1, touch), ('released', 5, [0, 0, 0]), ('settled', 7, [0, 0, 0])]:
+            typed.append(dict(data, event=event, padReads=reads + offset, invalidated=0, touch=point))
+        inputs += [dict(stage=stage, event='press', owner=producer, revision=sequence, phase=phase, padReads=reads + 1, keys=0, touch=touch),
+                   dict(stage=stage + data['advance'], event='release', owner=producer, revision=sequence, phase=phase, padReads=reads + 5, ownerChanged=0)]
+    final = dict(status='passed_original_summary_tm_learning', fixturePrepared=1, summaryLifetimes=2, fifthCancelled=1, continuedTrying=1,
+                 hmRejected=1, confirmationBack=1, replacement=1, finalMove=182, finalPpUps=0, finalPp=10, finalMaxPp=10,
+                 initialTmQuantity=2, finalTmQuantity=1, initialFriendship=70, finalFriendship=71, initialMood=0, finalMood=40,
+                 partyFieldsPreserved=True, otherBagBytesPreserved=True, flagsMoneyDexPreserved=True,
+                 friendshipMoodPreservedBeforeLearning=True, resetFinished=True, peripheralUiNative=True, staleRejected=7,
+                 typedAccepted=len(stages), typedRejected=0, typedReleased=len(stages), typedSettled=len(stages), partyReturnAcks=4,
+                 exitFadeSeen=1, exitFadeRejected=2)
+    fade = dict(stage=7, owner=1, generation=1, qaRevision=7, revision=7, phase=37, ready=0, actionCount=1, actionMask=0, enabled=0,
+                oldRevision=6, oldPhase=13, oldKind=2, oldIndex=0, oldChoiceRejected=True, forgedReadyRejected=True, inputUnchanged=True)
+    valid = [[final], typed, inputs, [fade], []]
+    assert tm_evidence_passed(*valid)
+    stale = deepcopy(valid)
+    queued = deepcopy(stale[1][-4]); rejected = dict(queued, event='rejected', padReads=queued['padReads'] + 1, invalidated=1)
+    for event in stale[1][-4:]:
+        event['sequence'] += 1; event['revision'] += 1; event['qaRevision'] += 1; event['padReads'] += 2
+    stale[1][-4:-4] = [queued, rejected]
+    for event in stale[2][-2:]:
+        event['revision'] += 1; event['padReads'] += 2
+    stale[0][0]['typedRejected'] = 1
+    assert tm_evidence_passed(*stale)
+    # Mutate every copy of a cached request to test its predicate, independently of snapshot equality.
+    mutations = [(4, 'printerActive', 1), (5, 'printerWaiting', 0), (6, 'yesNoTimer', 1), (7, 'partyBusy', 1),
+                 (8, 'printerMatches', 0), (9, 'yesNoReady', 0), (12, 'index', 0), (14, 'context', 6)]
+    for sequence, key, value in mutations:
+        bad = deepcopy(valid)
+        for event in bad[1]:
+            if event['sequence'] == sequence:
+                event[key] = value
+        assert not tm_evidence_passed(*bad), (sequence, key)
+    for kind in ('stale', 'release', 'settled', 'extra-input', 'raw', 'fade', 'legacy'):
+        bad = deepcopy(valid)
+        if kind == 'stale': bad[1][1]['revision'] += 1
+        elif kind == 'release': del bad[1][2]
+        elif kind == 'settled': bad[1][3]['padReads'] -= 1
+        elif kind == 'extra-input': bad[2].append(deepcopy(bad[2][0]))
+        elif kind == 'raw': bad[4].append({'reason': 'raw'})
+        elif kind == 'fade': bad[3][0]['ready'] = 1
+        else: bad[0][0]['peripheralUiNative'] = False
+        assert not tm_evidence_passed(*bad), kind
+    return True
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--save', required=True, help='Designated private Route29 fixture; only new copies are opened')
     parser.add_argument('--output-name', default='native-summary-menu-pass', help='New private archive basename; existing output is never overwritten')
-    parser.add_argument('--tm-learn', action='store_true', help='Private original TM route; only Summary uses native controls, Bag/Party use observed raw input')
+    parser.add_argument('--tm-learn', action='store_true', help='Private original TM route; native typed Bag/Party and Summary controls')
     args = parser.parse_args()
     if args.tm_learn and args.output_name == 'native-summary-menu-pass':
         args.output_name = 'native-summary-menu-tm-learn-pass'
@@ -229,8 +428,8 @@ def main():
                   productionModuleSha256=link['outputSha256'], headersSha256=audit_report['headersSha256'],
                   layoutConsumers=consumers, fieldIconCenters=centers, sealsBefore=seals, commands=[])
     if args.tm_learn:
-        report.update(scope='private seeded Chikorita/TM17; original Bag/Party/StartMenu route using precisely observed raw peripheral input; native Summary fifth/HM/cancel/replace; original learning result and reset; no complete native TM/HM, UIKit/device or save-writing claim',
-                      tmLearn=True, peripheralInput='raw original input, not native peripheral UI', productionApiAdded=False)
+        report.update(scope='private valid-starter/TM17; original field menu and revision-bound typed Bag/Party route; native Summary fifth/HM/cancel/replace; disabled Bag exit fade and original learning result/reset; no other TM/HM branches, UIKit/device or save-writing claim',
+                      tmLearn=True, peripheralInput='revision-bound native typed Bag/Party queues through original resolvers', productionApiAdded=False)
     report_file = destination / 'report.json'
     report_file.write_text(json.dumps(report, indent=2) + '\n')
     (destination / 'preparation.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -329,10 +528,12 @@ def main():
         report['passed'] = report['complete'] and 'PASS: original Summary pages' in output
         if args.tm_learn:
             for key, prefix in [('tmLearningEvidence', 'Summary TM learning evidence: '), ('tmStateEvidence', 'Summary TM state evidence: '),
-                                ('tmRawEvidence', 'Summary TM raw evidence: '), ('tmFixtureEvidence', 'Summary TM fixture evidence: ')]:
+                                ('tmRawEvidence', 'Summary TM raw evidence: '), ('tmFixtureEvidence', 'Summary TM fixture evidence: '),
+                                ('tmTypedEvidence', 'Summary TM typed evidence: '), ('tmExitFadeEvidence', 'Summary TM exit fade evidence: ')]:
                 report[key] = [json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
             report['complete'] = exit_code == 0 and len(evidence) == 1 and evidence[0]['status'] == 'passed_original_summary_tm_learning'
-            report['passed'] = report['complete'] and tm_evidence_passed(report['tmLearningEvidence']) and 'PASS: original TM route and native Summary learning' in output
+            report['passed'] = report['complete'] and tm_evidence_passed(report['tmLearningEvidence'], report['tmTypedEvidence'], report['inputEvidence'],
+                                                                                report['tmExitFadeEvidence'], report['tmRawEvidence']) and 'PASS: original TM route and native Summary learning' in output
         report['generatedArtifactsUnchanged'] = hashes(artifacts) == artifact_hashes
         report['capturedFiles'] = hashes(path for path in (destination / 'frames').iterdir() if path.is_file())
         report['privateSaveHashesAfter'] = hashes(private_inputs)
