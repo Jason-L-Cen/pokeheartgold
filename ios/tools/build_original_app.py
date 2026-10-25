@@ -72,7 +72,7 @@ def bag_names():
     return {'bag-action-names.plist':actions,'bag-item-names.plist':items,'bag-pocket-names.plist':pockets}
 
 
-def summary_tm_guest(report_path, audit, link, *, rare_candy=False, evolution=False, cancel_evolution=False):
+def summary_tm_guest(report_path, audit, link, *, rare_candy=False, evolution=False, cancel_evolution=False, evolution_learn=False):
     """Reuse one sealed, passed private learning module; never prepare a substitute guest."""
     from audit_original import digest
     from check_abi32 import WABT
@@ -89,7 +89,10 @@ def summary_tm_guest(report_path, audit, link, *, rare_candy=False, evolution=Fa
         path=folder/name
         if Path(name).is_absolute() or not path.resolve().is_relative_to(folder) or not path.is_file() or sha(path)!=value:
             raise RuntimeError('Native TM archive seal changed: '+name)
-    if evolution:
+    if evolution_learn:
+        from check_native_summary_menu import evolution_learning_evidence_passed
+        learning_passed=evolution_learning_evidence_passed(report) and report.get('evolutionCancel') is False
+    elif evolution:
         from check_native_summary_menu import evolution_evidence_passed
         learning_passed=evolution_evidence_passed(report) and report.get('evolutionCancel') is cancel_evolution
     else:
@@ -152,8 +155,8 @@ def summary_tm_guest(report_path, audit, link, *, rare_candy=False, evolution=Fa
     if evolution: required.update(('SetMonData','CalcMonLevelAndStats','Pokedex_CheckMonSeenFlag','Pokedex_CheckMonCaughtFlag'))
     if listing.returncode or not required<=exports or {name for name in exports if name.startswith(('HGNativeBattleMenusQA','HGNativeSummaryLearnQA'))}!={'HGNativeSummaryLearnQAGetState'}:
         raise RuntimeError('Private TM exports are incompatible; Battle QA substitutes are forbidden')
-    return module,dict(scope='reuse sealed passed native '+('Evolution' if evolution else 'Candy' if rare_candy else 'TM')+' case only',
-        **({'evolution':True,'evolutionCancel':cancel_evolution} if evolution else {'rareCandyLearn':True} if rare_candy else {'summaryTm':True}),qaObserverBytes=232,
+    return module,dict(scope='reuse sealed passed native '+('Evolution learning' if evolution_learn else 'Evolution' if evolution else 'Candy' if rare_candy else 'TM')+' case only',
+        **({'evolution':True,'evolutionCancel':False,'evolutionLearn':True} if evolution_learn else {'evolution':True,'evolutionCancel':cancel_evolution} if evolution else {'rareCandyLearn':True} if rare_candy else {'summaryTm':True}),qaObserverBytes=232,
         observer='HGNativeSummaryLearnQAGetState',sourceReport=str(report_path),sourceReportSha256=sha(report_path),
         sourceManifestSha256=sha(manifest_path),privateGuestModule=str(module),privateGuestModuleSha256=sha(module),
         shippingModuleSha256=link['outputSha256'],headersSha256=audited['headersSha256'],privateQAExports=['HGNativeSummaryLearnQAGetState'],
@@ -164,10 +167,10 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',choices=('iphonesimulator','iphoneos'),default='iphonesimulator')
     parser.add_argument('--check',action='store_true',help='Run UIKit input, frame, pause/resume and reset checks after launching')
-    parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves','summary-tm','summary-candy','evolution','evolution-cancel'),help='Select an independent private UIKit case; requires --check')
+    parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves','summary-tm','summary-candy','evolution','evolution-cancel','evolution-learn'),help='Select an independent private UIKit case; requires --check')
     parser.add_argument('--summary-tm-report',type=Path,help='Sealed passed native TM report.json; only --check-case summary-tm')
     parser.add_argument('--summary-candy-report',type=Path,help='Sealed passed native Candy report.json; only --check-case summary-candy')
-    parser.add_argument('--evolution-report',type=Path,help='Sealed passed native success/cancel report.json; only matching evolution CHECK case')
+    parser.add_argument('--evolution-report',type=Path,help='Sealed passed native success/cancel/learning report.json; only matching evolution CHECK case')
     args=parser.parse_args()
     if args.check_case and not args.check:
         parser.error('--check-case requires --check; production builds cannot select a private case')
@@ -175,8 +178,8 @@ def main():
         parser.error('--summary-tm-report is required only with --check --check-case summary-tm')
     if (args.check_case=='summary-candy')!=bool(args.summary_candy_report):
         parser.error('--summary-candy-report is required only with --check --check-case summary-candy')
-    if (args.check_case in ('evolution','evolution-cancel'))!=bool(args.evolution_report):
-        parser.error('--evolution-report is required only with --check --check-case evolution/evolution-cancel')
+    if (args.check_case in ('evolution','evolution-cancel','evolution-learn'))!=bool(args.evolution_report):
+        parser.error('--evolution-report is required only with --check --check-case evolution/evolution-cancel/evolution-learn')
     audit=BUILD/'audit'; module=audit/'engine.wasm'
     link=json.loads((audit/'engine-link.json').read_text())
     if link['exitCode'] or hashlib.sha256(module.read_bytes()).hexdigest()!=link['outputSha256']:
@@ -189,8 +192,8 @@ def main():
         if result.returncode: raise RuntimeError(f'Original app build failed: {destination/log}')
     shipping_module_sha256=link['outputSha256']
     private_guest=None
-    if args.check_case in ('evolution','evolution-cancel'):
-        module,private_guest=summary_tm_guest(args.evolution_report,audit,link,evolution=True,cancel_evolution=args.check_case=='evolution-cancel')
+    if args.check_case in ('evolution','evolution-cancel','evolution-learn'):
+        module,private_guest=summary_tm_guest(args.evolution_report,audit,link,evolution=True,cancel_evolution=args.check_case=='evolution-cancel',evolution_learn=args.check_case=='evolution-learn')
     elif args.check_case in ('summary-tm','summary-candy'):
         module,private_guest=summary_tm_guest(args.summary_candy_report or args.summary_tm_report,audit,link,rare_candy=args.check_case=='summary-candy')
     elif args.check:
@@ -204,8 +207,9 @@ def main():
     generated,writes,restores=generate_engine(destination,module,run)
     flags,sources=native_build_settings(destination)
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
-    if args.check_case in ('summary-tm','summary-candy','evolution','evolution-cancel'): check_flags.append('-DHEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK')
+    if args.check_case in ('summary-tm','summary-candy','evolution','evolution-cancel','evolution-learn'): check_flags.append('-DHEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK')
     if args.check_case in ('evolution','evolution-cancel'): check_flags.append('-DHEARTGOLD_ORIGINAL_EVOLUTION_CHECK')
+    if args.check_case=='evolution-learn': check_flags.append('-DHEARTGOLD_ORIGINAL_EVOLUTION_LEARN_CHECK')
     if args.check: sources.append(ROOT/'ios/Original/NativeAudioCheck.c')
     target='arm64-apple-ios16.0'+('-simulator' if args.sdk=='iphonesimulator' else '')
     def compile_one(item):
@@ -277,6 +281,7 @@ def main():
     if args.check_case=='summary-tm': report['summaryTm']=True
     if args.check_case=='summary-candy': report['rareCandyLearn']=True
     if args.check_case in ('evolution','evolution-cancel'): report.update(evolution=True,evolutionCancel=args.check_case=='evolution-cancel')
+    if args.check_case=='evolution-learn': report.update(evolution=True,evolutionCancel=False,evolutionLearn=True)
     (destination/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(app)
 

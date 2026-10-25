@@ -761,6 +761,263 @@ def evolution_validator_self_check():
     return dict(syntheticPositive=2,targetedNegatives=len(cases),gameplayEvidence=False)
 
 
+
+def evolution_learning_evidence_passed(report):
+    """Pure31to32 original Evolution/nested Summary proof; no file/process/UI or new API claim."""
+    if not isinstance(report,dict):return False
+    def exact(row,values):return isinstance(row,dict) and all(type(row.get(k)) is type(v) and row[k]==v for k,v in values.items())
+    def uint(v):return type(v) is int and 0<=v<2**32
+    if not exact(report,dict(evolution=True,evolutionCancel=False,evolutionLearn=True,productionApiAdded=False,privateObserverBytes=232,evolutionPacketBytes=196)):return False
+    names=('evolutionLearningEvidence','evolutionFixtureEvidence','evolutionSemanticEvidence','evolutionExpectedStatsEvidence',
+        'evolutionStateEvidence','evolutionFrameEvidence','evolutionTypedEvidence','evolutionSummaryEvidence','evolutionResumeEvidence',
+        'candyTypedEvidence','candyStatsEvidence','candyBootEvidence','inputEvidence','actionEvidence','semanticEvidence','evidence')
+    if any(not isinstance(report.get(k),list) or any(not isinstance(r,dict) for r in report[k]) for k in names):return False
+    for key,count in (('evolutionLearningEvidence',1),('evolutionFixtureEvidence',1),('evolutionExpectedStatsEvidence',1),('evolutionSummaryEvidence',7),('candyStatsEvidence',2),('semanticEvidence',1),('evidence',1)):
+        if len(report[key])!=count:return False
+    status='passed_original_evolution_learning';f=report['evolutionLearningEvidence'][0];fixture=report['evolutionFixtureEvidence'][0]
+    if not exact(f,dict(status=status,fixturePrepared=1,initialLevel=31,initialExperience=24294,level=32,experience=27021,species=153,
+        candidate=230,quantity=1,summaryLifetimes=2,choiceMenus=5,fifthCancelled=1,confirmationBack=1,hmRejected=1,replacement=1,resumed=1,
+        rejected=0,cancelAccepted=0,outerTypedRejected=0,statsMask=3,oscillateFrames=2,initialFieldViewWidth=384,fieldViewWidth=384,
+        finalMove=230,finalPpUps=0,particleContributionSeparated=False,resetFinished=True,privateSaveWrites=False)):return False
+    if any(not uint(f.get(k)) for k in ('personality','otId','queued','accepted','released','settled','ackAccepted','outerTypedAccepted','outerTypedReleased','outerTypedSettled','geometryFrames')) \
+        or not f['queued']==f['accepted']==f['released']==f['settled']==f['ackAccepted']+5 or f['ackAccepted']<7 \
+        or not f['outerTypedAccepted']==f['outerTypedReleased']==f['outerTypedSettled']>=7 or f['geometryFrames']<2 or not uint(f.get('finalMaxPp')) or not f['finalMaxPp'] or not uint(f.get('finalPp')) or f['finalPp']!=f['finalMaxPp']:return False
+    if not exact(fixture,dict(preparedBeforeFirstFieldAction=True,species=152,partyCount=1,initialLevel=31,initialExperience=24294,item=50,quantity=2,
+        initialFriendship=70,initialMood=0,eggLocation=0,fixtureUsesExistingStarter=True,otNameProfileMatched=True,privateSaveMemoryOnly=True)) \
+        or fixture.get('moves')!=[33,45,115,15] or not uint(fixture.get('otNameLength')) or not 1<=fixture['otNameLength']<=7 \
+        or not uint(fixture.get('mapSection')) or not fixture['mapSection'] \
+        or [fixture.get('originalPersonality'),fixture.get('originalOtId')]!=[f['personality'],f['otId']]:return False
+    baseline=report['semanticEvidence'][0]
+    if baseline.get('step')!='before' or not isinstance(baseline.get('mons'),list) or len(baseline['mons'])!=1:return False
+    mon=baseline['mons'][0];model=report['evolutionExpectedStatsEvidence'][0]
+    if not isinstance(mon,list) or len(mon)!=26 or any(not uint(v) for v in mon) or mon[:3]!=[f['personality'],f['otId'],152] \
+        or mon[6]!=mon[7] or mon[8]!=31 or mon[10:14]!=[33,45,115,15] or mon[18:22]!=[0]*4 or mon[14:18]!=mon[22:26]:return False
+    if not exact(model,dict(initialExperience=24294,expectedExperience=27021)) \
+        or any(not isinstance(model.get(k),list) or len(model[k])!=6 or any(not uint(v) or not v for v in model[k]) for k in ('initial','expected')) \
+        or model['initial'][0]!=mon[7]:return False
+    sem=report['evolutionSemanticEvidence']
+    if len(sem)!=3:return False
+    for i,row in enumerate(sem):
+        if not exact(row,dict(species=153,level=32,experience=27021,quantity=1,friendship=75,mood=0 if i==2 else 40,fieldReturned=i==2,
+            personality=f['personality'],otId=f['otId'],bayleefSeen=1,bayleefCaught=1,dexSeenDelta=1,dexCaughtDelta=1,
+            otherBagBytesPreserved=True,flagsMoneyPreserved=True,ivEvPreserved=True)) \
+            or not isinstance(row.get('stats'),list) or len(row['stats'])!=6 or any(not uint(v) or not v for v in row['stats']) \
+            or row.get('hp')!=row['stats'][0] or row.get('maxHp')!=row['stats'][0]:return False
+    if any({k:v for k,v in row.items() if k not in ('fieldReturned','mood')}!={k:v for k,v in sem[0].items() if k not in ('fieldReturned','mood')} for row in sem[1:]):return False
+    if not exact(report['evidence'][0],dict(status=status,seenPhases=(1<<8)|(1<<9),summaryLifetimes=2,activeAfterReturn=0,resetFinished=True,pendingDMA=0,
+        partyItemsMoneyFlagsUnchanged=False,expectedPrivateEvolutionMutation=True)):return False
+    prereq=report.get('evolutionLearnsetPrerequisite')
+    if not exact(prereq,dict(summaryAndChoiceMenusExercised=True)) or prereq.get('level32Moves')!={'152':[],'153':[230]} \
+        or any(not isinstance(x,list) or any(not uint(v) for v in x) for x in prereq['level32Moves'].values()) \
+        or not isinstance(prereq.get('narcSha256'),str) or len(prereq['narcSha256'])!=64:return False
+    if not any(exact(r,dict(map=33,inputStep=3,inputFrame=0,qaObserved=True,qaVersion=1,qaBytes=232,fieldReady=1,owner=0,fadeFinished=1)) for r in report['candyBootEvidence']):return False
+    states=report['evolutionStateEvidence']
+    if not states or any(any(not uint(r.get(k)) for k in ('frame','revision','phase','active','ready','summaryActive','flags','species','newSpecies','moveToLearn','actionMask'))
+        or r['active']!=1 or r['ready'] not in (0,1) or r['summaryActive'] not in (0,1) or r['species']!=152 or r['newSpecies']!=153
+        or r['moveToLearn'] not in (0,230) or not r['revision'] or r['phase']>45 or r['flags']&~7 or not r['flags']&1 or r['actionMask']&~15
+        or (r['summaryActive'] and (r['phase']!=23 or r['actionMask'] or r['ready'])) for r in states):return False
+    if [r['revision'] for r in states]!=sorted(r['revision'] for r in states) or not {8,12,21,23,35,37}<={r['phase'] for r in states}:return False
+    files=report.get('capturedFiles')
+    if not isinstance(files,dict) or any(not isinstance(k,str) or not isinstance(v,str) or len(v)!=64 or any(c not in '0123456789abcdef' for c in v) for k,v in files.items()):return False
+    def captured(name):
+        hits=[v for k,v in files.items() if isinstance(name,str) and k.rsplit('/',1)[-1]==name]
+        return hits[0] if len(hits)==1 else None
+    frames=report['evolutionFrameEvidence'];osc=[r for r in frames if r.get('phase')==8]
+    if len(frames)!=f['geometryFrames'] or len(osc)!=2 or osc[0].get('geometrySerial')==osc[1].get('geometrySerial') \
+        or captured(osc[0].get('file'))==captured(osc[1].get('file')):return False
+    if any(not exact(r,dict(width=256,height=192,bytes=256*192*4,nonuniform=True)) or any(not uint(r.get(k)) or not r[k] for k in ('revision','frame','vertices','polygons','geometrySerial','geometrySerialAfter'))
+        or not uint(r.get('phase')) or r['geometrySerial']!=r['geometrySerialAfter'] or not captured(r.get('file')) for r in frames):return False
+    if not captured('evolution-field-before.rgba') or not captured('evolution-field-return.rgba'):return False
+    for i,row in enumerate(report['candyStatsEvidence']):
+        if not exact(row,dict(stage=6+i,role=39+i,owner=2,context=5,itemId=50,phase=5,taskState=1+i,ready=1,graphicsReady=1,fadeFinished=1,bytes=128*112*4,staleDiffRejected=i)) \
+            or not isinstance(row.get('displayValues'),list) or any(not uint(v) for v in row['displayValues']) or row['displayValues']!=([b-a for a,b in zip(model['initial'],model['expected'])] if not i else model['expected']) or not captured(row.get('file')):return False
+    events=['first-list','fifth-cancel','second-list','hm-rejection','confirmation-back','reopen-old-slot','replace-confirm']
+    stages=[11,12,15,16,17,18,19];phases=[8,8,8,8,9,8,9];slots=[0,4,0,3,0,0,0]
+    snapshots=report['evolutionSummaryEvidence']
+    for i,row in enumerate(snapshots):
+        if not exact(row,dict(event=events[i],stage=stages[i],snapshot=i,phase=phases[i],moveSlot=slots[i],moveMask=31 if phases[i]==8 else 0,
+            mode=2,monDataType=0,partyCount=1,partySlot=0,species=153,level=32,candidate=230,parentPhase=23,parentSummaryActive=1,qaOwner=0,hmWarningDescriptor=0)) \
+            or any(not uint(row.get(k)) for k in ('revision','parentRevision','frame','hmCalls','hmMoveSlot')) or not row['revision'] or not row['parentRevision'] \
+            or not captured(row.get('file')) or not captured('stage-%02u-engine-0.ppm'%i) or not captured('stage-%02u-engine-1.ppm'%i):return False
+    if snapshots[2]['revision']<=snapshots[0]['revision'] or snapshots[3]['hmCalls']!=snapshots[2]['hmCalls']+1 or snapshots[3]['hmMoveSlot']!=3:return False
+    actions=[r for r in report['actionEvidence'] if r.get('owner')=='summary']
+    if len(actions)!=7 or any(not exact(r,dict(stage=stages[i],owner='summary',revision=snapshots[i]['revision'],phase=phases[i],page=1,kind=[0,7,0,0,1,0,7][i],index=[4,0,3,0,0,0,0][i])) for i,r in enumerate(actions)):return False
+    contexts=report['evolutionResumeEvidence']
+    if [r.get('event') for r in contexts]!=['menu','menu','menu','summary-first','menu','menu','summary-second','after-summary','resumed-bag']:return False
+    if any(not exact(r,dict(renderWidth=256)) or any(not uint(r.get(k)) for k in ('stage','frame','phase','revision','summaryActive','rendered','geometryAvailable','vertices','polygons','geometrySerial','blendControl','bg0Control'))
+        or r['rendered'] not in (0,1) or r['geometryAvailable'] not in (0,1) for r in contexts):return False
+    evo=report['evolutionTypedEvidence'];outer=report['candyTypedEvidence'];press_proofs=[];release_proofs=[];choices=[]
+    if len(evo)!=f['accepted']*4 or len(outer)!=f['outerTypedAccepted']*4:return False
+    for n in range(f['accepted']):
+        q,a,r,s=evo[n*4:n*4+4]
+        if [x.get('event') for x in (q,a,r,s)]!=['queued','accepted','released','settled'] \
+            or any(not exact(x,dict(sequence=n+1,revision=q.get('revision'),phase=q.get('phase'),kind=q.get('kind'),index=q.get('index'))) for x in (q,a,r,s)) \
+            or any(not uint(x.get(k)) for x in (q,a,r,s) for k in ('revision','phase','kind','index','padReads')) or not q['revision'] \
+            or not q['padReads']<=a['padReads']<=r['padReads'] or s['padReads']-r['padReads']<2 \
+            or not uint(r.get('ownerChanged')) or r['ownerChanged'] not in (0,1) or (not r['ownerChanged'] and r['padReads']-a['padReads']<4):return False
+        if q['kind']==2:
+            if q['phase'] not in (21,35) or q['index']>1 or not exact(a,dict(keys=0,actionMask=12)) or a.get('touch')!=[1,127,119 if q['index'] else 71]:return False
+            choices.append((q['phase'],q['index']))
+        elif q['kind']==0:
+            if q['phase'] not in (12,15,17,19,26,28,30,33,37) or q['index'] or not exact(a,dict(keys=1,actionMask=1)) or a.get('touch')!=[0,0,0]:return False
+        else:return False
+        if q.get('keys')!=a['keys'] or q.get('touch')!=a['touch']:return False
+        press_proofs.append((4,a['revision'],a['phase'],a['padReads'],a['keys'],tuple(a['touch'])))
+        release_proofs.append((4,r['revision'],r['phase'],r['padReads']))
+    if choices!=[(21,1),(35,1),(21,0),(35,1),(21,0)] or not {12,15,17,26,28,30,37}<={r['phase'] for r in evo if r.get('event')=='accepted' and r.get('kind')==0}:return False
+    roles=set();kinds={1:set(),3:set()}
+    for n in range(f['outerTypedAccepted']):
+        q,a,r,s=outer[n*4:n*4+4];variable={'event','touch','padReads','invalidated'}
+        if [x.get('event') for x in (q,a,r,s)]!=['queued','accepted','released','settled'] \
+            or any(not exact(x,dict(sequence=n+1)) or not uint(x.get('invalidated')) or x['invalidated'] not in (0,1) for x in (q,a,r,s)) or any({k:v for k,v in x.items() if k not in variable}!={k:v for k,v in q.items() if k not in variable} for x in (a,r,s)):return False
+        fields=('stage','advance','producer','revision','phase','kind','index','role','owner','generation','qaRevision','manager','data','execState','context','itemId','taskState','partySlot','partyBusy','graphicsReady','fadeFinished','keys','padReads')
+        if any(not uint(q.get(k)) for k in fields) or q['keys'] or q['producer'] not in (1,3) or q['owner']!=(2 if q['producer']==1 else 1) \
+            or any(not q[k] for k in ('revision','qaRevision','generation','manager','data')) or q['execState']!=2 or q['graphicsReady']!=1 or q['fadeFinished']!=1:return False
+        if q['producer']==3:
+            if q['role'] or not ((q['phase']==1 and q['kind'] in (0,1,5)) or (q['phase']==4 and q['kind']==2)):return False
+        else:
+            if q['context']!=5 or q['itemId']!=50 or q['partyBusy'] or q['partySlot'] or q['index']:return False
+            if q['kind']==0:
+                if q['phase']!=4 or q['role']!=37:return False
+            elif q['kind']==1:
+                if q['phase']!=5 or q['role'] not in (38,39,40):return False
+                if q['role']==38:
+                    if q['taskState']!=0 or any(q.get(k)!=1 for k in ('printerActive','printerMatches','printerWaiting')) or q.get('printerState')!=2:return False
+                elif q['taskState']!=q['role']-38:return False
+                roles.add(q['role'])
+            else:return False
+        if any(not uint(x.get('padReads')) for x in (a,r,s)) or not q['padReads']<=a['padReads']<=r['padReads'] or s['padReads']-r['padReads']<2 \
+            or r.get('invalidated') not in (0,1) or (not r['invalidated'] and r['padReads']-a['padReads']<4) or not isinstance(a.get('touch'),list) or len(a['touch'])!=3 \
+            or any(not uint(v) for v in a['touch']) or a['touch'][0]!=1 or a['touch'][1]>=256 or a['touch'][2]>=192:return False
+        kinds[q['producer']].add(q['kind']);press_proofs.append((q['producer'],q['revision'],q['phase'],a['padReads'],0,tuple(a['touch'])))
+        release_proofs.append((q['producer'],q['revision'],q['phase'],r['padReads']))
+    if roles!={38,39,40} or kinds!={1:{0,1},3:{0,1,2,5}}:return False
+    inputs=report['inputEvidence'];press=[r for r in inputs if r.get('event')=='press'];release=[r for r in inputs if r.get('event')=='release']
+    if any(r.get('event') not in ('press','release') for r in inputs) or len(press)!=len(press_proofs)+8 or len(release)!=len(press):return False
+    for r in press:
+        if any(not uint(r.get(k)) for k in ('stage','owner','revision','phase','padReads','keys')) or not isinstance(r.get('touch'),list) or len(r['touch'])!=3 or any(not uint(v) for v in r['touch']):return False
+    for r in release:
+        if any(not uint(r.get(k)) for k in ('stage','owner','revision','phase','padReads','ownerChanged')) or r['ownerChanged'] not in (0,1):return False
+    summary_press=[r for r in press if r['owner']==2];summary_release=[r for r in release if r['owner']==2]
+    if len(summary_press)!=7 or len(summary_release)!=7:return False
+    for i,(a,p,r) in enumerate(zip(actions,summary_press,summary_release)):
+        kind=a['kind'];idx=a['index']
+        if not exact(p,dict(stage=a['stage'],owner=2,revision=a['revision'],phase=a['phase'],keys=1 if kind==7 else 2 if kind==1 else 0)) \
+            or not exact(r,dict(owner=2,revision=p['revision'],phase=p['phase'])) or r['padReads']<p['padReads'] \
+            or (not r['ownerChanged'] and r['padReads']-p['padReads']<4) or p['touch'][0]!=int(kind==0):return False
+        if kind==0 and idx==4 and p['touch']!=[1,67,167]:return False
+        if kind in (1,7) and p['touch']!=[0,0,0]:return False
+        if i and p['padReads']-summary_release[i-1]['padReads']<2:return False
+    field=[r for r in press if r['owner']==0]
+    if len(field)!=1 or field[0]['keys'] or field[0]['touch'][0]!=1:return False
+    def pk(r):return r['owner'],r['revision'],r['phase'],r['padReads'],r['keys'],tuple(r['touch'])
+    def rk(r):return r['owner'],r['revision'],r['phase'],r['padReads']
+    if sorted(pk(r) for r in press if r['owner'] not in (0,2))!=sorted(press_proofs) \
+        or sorted(rk(r) for r in release if r['owner'] not in (0,2))!=sorted(release_proofs):return False
+    return True
+
+
+
+def evolution_learning_validator_self_check():
+    """In-memory wire/schema examples only; never a gameplay PASS."""
+    from copy import deepcopy
+    initial=[81,40,50,40,50,39];expected=[83,42,52,42,52,40];stats=[93,50,61,51,61,50]
+    mon=[123,456,152,0,0,0,81,81,31,0,33,45,115,15,35,40,20,30,0,0,0,0,35,40,20,30]
+    f=dict(status='passed_original_evolution_learning',fixturePrepared=1,initialLevel=31,initialExperience=24294,level=32,experience=27021,species=153,
+        candidate=230,quantity=1,personality=123,otId=456,summaryLifetimes=2,choiceMenus=5,fifthCancelled=1,confirmationBack=1,hmRejected=1,replacement=1,resumed=1,
+        queued=16,accepted=16,rejected=0,released=16,settled=16,ackAccepted=11,cancelAccepted=0,outerTypedAccepted=8,outerTypedReleased=8,outerTypedSettled=8,
+        outerTypedRejected=0,statsMask=3,oscillateFrames=2,geometryFrames=2,initialFieldViewWidth=384,fieldViewWidth=384,
+        finalMove=230,finalPp=20,finalMaxPp=20,finalPpUps=0,particleContributionSeparated=False,resetFinished=True,privateSaveWrites=False)
+    fixture=dict(preparedBeforeFirstFieldAction=True,species=152,partyCount=1,moves=[33,45,115,15],initialLevel=31,initialExperience=24294,item=50,quantity=2,
+        initialFriendship=70,initialMood=0,eggLocation=0,fixtureUsesExistingStarter=True,otNameProfileMatched=True,privateSaveMemoryOnly=True,
+        otNameLength=5,mapSection=177,originalPersonality=123,originalOtId=456)
+    semantic=dict(species=153,level=32,experience=27021,quantity=1,friendship=75,mood=40,fieldReturned=False,personality=123,otId=456,hp=93,maxHp=93,
+        bayleefSeen=1,bayleefCaught=1,dexSeenDelta=1,dexCaughtDelta=1,otherBagBytesPreserved=True,flagsMoneyPreserved=True,ivEvPreserved=True,stats=stats)
+    model=dict(initialExperience=24294,expectedExperience=27021,initial=initial,expected=expected)
+    r=dict(evolution=True,evolutionCancel=False,evolutionLearn=True,productionApiAdded=False,privateObserverBytes=232,evolutionPacketBytes=196,
+        evolutionLearningEvidence=[f],evolutionFixtureEvidence=[fixture],evolutionSemanticEvidence=[semantic,deepcopy(semantic),{**semantic,'mood':0,'fieldReturned':True}],
+        evolutionExpectedStatsEvidence=[model],semanticEvidence=[dict(step='before',mons=[mon])],
+        evidence=[dict(status=f['status'],seenPhases=768,summaryLifetimes=2,activeAfterReturn=0,resetFinished=True,pendingDMA=0,partyItemsMoneyFlagsUnchanged=False,expectedPrivateEvolutionMutation=True)],
+        evolutionLearnsetPrerequisite=dict(narcSha256='1'*64,level32Moves={'152':[],'153':[230]},summaryAndChoiceMenusExercised=True),
+        candyBootEvidence=[dict(map=33,inputStep=3,inputFrame=0,qaObserved=True,qaVersion=1,qaBytes=232,fieldReady=1,owner=0,fadeFinished=1)],
+        evolutionStateEvidence=[],evolutionFrameEvidence=[],evolutionSummaryEvidence=[],evolutionResumeEvidence=[],evolutionTypedEvidence=[],candyTypedEvidence=[],candyStatsEvidence=[],
+        inputEvidence=[],actionEvidence=[],capturedFiles={})
+    for i,p in enumerate((8,12,15,17,21,35,23,37)):
+        r['evolutionStateEvidence'].append(dict(frame=i+1,revision=i+1,phase=p,active=1,ready=int(p!=23),summaryActive=int(p==23),flags=1,species=152,newSpecies=153,moveToLearn=230 if p>=15 else 0,actionMask=0 if p==23 else 12 if p in (21,35) else 2 if p==8 else 1))
+    def capture(name,digit='a'):r['capturedFiles']['/frames/'+name]=digit*64
+    for i in range(2):
+        name='evolution-%02u.rgba'%i;capture(name,str(i+1))
+        r['evolutionFrameEvidence'].append(dict(file=name,width=256,height=192,bytes=256*192*4,nonuniform=True,phase=8,revision=1,frame=i+1,vertices=4,polygons=1,geometrySerial=i+1,geometrySerialAfter=i+1))
+    for name in ('evolution-field-before.rgba','evolution-field-return.rgba'):capture(name)
+    for i in range(2):
+        name='candy-stats-'+('total' if i else 'diff')+'.rgba';capture(name)
+        r['candyStatsEvidence'].append(dict(stage=6+i,role=39+i,owner=2,context=5,itemId=50,phase=5,taskState=1+i,ready=1,graphicsReady=1,fadeFinished=1,bytes=128*112*4,staleDiffRejected=i,
+            displayValues=expected if i else [b-a for a,b in zip(initial,expected)],file=name))
+    stages=[11,12,15,16,17,18,19];phases=[8,8,8,8,9,8,9];slots=[0,4,0,3,0,0,0]
+    events=['first-list','fifth-cancel','second-list','hm-rejection','confirmation-back','reopen-old-slot','replace-confirm']
+    for i,event in enumerate(events):
+        name='evolution-summary-%02u.bin'%i;capture(name)
+        for engine in (0,1):capture('stage-%02u-engine-%u.ppm'%(i,engine))
+        r['evolutionSummaryEvidence'].append(dict(event=event,stage=stages[i],snapshot=i,file=name,frame=i+1,revision=20+i,phase=phases[i],moveSlot=slots[i],
+            moveMask=31 if phases[i]==8 else 0,mode=2,monDataType=0,partyCount=1,partySlot=0,species=153,level=32,candidate=230,parentPhase=23,parentRevision=10+i,
+            parentSummaryActive=1,qaOwner=0,hmCalls=int(i>=3),hmMoveSlot=3 if i>=3 else 0,hmWarningDescriptor=0))
+        r['actionEvidence'].append(dict(stage=stages[i],owner='summary',revision=20+i,phase=phases[i],page=1,kind=[0,7,0,0,1,0,7][i],index=[4,0,3,0,0,0,0][i]))
+    for event in ('menu','menu','menu','summary-first','menu','menu','summary-second','after-summary','resumed-bag'):
+        r['evolutionResumeEvidence'].append(dict(event=event,stage=8,frame=1,phase=21,revision=1,summaryActive=0,renderWidth=256,rendered=1,geometryAvailable=1,
+            vertices=4,polygons=1,geometrySerial=1,blendControl=0,bg0Control=0))
+    reads=0
+    def inputs(owner,revision,phase,stage,keys,touch):
+        nonlocal reads
+        reads+=10
+        r['inputEvidence'].extend((dict(event='press',stage=stage,owner=owner,revision=revision,phase=phase,padReads=reads,keys=keys,touch=touch),
+            dict(event='release',stage=stage,owner=owner,revision=revision,phase=phase,padReads=reads+4,ownerChanged=0)))
+        return reads
+    inputs(0,0,0,1,0,[1,50,50])
+    plans=[(3,1,2,0,0),(3,1,3,1,0),(3,4,4,2,0),(1,4,5,0,37),(1,5,6,1,38),(1,5,6,1,39),(1,5,7,1,40),(3,1,21,5,0)]
+    for n,(producer,phase,stage,kind,role) in enumerate(plans,1):
+        rd=inputs(producer,n,phase,stage,0,[1,100,100])
+        q=dict(event='queued',sequence=n,stage=stage,advance=int(role!=38),producer=producer,revision=n,phase=phase,kind=kind,index=0,role=role,
+            owner=2 if producer==1 else 1,generation=n,qaRevision=n,manager=100,data=200,execState=2,context=5 if producer==1 else 0,itemId=50 if producer==1 else 0,
+            taskState=role-38 if role>=38 else 0,partySlot=0,partyBusy=0,graphicsReady=1,fadeFinished=1,keys=0,padReads=rd-1,invalidated=0,touch=[0,0,0],
+            printerActive=1,printerMatches=1,printerWaiting=1,printerState=2)
+        r['candyTypedEvidence'].extend((q,{**q,'event':'accepted','padReads':rd,'touch':[1,100,100]},{**q,'event':'released','padReads':rd+4},{**q,'event':'settled','padReads':rd+6}))
+    evoplans=[(12,0,0),(15,0,0),(17,0,0),(21,2,1),(35,2,1),(15,0,0),(17,0,0),(21,2,0),(35,2,1),(15,0,0),(17,0,0),(21,2,0),(26,0,0),(28,0,0),(30,0,0),(37,0,0)]
+    for n,(phase,kind,index) in enumerate(evoplans,1):
+        keys=0 if kind==2 else 1;touch=[1,127,119 if index else 71] if kind==2 else [0,0,0];rd=inputs(4,n,phase,8,keys,touch)
+        q=dict(event='queued',sequence=n,revision=n,phase=phase,kind=kind,index=index,padReads=rd-1,keys=keys,touch=touch)
+        a={**q,'event':'accepted','padReads':rd,'actionMask':12 if kind==2 else 1,'flags':1}
+        r['evolutionTypedEvidence'].extend((q,a,{k:v for k,v in {**q,'event':'released','padReads':rd+4,'ownerChanged':0}.items() if k not in ('keys','touch')},
+            {k:v for k,v in {**q,'event':'settled','padReads':rd+6,'ownerChanged':0}.items() if k not in ('keys','touch')}))
+    for a in r['actionEvidence']:
+        kind=a['kind'];touch=[1,67,167] if kind==0 and a['index']==4 else [1,67,40] if kind==0 else [0,0,0]
+        inputs(2,a['revision'],a['phase'],a['stage'],1 if kind==7 else 2 if kind==1 else 0,touch)
+    assert evolution_learning_evidence_passed(r)
+    mutations=[
+        ('new API',lambda b:b.update(productionApiAdded=True)),
+        ('wrong candidate',lambda b:b['evolutionLearningEvidence'][0].update(candidate=231)),
+        ('wrong species/cascade',lambda b:b['evolutionLearningEvidence'][0].update(species=154)),
+        ('wrong level',lambda b:b['evolutionLearningEvidence'][0].update(level=16)),
+        ('PP not full',lambda b:b['evolutionLearningEvidence'][0].update(finalPp=19)),
+        ('PP Ups',lambda b:b['evolutionLearningEvidence'][0].update(finalPpUps=3)),
+        ('fake field owner',lambda b:b['evolutionSummaryEvidence'][0].update(qaOwner=3)),
+        ('fake HM descriptor',lambda b:b['evolutionSummaryEvidence'][3].update(hmWarningDescriptor=1)),
+        ('missing HM callback',lambda b:b['evolutionSummaryEvidence'][3].update(hmCalls=0)),
+        ('wrong type',lambda b:b['evolutionSummaryEvidence'][0].update(monDataType=1)),
+        ('one lifetime',lambda b:b['evolutionLearningEvidence'][0].update(summaryLifetimes=1)),
+        ('wrong menu',lambda b:b['evolutionTypedEvidence'][12].update(index=0)),
+        ('raw extra A',lambda b:b['inputEvidence'].append(dict(event='press',stage=2,owner=0,revision=0,phase=0,padReads=999,keys=1,touch=[0,0,0]))),
+        ('missing release',lambda b:b['inputEvidence'].pop()),
+        ('short release barrier',lambda b:b['evolutionTypedEvidence'][3].update(padReads=b['evolutionTypedEvidence'][2]['padReads']+1)),
+        ('missing capture',lambda b:b['capturedFiles'].pop('/frames/stage-00-engine-1.ppm')),
+        ('field mood wrong',lambda b:b['evolutionSemanticEvidence'][-1].update(mood=40)),
+        ('identity replaced',lambda b:b['evolutionFixtureEvidence'][0].update(originalPersonality=124)),
+        ('float wire',lambda b:b.update(evolutionLearn=1.0)),
+        ('float release flag',lambda b:b['evolutionTypedEvidence'][2].update(ownerChanged=0.0))]
+    for name,mutate in mutations:
+        bad=deepcopy(r);mutate(bad);assert not evolution_learning_evidence_passed(bad),name
+    return dict(schemaOnly=True,positiveChecks=1,negativeChecks=len(mutations),executedGame=False)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--save', required=True, help='Designated private Route29 fixture; only new copies are opened')
@@ -770,10 +1027,11 @@ def main():
     learning.add_argument('--rare-candy', action='store_true', help='Private original Candy upgrade/stats/level-up learning route')
     learning.add_argument('--evolution', action='store_true', help='Private original Chikorita15-to16 Candy evolution success route')
     learning.add_argument('--cancel-evolution', action='store_true', help='Private original state8 B-cancel route, preserving the Candy upgrade')
+    learning.add_argument('--evolution-learn', action='store_true', help='Private original31to32 evolution and nested type0 Summary learning route')
     args = parser.parse_args()
-    evolution=args.evolution or args.cancel_evolution
+    evolution=args.evolution or args.cancel_evolution or args.evolution_learn
     if evolution and args.output_name=='native-summary-menu-pass':
-        args.output_name='native-summary-menu-evolution-'+('cancel' if args.cancel_evolution else 'success')
+        args.output_name='native-summary-menu-evolution-'+('learn' if args.evolution_learn else 'cancel' if args.cancel_evolution else 'success')
     if args.rare_candy and args.output_name == 'native-summary-menu-pass':
         args.output_name='native-summary-menu-rare-candy-pass'
     private_learning=args.tm_learn or args.rare_candy or evolution
@@ -880,7 +1138,7 @@ def main():
         report.update(scope='Private valid-starter Candy50x2, originalLv5to6/stats/learnset and typed native Bag/Party/Summary; cancel retainsupgrade, HM/back/retry/replacement; no whole-game/UIKit/device/save-writing claim',
                       rareCandyLearn=True,peripheralInput='revision-bound native typed Bag/Party queues through original resolvers',productionApiAdded=True,
                       productionApiScope='One revision-guarded read-only six displayed stats getter; Party1480/QA232 unchanged')
-    if evolution:
+    if evolution and not args.evolution_learn:
         learnset=pack/'files/a/0/3/3';members=narc(learnset);level16={}
         for species in (152,153):
             data=members[species]
@@ -893,6 +1151,20 @@ def main():
             evolutionLearnsetPrerequisite=dict(narcSha256=sha(learnset),level16Moves=level16,summaryAndChoiceMenusExercised=False),
             fixturePolicy='Original starter/PID/OT/two moves preserved; pre-flow EXP2035 with original SetMonData/CalcMonLevelAndStats plus Candy50x2 only',
             particleContributionSeparated=False,scope='Original field Candy Lv15to16 evolution success or legal state8 B cancel, canonical MAIN geometry/pixels, original ACK and Bag/field/reset. No separate SPL-pixel attribution, learning-menu/Summary, UIKit/device/audio/full-game claim.')
+
+    if args.evolution_learn:
+        learnset=pack/'files/a/0/3/3';members=narc(learnset);level32={}
+        for species in (152,153):
+            data=members[species]
+            if len(data)%2: raise RuntimeError('Malformed original level-up learnset')
+            words=[int.from_bytes(data[i:i+2],'little') for i in range(0,len(data),2)]
+            level32[str(species)]=[word&511 for word in words if word!=65535 and word>>9==32 and word&511]
+        if level32!={'152':[],'153':[230]}: raise RuntimeError('Require original152-to153 Lv32 SweetScent230 learnset')
+        report.update(evolution=True,evolutionCancel=False,evolutionLearn=True,privateObserverBytes=232,evolutionPacketBytes=196,
+            productionApiAdded=False,productionApiScope='Existing public Evolution196/Summary804 and sole private Summary232 observer; no new API',
+            evolutionLearnsetPrerequisite=dict(narcSha256=sha(learnset),level32Moves=level32,summaryAndChoiceMenusExercised=True),
+            fixturePolicy='Original starter/PID/OT; pre-flow original EXP24294/CalcStats and four ResetPpUp moves33/45/115/15 plus Candy50x2; no species/candidate/HP/RNG write',
+            particleContributionSeparated=False,scope='Original31to32 Candy, one152to153 evolution, Keep/Stop/retry and two nested type0 Summary lifetimes/fifth/HM/back/replace230, original Bag/field/reset; no separate SPL, UIKit/device/audio/full-game claim')
     report_file = destination / 'report.json'
     report_file.write_text(json.dumps(report, indent=2) + '\n')
     (destination / 'preparation.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -947,6 +1219,7 @@ def main():
         if evolution:
             host_flags += ['-DHG_EVOLUTION_CHECK']
             if args.cancel_evolution: host_flags += ['-DHG_EVOLUTION_CANCEL_CHECK']
+            if args.evolution_learn: host_flags += ['-DHG_EVOLUTION_LEARN_CHECK']
         elif args.tm_learn:
             host_flags += ['-DHG_SUMMARY_TM_LEARN_CHECK']
         elif args.rare_candy:
@@ -986,7 +1259,7 @@ def main():
                       artifactHashes=artifact_hashes, checkedStackWrites=writes, exceptionDepthRestores=restores)
         report_file.write_text(json.dumps(report, indent=2) + '\n')
         try:
-            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=360 if evolution else 240 if private_learning else 180)
+            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=600 if args.evolution_learn else 360 if evolution else 240 if private_learning else 180)
             exit_code, output = result.returncode, result.stdout + result.stderr
         except subprocess.TimeoutExpired as error:
             exit_code, output = None, (error.stdout or b'').decode() + (error.stderr or b'').decode()
@@ -1026,9 +1299,12 @@ def main():
             for key,label in (('candyTypedEvidence','typed'),('candyStatsEvidence','stats'),('candyBootEvidence','boot')):
                 prefix='Summary Candy '+label+' evidence: '
                 report[key]=[json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
-            expected_status='passed_original_evolution_'+('cancel' if args.cancel_evolution else 'success')
+            if args.evolution_learn:
+                for key,prefix in (('evolutionLearningEvidence','Evolution learning evidence: '),('evolutionSummaryEvidence','Evolution Summary evidence: '),('evolutionResumeEvidence','Evolution resume evidence: ')):
+                    report[key]=[json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
+            expected_status='passed_original_evolution_'+('learning' if args.evolution_learn else 'cancel' if args.cancel_evolution else 'success')
             report['complete']=exit_code==0 and len(evidence)==1 and evidence[0]['status']==expected_status
-            report['passed']=report['complete'] and 'PASS: original field Rare Candy evolution route' in output
+            report['passed']=report['complete'] and ('PASS: original evolution learning route' if args.evolution_learn else 'PASS: original field Rare Candy evolution route') in output
         report['generatedArtifactsUnchanged'] = hashes(artifacts) == artifact_hashes
         report['capturedFiles'] = hashes(path for path in (destination / 'frames').iterdir() if path.is_file())
         if args.rare_candy:
@@ -1040,7 +1316,7 @@ def main():
                     raise RuntimeError('Evolution canonical frame size/path mismatch')
             for name in ('evolution-field-before.rgba','evolution-field-return.rgba'):
                 if (destination/'frames'/name).stat().st_size!=384*192*4: raise RuntimeError('Evolution field frame size mismatch')
-            report['passed'] &= evolution_evidence_passed(report)
+            report['passed'] &= (evolution_learning_evidence_passed if args.evolution_learn else evolution_evidence_passed)(report)
         report['privateSaveHashesAfter'] = hashes(private_inputs)
         report['privateSaveUnchanged'] = report['privateSaveHashesBefore'] == report['privateSaveHashesAfter']
         report['passed'] &= report['generatedArtifactsUnchanged'] and report['privateSaveUnchanged']

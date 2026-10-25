@@ -391,6 +391,11 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 - (BOOL)prepareEvolutionFixture:(const HGSummaryLearnQAState *)state;
 - (NSDictionary *)evolutionCurrentFacts;
 #endif
+#ifdef HEARTGOLD_ORIGINAL_EVOLUTION_LEARN_CHECK
+- (BOOL)prepareEvolutionLearningFixture:(const HGSummaryLearnQAState *)state;
+- (NSDictionary *)evolutionLearningCurrentFacts;
+- (void)checkEvolutionLearningCase;
+#endif
 - (void)checkPrivatePartyPublished:(NSData *)data pictures:(NSDictionary *)pictures frame:(uint32_t)frame;
 - (void)checkPrivateCaseDisplay:(uint32_t)frame;
 @end
@@ -428,6 +433,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         || [summaryCase isEqual:@"evolution"] || [summaryCase isEqual:@"evolution-cancel"])
         && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_CHECK_CASE"] isEqual:summaryCase]
         && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_TEST_MUTE"] isEqual:@"1"];
+#ifdef HEARTGOLD_ORIGINAL_EVOLUTION_LEARN_CHECK
+    if ([summaryCase isEqual:@"evolution-learn"]) _summaryTMEnabled=[NSProcessInfo.processInfo.environment[@"HEARTGOLD_CHECK_CASE"] isEqual:summaryCase] && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_TEST_MUTE"] isEqual:@"1"];
+#endif
     _summaryTMRawIdle=YES;
 #endif
     self.view.backgroundColor = [UIColor colorWithRed:0.035 green:0.06 blue:0.07 alpha:1];
@@ -651,10 +659,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [notifications addObserver:self selector:@selector(audioInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
     [notifications addObserver:self selector:@selector(audioRouteChanged:) name:AVAudioSessionRouteChangeNotification object:nil];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+#ifdef HEARTGOLD_ORIGINAL_EVOLUTION_LEARN_CHECK
+    [self checkEvolutionLearningCase];
+#else
 #ifdef HEARTGOLD_ORIGINAL_EVOLUTION_CHECK
     [self checkEvolutionCase];
 #else
     [self checkControls];
+#endif
 #endif
 #endif
     NSThread *engineThread=[[NSThread alloc] initWithTarget:self selector:@selector(runEngine) object:nil];
@@ -2010,6 +2022,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _summaryTMRawIdle=!_summaryTMRawPending && !_summaryTMRawActive && !_summaryTMRawCooling;
 }
 - (BOOL)prepareSummaryTMFixture:(const HGSummaryLearnQAState *)q {
+#ifdef HEARTGOLD_ORIGINAL_EVOLUTION_LEARN_CHECK
+    return [self prepareEvolutionLearningFixture:q];
+#endif
 #ifdef HEARTGOLD_ORIGINAL_EVOLUTION_CHECK
     return [self prepareEvolutionFixture:q];
 #endif
@@ -2077,6 +2092,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #undef TM_REQUIRE
 }
 - (NSDictionary *)summaryTMCurrentFacts {
+#ifdef HEARTGOLD_ORIGINAL_EVOLUTION_LEARN_CHECK
+    return [self evolutionLearningCurrentFacts];
+#endif
 #ifdef HEARTGOLD_ORIGINAL_EVOLUTION_CHECK
     return [self evolutionCurrentFacts];
 #endif
@@ -2659,6 +2677,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #include "../tests/check_original_app.inc"
 #ifdef HEARTGOLD_ORIGINAL_EVOLUTION_CHECK
 #include "../tests/evolution_check.inc"
+#endif
+#ifdef HEARTGOLD_ORIGINAL_EVOLUTION_LEARN_CHECK
+#include "../tests/evolution_learning_check.inc"
 #endif
 #endif
 
