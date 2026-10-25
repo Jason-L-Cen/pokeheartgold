@@ -331,12 +331,235 @@ def tm_evidence_self_check():
         assert not tm_evidence_passed(*bad), kind
     return True
 
+def candy_evidence_passed(report):
+    """Pure contract for one original Rare Candy route; outer seals/provenance remain caller guards."""
+    if not isinstance(report, dict) or report.get('rareCandyLearn') is not True:
+        return False
+    finals=report.get('candyLearningEvidence',[]);fixtures=report.get('candyFixtureEvidence',[])
+    stats=report.get('candyStatsEvidence',[]);expected=report.get('candyExpectedStatsEvidence',[])
+    typed=report.get('candyTypedEvidence',[]);inputs=report.get('inputEvidence',[]);states=report.get('candyStateEvidence',[])
+    if not all(isinstance(rows,list) for rows in (finals,fixtures,stats,expected,typed,inputs,states)) \
+            or len(finals)!=1 or len(fixtures)!=1 or len(stats)!=2 or len(expected)!=1 or not typed or not states:
+        return False
+    if any(not isinstance(row,dict) for rows in (finals,fixtures,stats,expected,typed,inputs,states) for row in rows) \
+            or not isinstance(report.get('capturedFiles'),dict) or any(not isinstance(path,str) for path in report['capturedFiles']):
+        return False
+    final,fixture,model=finals[0],fixtures[0],expected[0]
+    exact=dict(status='passed_original_summary_candy_learning',fixturePrepared=1,summaryLifetimes=2,fifthCancelled=1,
+        continuedTrying=1,hmRejected=1,confirmationBack=1,replacement=1,cancelKeptUpgrade=1,statsMask=3,statsStaleRejected=1,
+        busyForgedRejected=2,wrongContinuationRejected=1,species=152,level=6,experience=179,finalMove=75,finalPpUps=0,finalPp=25,finalMaxPp=25,
+        initialCandyQuantity=2,finalCandyQuantity=1,friendship=75,mood=40,originalIdentityPreserved=True,
+        otherBagBytesPreserved=True,flagsMoneyDexPreserved=True,resetFinished=True,peripheralUiNative=True)
+    if not all(type(final.get(key)) is type(value) and final[key]==value for key,value in exact.items()):
+        return False
+    if any(type(final.get(key)) is not int or final[key]<0 for key in ('staleRejected','typedAccepted','typedRejected','typedReleased','typedSettled','partyReturnAcks')) \
+            or final['staleRejected']<6 or not final['typedAccepted'] or not final['partyReturnAcks'] \
+            or final['typedAccepted']!=final['typedReleased'] or final['typedAccepted']!=final['typedSettled']:
+        return False
+    if fixture.get('moves')!=[33,45,115,15] or fixture.get('item')!=50 or fixture.get('quantity')!=2 or fixture.get('species')!=152 or fixture.get('partyCount')!=1 \
+            or fixture.get('fixtureUsesExistingStarter') is not True or fixture.get('otNameProfileMatched') is not True \
+            or fixture.get('preparedBeforeFirstFieldAction') is not True or fixture.get('privateSaveMemoryOnly') is not True \
+            or fixture.get('initialFriendship')!=70 or fixture.get('initialMood')!=0 or fixture.get('eggLocation')!=0 \
+            or type(fixture.get('otNameLength')) is not int or not 1<=fixture['otNameLength']<=7:
+        return False
+    semantics_before=report.get('semanticEvidence')
+    if not isinstance(semantics_before,list) or any(not isinstance(row,dict) for row in semantics_before):return False
+    before=[row for row in semantics_before if row.get('step')=='before']
+    if len(before)!=1 or not isinstance(before[0].get('mons'),list) or len(before[0]['mons'])!=1 \
+            or not isinstance(before[0]['mons'][0],list) or len(before[0]['mons'][0])!=26 \
+            or any(type(value) is not int or value<0 for value in before[0]['mons'][0]):
+        return False
+    mon=before[0]['mons'][0]
+    if mon[:2]!=[fixture.get('originalPersonality'),fixture.get('originalOtId')] or mon[2]!=152 or mon[6:9]!=[20,20,5] or mon[10:14]!=[33,45,115,15]:
+        return False
+    if model.get('expectedExperience')!=179 or type(model.get('initialExperience')) is not int or not 135<=model['initialExperience']<179:
+        return False
+    if any(not isinstance(row,list) or len(row)!=6 or any(type(value) is not int or value<=0 for value in row)
+           for row in (model.get('initial'),model.get('expected'),final.get('stats'),final.get('initialStats'),final.get('expectedStats'))):
+        return False
+    if final['stats']!=final['expectedStats'] or final['expectedStats']!=model['expected'] or final['initialStats']!=model['initial']:
+        return False
+    for i,row in enumerate(stats):
+        if any(type(row.get(key)) is not int for key in ('stage','role','revision','qaRevision','generation','owner','context','itemId','phase','taskState','ready','graphicsReady','fadeFinished','bytes','staleDiffRejected')):
+            return False
+        if (row['stage'],row['role'],row['owner'],row['context'],row['itemId'],row['phase'],row['taskState'],row['ready'],row['graphicsReady'],row['fadeFinished'],row['bytes'],row['staleDiffRejected']) \
+                !=(6+i,39+i,2,5,50,5,1+i,1,1,1,128*112*4,i) or row.get('crop')!=[0,0,128,112] \
+                or not row['revision'] or not row['qaRevision'] or not row['generation']:
+            return False
+        display=row.get('displayValues')
+        if not isinstance(display,list) or len(display)!=6 or any(type(value) is not int or value<0 for value in display) \
+                or display!=([b-a for a,b in zip(model['initial'],model['expected'])] if i==0 else model['expected']):
+            return False
+        name='candy-stats-'+('diff' if i==0 else 'total')+'.rgba'
+        if row.get('file')!=name or len([path for path in report.get('capturedFiles',{}) if path.endswith('/'+name)])!=1:
+            return False
+    if stats[1]['revision']<=stats[0]['revision'] or stats[1]['qaRevision']<=stats[0]['qaRevision'] or stats[0]['generation']!=stats[1]['generation']:
+        return False
+    groups=[]
+    for event in typed:
+        if not isinstance(event,dict) or type(event.get('sequence')) is not int or event['sequence']<=0 \
+                or type(event.get('invalidated')) is not int or event['invalidated'] not in (0,1) \
+                or not isinstance(event.get('touch'),list) or len(event['touch'])!=3 or any(type(value) is not int or value<0 for value in event['touch']):
+            return False
+        if not groups or groups[-1][0]['sequence']!=event['sequence']:
+            if event['sequence']!=len(groups)+1:return False
+            groups.append([])
+        groups[-1].append(event)
+    accepted=[];rejected=0;presses=[];releases=[];seen=set();last_settled=0
+    variable={'event','touch','padReads','invalidated'}
+    for group in groups:
+        events=[row.get('event') for row in group];queued=group[0]
+        if events not in (['queued','rejected'],['queued','accepted','released','settled']) or queued.get('touch')!=[0,0,0] or queued.get('invalidated')!=0:
+            return False
+        if any({k:v for k,v in row.items() if k not in variable}!={k:v for k,v in queued.items() if k not in variable} for row in group):
+            return False
+        numeric=('stage','advance','producer','revision','phase','kind','index','role','owner','generation','qaRevision','manager','data','execState','context','itemId','moveId','partySlot','selectedMoveSlot','taskState','printerId','printerActive','printerMatches','printerState','printerWaiting','yesNoActive','yesNoReady','yesNoResult','yesNoTimer','partyBusy','graphicsReady','fadeFinished','keys')
+        if any(type(queued.get(key)) is not int or queued[key]<0 for key in numeric) or not queued['revision'] or not queued['qaRevision'] \
+                or not queued['generation'] or not queued['manager'] or not queued['data'] or queued['execState']!=2 or queued['graphicsReady']!=1 or queued['fadeFinished']!=1 or queued['keys']:
+            return False
+        if any(type(row.get('padReads')) is not int or row['padReads']<last_settled for row in group) \
+                or [row['padReads'] for row in group]!=sorted(row['padReads'] for row in group):return False
+        if events[-1]=='rejected':
+            if group[1].get('invalidated')!=1 or group[1].get('touch')!=[0,0,0]:return False
+            rejected+=1;continue
+        _,a,r,s=group
+        if a['invalidated'] or s['invalidated'] or r['invalidated'] not in (0,1) or not isinstance(a.get('touch'),list) or len(a['touch'])!=3 \
+                or any(type(v) is not int for v in a['touch']) or a['touch'][0]!=1 or not 0<=a['touch'][1]<256 or not 0<=a['touch'][2]<192 \
+                or r['touch']!=[0,0,0] or s['touch']!=[0,0,0] or not 0<=r['padReads']-a['padReads']<=4 \
+                or (r['padReads']-a['padReads']<4 and not r['invalidated']) or s['padReads']-r['padReads']<2:
+            return False
+        producer,phase,stage,kind,index,role=(a[k] for k in ('producer','phase','stage','kind','index','role'))
+        valid=False;advance=1;label=None
+        if producer==3 and a['owner']==1:
+            valid=role==0 and ((phase,stage,kind)==(1,2,0) and index<8 or (phase,stage,kind)==(1,3,1) and index<6 \
+                or (phase,stage,kind)==(4,4,2) and index<4 or (phase,stage,kind,index)==(1,20,5,0))
+            label={2:'pocket',3:'item',4:'use',20:'cancel'}.get(stage)
+        elif producer==1 and a['owner']==2 and not a['partyBusy'] and (a['context'],a['itemId']) in ((5,50),(8,0)) and (a['context']!=8 or a['moveId']==75):
+            if phase==4:valid=(stage,kind,index,role,a['context'],a['partySlot'])==(5,0,0,37,5,0);label='target'
+            elif phase==5 and role in (39,40):
+                valid=(stage,kind,index,a['context'],a['taskState'])==(role-33,1,0,5,role-38);label='stats'+str(role)
+                valid=valid and a['touch']==[1,124,168] and any(row['role']==role and row['revision']==a['revision'] and row['qaRevision']==a['qaRevision'] for row in stats)
+            elif role==38 and kind==1 and not index and (phase==24 or phase==5 and a['taskState'] in (0,4)):
+                valid=a['printerId']<8 and a['printerActive']==a['printerMatches']==a['printerWaiting']==1 and a['printerState']==2 and a['touch']==[1,124,168]
+                advance=0;label='returnAck' if a['context']==8 else 'initialAck'
+            elif phase==27 and stage in (8,11,12):
+                valid=kind==1 and index==(1 if stage==11 else 0) and role==41+index and a['moveId']==75 \
+                    and a['context']==(5 if stage==8 else 8) and a['yesNoReady']==a['yesNoActive']==1 and a['yesNoResult']==3 and not a['yesNoTimer'] \
+                    and (stage!=11 or a['selectedMoveSlot']==4) and a['touch']==[1,224,96+32*index] \
+                    and (a.get('yesNoX'),a.get('yesNoY'),a.get('yesNoWidth'),a.get('yesNoHeight'))==(25,10,6,4) \
+                    and a.get('yesHitX')==[224,224] and a.get('yesHitY')==[96,128]
+                label={8:'yes',11:'no',12:'retry'}[stage]
+        if not valid or a['advance']!=advance:return False
+        seen.add(label);accepted.append(a);last_settled=s['padReads']
+        presses.append((stage,producer,a['revision'],phase,a['padReads'],0,tuple(a['touch'])))
+        releases.append((stage+advance,producer,a['revision'],phase,r['padReads'],r['invalidated']))
+    needed={'pocket','item','use','cancel','target','stats39','stats40','initialAck','returnAck','yes','no','retry'}
+    if not needed<=seen or len(accepted)!=final['typedAccepted'] or rejected!=final['typedRejected'] \
+            or sum(a['producer']==1 and a['stage']>=11 and (a['phase']==24 or a['phase']==5 and a['taskState']==4) for a in accepted)!=final['partyReturnAcks']:
+        return False
+    peripheral=[row for row in inputs if row.get('owner') in (1,3)]
+    try:
+        actual_press=[(r['stage'],r['owner'],r['revision'],r['phase'],r['padReads'],r['keys'],tuple(r['touch'])) for r in peripheral if r['event']=='press']
+        actual_release=[(r['stage'],r['owner'],r['revision'],r['phase'],r['padReads'],r['ownerChanged']) for r in peripheral if r['event']=='release']
+    except (KeyError,TypeError):return False
+    if len(peripheral)!=len(actual_press)+len(actual_release) or sorted(actual_press)!=sorted(presses) or sorted(actual_release)!=sorted(releases):
+        return False
+    if not any(row.get('owner')==2 and row.get('context')==8 and row.get('itemId')==0 and row.get('moveId')==75 for row in states):
+        return False
+    semantics=report.get('candySemanticEvidence',[])
+    if not isinstance(semantics,list) or any(not isinstance(row,dict) for row in semantics):return False
+    if not any(row.get('stage')==11 and row.get('upgraded')==1 and row.get('learned')==0 and row.get('level')==6
+               and row.get('experience')==179 and row.get('quantity')==1 and row.get('friendship')==75 and row.get('mood')==40
+               and row.get('personality')==fixture['originalPersonality'] and row.get('otId')==fixture['originalOtId'] for row in semantics):
+        return False
+    boots=report.get('candyBootEvidence',[])
+    if not isinstance(boots,list) or any(not isinstance(row,dict) for row in boots):return False
+    return any(row.get('qaObserved') is True and row.get('qaVersion')==1 and row.get('qaBytes')==232 and row.get('fieldReady')==1 \
+        and row.get('owner')==0 and row.get('inputStep')==3 and row.get('inputFrame')==0 for row in boots)
+
+def candy_evidence_self_check():
+    """Pure synthetic trace only; no files/tools/guest, and never gameplay evidence."""
+    from copy import deepcopy
+    # producer,phase,stage,kind,index,task,role; mirror both original printer owners.
+    actions=[(3,1,2,0,0,0,0),(3,1,3,1,0,0,0),(3,4,4,2,0,0,0),
+             (1,4,5,0,0,0,37),(1,5,6,1,0,0,38),(1,5,6,1,0,1,39),
+             (1,5,7,1,0,2,40),(1,24,8,1,0,4,38),(1,27,8,1,0,4,41),
+             (1,24,11,1,0,4,38),(1,27,11,1,1,4,42),(1,24,12,1,0,4,38),
+             (1,27,12,1,0,4,41),(1,5,13,1,0,4,38),(1,5,19,1,0,4,38),(3,1,20,5,0,0,0)]
+    typed=[];inputs=[];stats=[]
+    initial=[20,11,12,11,12,10];expected=[22,12,14,12,14,11]
+    for sequence,(producer,phase,stage,kind,index,task,role) in enumerate(actions,1):
+        printer=role==38;prompt=role in (41,42);context=5 if stage<=8 else 8
+        row=dict(sequence=sequence,stage=stage,advance=int(not printer),producer=producer,revision=sequence,phase=phase,
+            kind=kind,index=index,role=role,owner=2 if producer==1 else 1,generation=2,qaRevision=sequence,
+            manager=100,data=200,execState=2,context=context if producer==1 else 0,
+            itemId=50 if context==5 else 0,moveId=75,partySlot=0,selectedMoveSlot=4 if stage==11 else 0,
+            taskState=task,taskMatches=0,printerId=0,printerActive=int(printer),printerMatches=int(printer),
+            printerWaiting=int(printer),printerState=2 if printer else 0,yesNoActive=int(prompt),yesNoReady=int(prompt),
+            yesNoResult=3,yesNoTimer=0,yesNoX=25,yesNoY=10,yesNoWidth=6,yesNoHeight=4,
+            yesHitX=[224,224],yesHitY=[96,128],partyBusy=0,graphicsReady=1,fadeFinished=1,keys=0)
+        touch=[1,224,96+32*index] if prompt else [1,124,168] if producer==1 and kind==1 else [1,50,50]
+        for event,offset,point in [('queued',0,[0,0,0]),('accepted',1,touch),('released',5,[0,0,0]),('settled',7,[0,0,0])]:
+            typed.append(dict(row,event=event,padReads=sequence*8+offset,invalidated=0,touch=point))
+        inputs += [dict(stage=stage,event='press',owner=producer,revision=sequence,phase=phase,padReads=sequence*8+1,keys=0,touch=touch),
+                   dict(stage=stage+row['advance'],event='release',owner=producer,revision=sequence,phase=phase,padReads=sequence*8+5,ownerChanged=0)]
+        if role in (39,40):
+            stats.append(dict(stage=stage,role=role,revision=sequence,qaRevision=sequence,generation=2,owner=2,context=5,itemId=50,phase=5,
+                taskState=task,ready=1,graphicsReady=1,fadeFinished=1,bytes=57344,staleDiffRejected=role-39,
+                crop=[0,0,128,112],file='candy-stats-'+('diff' if role==39 else 'total')+'.rgba',
+                displayValues=[b-a for a,b in zip(initial,expected)] if role==39 else expected))
+    final=dict(status='passed_original_summary_candy_learning',fixturePrepared=1,summaryLifetimes=2,fifthCancelled=1,continuedTrying=1,
+        hmRejected=1,confirmationBack=1,replacement=1,cancelKeptUpgrade=1,statsMask=3,statsStaleRejected=1,busyForgedRejected=2,
+        wrongContinuationRejected=1,species=152,level=6,experience=179,finalMove=75,finalPpUps=0,finalPp=25,finalMaxPp=25,
+        initialCandyQuantity=2,finalCandyQuantity=1,friendship=75,mood=40,originalIdentityPreserved=True,otherBagBytesPreserved=True,
+        flagsMoneyDexPreserved=True,resetFinished=True,peripheralUiNative=True,staleRejected=7,typedAccepted=len(actions),
+        typedRejected=0,typedReleased=len(actions),typedSettled=len(actions),partyReturnAcks=4,stats=expected,initialStats=initial,expectedStats=expected)
+    mon=[0]*26;mon[:3]=[123,456,152];mon[6:9]=[20,20,5];mon[10:14]=[33,45,115,15]
+    fixture=dict(moves=[33,45,115,15],item=50,quantity=2,species=152,partyCount=1,fixtureUsesExistingStarter=True,
+        otNameProfileMatched=True,otNameLength=5,originalPersonality=123,originalOtId=456,preparedBeforeFirstFieldAction=True,
+        privateSaveMemoryOnly=True,initialFriendship=70,initialMood=0,eggLocation=0)
+    valid=dict(rareCandyLearn=True,candyLearningEvidence=[final],candyFixtureEvidence=[fixture],candyStatsEvidence=stats,
+        candyExpectedStatsEvidence=[dict(initialExperience=135,expectedExperience=179,initial=initial,expected=expected)],
+        candyTypedEvidence=typed,inputEvidence=inputs,candyStateEvidence=[dict(owner=2,context=8,itemId=0,moveId=75)],
+        semanticEvidence=[dict(step='before',mons=[mon])],
+        candySemanticEvidence=[dict(stage=11,upgraded=1,learned=0,level=6,experience=179,quantity=1,friendship=75,mood=40,personality=123,otId=456)],
+        candyBootEvidence=[dict(qaObserved=True,qaVersion=1,qaBytes=232,fieldReady=1,owner=0,inputStep=3,inputFrame=0)],
+        capturedFiles={'/synthetic/'+row['file']:'0'*64 for row in stats})
+    assert candy_evidence_passed(valid)
+    # Predicate mutations change the whole captured request, so snapshot equality cannot mask a weak gate.
+    for sequence,key,value in [(4,'context',8),(5,'printerWaiting',0),(6,'taskState',3),(7,'role',43),
+                               (9,'yesNoTimer',1),(11,'selectedMoveSlot',0),(13,'itemId',50),(14,'printerMatches',0)]:
+        bad=deepcopy(valid)
+        for event in bad['candyTypedEvidence']:
+            if event['sequence']==sequence:event[key]=value
+        assert not candy_evidence_passed(bad),(sequence,key)
+    for kind in ('stale','settle','missing-release','extra-input','stats-value','stats-file','double-consume','cancel-level','identity','boot','float'):
+        bad=deepcopy(valid)
+        if kind=='stale':bad['candyTypedEvidence'][1]['revision']+=1
+        elif kind=='settle':bad['candyTypedEvidence'][3]['padReads']-=1
+        elif kind=='missing-release':del bad['candyTypedEvidence'][2]
+        elif kind=='extra-input':bad['inputEvidence'].append(deepcopy(bad['inputEvidence'][0]))
+        elif kind=='stats-value':bad['candyStatsEvidence'][0]['displayValues'][0]+=1
+        elif kind=='stats-file':bad['capturedFiles'].clear()
+        elif kind=='double-consume':bad['candyLearningEvidence'][0]['finalCandyQuantity']=0
+        elif kind=='cancel-level':bad['candySemanticEvidence'][0]['level']=5
+        elif kind=='identity':bad['candyFixtureEvidence'][0]['originalPersonality']+=1
+        elif kind=='boot':bad['candyBootEvidence'][0]['inputStep']=2
+        else:bad['candyLearningEvidence'][0]['level']=6.0
+        assert not candy_evidence_passed(bad),kind
+    return dict(syntheticPositive=1,targetedNegatives=19,gameplayEvidence=False)
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--save', required=True, help='Designated private Route29 fixture; only new copies are opened')
     parser.add_argument('--output-name', default='native-summary-menu-pass', help='New private archive basename; existing output is never overwritten')
-    parser.add_argument('--tm-learn', action='store_true', help='Private original TM route; native typed Bag/Party and Summary controls')
+    learning=parser.add_mutually_exclusive_group()
+    learning.add_argument('--tm-learn', action='store_true', help='Private original TM route; native typed Bag/Party and Summary controls')
+    learning.add_argument('--rare-candy', action='store_true', help='Private original Candy upgrade/stats/level-up learning route')
     args = parser.parse_args()
+    if args.rare_candy and args.output_name == 'native-summary-menu-pass':
+        args.output_name='native-summary-menu-rare-candy-pass'
+    private_learning=args.tm_learn or args.rare_candy
     if args.tm_learn and args.output_name == 'native-summary-menu-pass':
         args.output_name = 'native-summary-menu-tm-learn-pass'
     if not re.fullmatch(r'native-summary-menu-[a-z0-9]+(?:-[a-z0-9]+)*', args.output_name):
@@ -391,7 +614,7 @@ def main():
     host_headers = set((ROOT / 'ios/Original').rglob('*.h')) | set(runtime[0].parent.glob('*.h')) | set((WABT / 'include').rglob('*.h'))
     owned = [ROOT / 'ios/tools/check_native_summary_menu.py', ROOT / 'ios/Original/abi32/summary_menu_scenario_check.c',
              ROOT / 'ios/Original/tests/summary_ui_check.c']
-    if args.tm_learn:
+    if private_learning:
         owned.append(ROOT / 'ios/tests/summary_learn_guest.inc')
     tracked = [*audited_sources, *headers, *host_headers, *runtime, *owned, ROOT / 'ios/Original/abi32/engine_check.c',
                ROOT / 'ios/OriginalApp/main.m', ROOT / 'ios/tests/check_original_app.inc',
@@ -430,6 +653,10 @@ def main():
     if args.tm_learn:
         report.update(scope='private valid-starter/TM17; original field menu and revision-bound typed Bag/Party route; native Summary fifth/HM/cancel/replace; disabled Bag exit fade and original learning result/reset; no other TM/HM branches, UIKit/device or save-writing claim',
                       tmLearn=True, peripheralInput='revision-bound native typed Bag/Party queues through original resolvers', productionApiAdded=False)
+    if args.rare_candy:
+        report.update(scope='Private valid-starter Candy50x2, originalLv5to6/stats/learnset and typed native Bag/Party/Summary; cancel retainsupgrade, HM/back/retry/replacement; no whole-game/UIKit/device/save-writing claim',
+                      rareCandyLearn=True,peripheralInput='revision-bound native typed Bag/Party queues through original resolvers',productionApiAdded=True,
+                      productionApiScope='One revision-guarded read-only six displayed stats getter; Party1480/QA232 unchanged')
     report_file = destination / 'report.json'
     report_file.write_text(json.dumps(report, indent=2) + '\n')
     (destination / 'preparation.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -445,7 +672,7 @@ def main():
     try:
         # Formal cache objects stay unchanged; TM checks substitute only the three private observation copies.
         private_artifacts = []
-        if args.tm_learn:
+        if private_learning:
             private_artifacts, report['privateSourceProvenance'] = prepare_tm_guest(destination / 'private-guest', run, objects,
                                                                                  audit, include_paths, link.get('nativeContent'))
             command.insert(command.index('-o'), '-Wl,--wrap=PokemonSummary_PrintCantForgetHMMessage')
@@ -461,7 +688,7 @@ def main():
             flag = '-Wl,--export=' + name
             if flag not in command:
                 command.insert(command.index('-o'), flag)
-        if args.tm_learn:
+        if private_learning:
             extra_exports = ('HGNativeSummaryLearnQAGetState', 'HGNativeBagUIGetState', 'CreateMon', 'MonSetMoveInSlot_ResetPpUp',
                              'Bag_AddItem', 'Bag_GetQuantity', 'Bag_GetPocketSlotN', 'GetMoveMaxPP',
                              'PlayerProfile_GetTrainerID', 'Save_VarsFlags_sizeof')
@@ -475,6 +702,8 @@ def main():
         host_flags += ['-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all']
         if args.tm_learn:
             host_flags += ['-DHG_SUMMARY_TM_LEARN_CHECK']
+        elif args.rare_candy:
+            host_flags += ['-DHG_SUMMARY_RARE_CANDY_CHECK']
 
         def compile_one(item):
             index, path = item
@@ -510,7 +739,7 @@ def main():
                       artifactHashes=artifact_hashes, checkedStackWrites=writes, exceptionDepthRestores=restores)
         report_file.write_text(json.dumps(report, indent=2) + '\n')
         try:
-            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=240 if args.tm_learn else 180)
+            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=240 if private_learning else 180)
             exit_code, output = result.returncode, result.stdout + result.stderr
         except subprocess.TimeoutExpired as error:
             exit_code, output = None, (error.stdout or b'').decode() + (error.stderr or b'').decode()
@@ -534,8 +763,18 @@ def main():
             report['complete'] = exit_code == 0 and len(evidence) == 1 and evidence[0]['status'] == 'passed_original_summary_tm_learning'
             report['passed'] = report['complete'] and tm_evidence_passed(report['tmLearningEvidence'], report['tmTypedEvidence'], report['inputEvidence'],
                                                                                 report['tmExitFadeEvidence'], report['tmRawEvidence']) and 'PASS: original TM route and native Summary learning' in output
+        if args.rare_candy:
+            for key,label in (('candyLearningEvidence','learning'),('candyTypedEvidence','typed'),('candyStateEvidence','state'),
+                              ('candyStatsEvidence','stats'),('candyFixtureEvidence','fixture'),('candyBootEvidence','boot'),
+                              ('candyExpectedStatsEvidence','expected stats'),('candySemanticEvidence','semantic boundary')):
+                prefix='Summary Candy '+label+' evidence: '
+                report[key]=[json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
+            report['complete']=exit_code==0 and len(evidence)==1 and evidence[0]['status']=='passed_original_summary_candy_learning'
+            report['passed']=report['complete'] and 'PASS: original Rare Candy route' in output
         report['generatedArtifactsUnchanged'] = hashes(artifacts) == artifact_hashes
         report['capturedFiles'] = hashes(path for path in (destination / 'frames').iterdir() if path.is_file())
+        if args.rare_candy:
+            report['passed'] &= candy_evidence_passed(report)
         report['privateSaveHashesAfter'] = hashes(private_inputs)
         report['privateSaveUnchanged'] = report['privateSaveHashesBefore'] == report['privateSaveHashesAfter']
         report['passed'] &= report['generatedArtifactsUnchanged'] and report['privateSaveUnchanged']

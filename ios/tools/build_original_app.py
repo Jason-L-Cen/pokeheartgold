@@ -72,12 +72,12 @@ def bag_names():
     return {'bag-action-names.plist':actions,'bag-item-names.plist':items,'bag-pocket-names.plist':pockets}
 
 
-def summary_tm_guest(report_path, audit, link):
-    """Reuse one sealed, passed private TM module; never prepare a substitute guest."""
+def summary_tm_guest(report_path, audit, link, *, rare_candy=False):
+    """Reuse one sealed, passed private learning module; never prepare a substitute guest."""
     from audit_original import digest
     from check_abi32 import WABT
     from check_native_rainy_field import INCLUDES
-    from check_native_summary_menu import tm_evidence_passed
+    from check_native_summary_menu import candy_evidence_passed, tm_evidence_passed
     def sha(path):
         return hashlib.sha256(Path(path).read_bytes()).hexdigest()
     report_path=Path(report_path).resolve(); folder=report_path.parent
@@ -89,9 +89,10 @@ def summary_tm_guest(report_path, audit, link):
         path=folder/name
         if Path(name).is_absolute() or not path.resolve().is_relative_to(folder) or not path.is_file() or sha(path)!=value:
             raise RuntimeError('Native TM archive seal changed: '+name)
-    if not (report.get('tmLearn') is True and report.get('passed') is True and report.get('complete') is True
-            and type(report.get('exitCode')) is int and report['exitCode']==0 and tm_evidence_passed(report.get('tmLearningEvidence',[]),
-                report.get('tmTypedEvidence',[]),report.get('inputEvidence',[]),report.get('tmExitFadeEvidence',[]),report.get('tmRawEvidence',[]))
+    learning_passed=candy_evidence_passed(report) if rare_candy else (report.get('tmLearn') is True and tm_evidence_passed(report.get('tmLearningEvidence',[]),
+        report.get('tmTypedEvidence',[]),report.get('inputEvidence',[]),report.get('tmExitFadeEvidence',[]),report.get('tmRawEvidence',[])))
+    if not (learning_passed and report.get('passed') is True and report.get('complete') is True
+            and type(report.get('exitCode')) is int and report['exitCode']==0
             and report.get('generatedArtifactsUnchanged') is True and report.get('privateSaveUnchanged') is True
             and report.get('headersUnchanged') is True and report.get('gitStateUnchanged') is True
             and report.get('sealsAfter') and all(value is True for value in report['sealsAfter'].values()) and not report.get('changedPaths')):
@@ -128,25 +129,26 @@ def summary_tm_guest(report_path, audit, link):
     helper=ROOT/'ios/tests/summary_learn_guest.inc'
     if sha(helper)!=sha(folder/'sources/ios/tests/summary_learn_guest.inc'):
         raise RuntimeError('Private Summary observer source changed')
-    fixture,=report['tmFixtureEvidence']
+    fixture,=report['candyFixtureEvidence' if rare_candy else 'tmFixtureEvidence']
     baseline,=[row for row in report['semanticEvidence'] if row['step']=='before']
     if (fixture.get('fixtureUsesExistingStarter') is not True or fixture.get('otNameProfileMatched') is not True
             or not 1<=fixture.get('otNameLength',0)<=7 or fixture.get('originalPersonality')!=baseline['mons'][0][0]
             or fixture.get('originalOtId')!=baseline['mons'][0][1]):
         raise RuntimeError('Native TM fixture must retain the valid original starter identity')
-    prefix='Summary TM boot evidence: '
+    prefix='Summary Candy boot evidence: ' if rare_candy else 'Summary TM boot evidence: '
     boot=[json.loads(line[len(prefix):]) for line in (folder/'runtime.log').read_text().splitlines() if line.startswith(prefix)]
     if not any(row.get('qaObserved') is True and row.get('qaVersion')==1 and row.get('qaBytes')==232
             and row.get('fieldReady')==1 and row.get('owner')==0 and row.get('inputStep')==3 and row.get('inputFrame')==0 for row in boot):
         raise RuntimeError('Native TM observer must actually publish the 232-byte ready packet')
     listing=subprocess.run([str(WABT/'bin/wasm-objdump'),'-x',str(module)],capture_output=True,text=True,timeout=15)
     exports=set(re.findall(r'-> "([^"\n]+)"',listing.stdout))
-    required={'HGNativeSummaryLearnQAGetState','HGNativeSummaryUIGetState','HGNativePartyUIGetState','HGNativeBagUIGetState',
+    required={'HGNativeSummaryLearnQAGetState','HGNativeSummaryUIGetState','HGNativePartyUIGetState','HGNativePartyUIGetStats','HGNativeBagUIGetState',
               'MonSetMoveInSlot_ResetPpUp','Bag_AddItem','GetMonData','Bag_GetQuantity',
               'SaveData_Get','SaveArray_Party_Get','Save_PlayerData_GetProfile','PlayerProfile_GetTrainerID','Save_VarsFlags_sizeof'}
     if listing.returncode or not required<=exports or {name for name in exports if name.startswith(('HGNativeBattleMenusQA','HGNativeSummaryLearnQA'))}!={'HGNativeSummaryLearnQAGetState'}:
         raise RuntimeError('Private TM exports are incompatible; Battle QA substitutes are forbidden')
-    return module,dict(scope='reuse sealed passed native TM case only',summaryTm=True,qaObserverBytes=232,
+    return module,dict(scope='reuse sealed passed native '+('Candy' if rare_candy else 'TM')+' case only',
+        **({'rareCandyLearn':True} if rare_candy else {'summaryTm':True}),qaObserverBytes=232,
         observer='HGNativeSummaryLearnQAGetState',sourceReport=str(report_path),sourceReportSha256=sha(report_path),
         sourceManifestSha256=sha(manifest_path),privateGuestModule=str(module),privateGuestModuleSha256=sha(module),
         shippingModuleSha256=link['outputSha256'],headersSha256=audited['headersSha256'],privateQAExports=['HGNativeSummaryLearnQAGetState'],
@@ -157,13 +159,16 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',choices=('iphonesimulator','iphoneos'),default='iphonesimulator')
     parser.add_argument('--check',action='store_true',help='Run UIKit input, frame, pause/resume and reset checks after launching')
-    parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves','summary-tm'),help='Select an independent private UIKit case; requires --check')
+    parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves','summary-tm','summary-candy'),help='Select an independent private UIKit case; requires --check')
     parser.add_argument('--summary-tm-report',type=Path,help='Sealed passed native TM report.json; only --check-case summary-tm')
+    parser.add_argument('--summary-candy-report',type=Path,help='Sealed passed native Candy report.json; only --check-case summary-candy')
     args=parser.parse_args()
     if args.check_case and not args.check:
         parser.error('--check-case requires --check; production builds cannot select a private case')
     if (args.check_case=='summary-tm')!=bool(args.summary_tm_report):
         parser.error('--summary-tm-report is required only with --check --check-case summary-tm')
+    if (args.check_case=='summary-candy')!=bool(args.summary_candy_report):
+        parser.error('--summary-candy-report is required only with --check --check-case summary-candy')
     audit=BUILD/'audit'; module=audit/'engine.wasm'
     link=json.loads((audit/'engine-link.json').read_text())
     if link['exitCode'] or hashlib.sha256(module.read_bytes()).hexdigest()!=link['outputSha256']:
@@ -176,8 +181,8 @@ def main():
         if result.returncode: raise RuntimeError(f'Original app build failed: {destination/log}')
     shipping_module_sha256=link['outputSha256']
     private_guest=None
-    if args.check_case=='summary-tm':
-        module,private_guest=summary_tm_guest(args.summary_tm_report,audit,link)
+    if args.check_case in ('summary-tm','summary-candy'):
+        module,private_guest=summary_tm_guest(args.summary_candy_report or args.summary_tm_report,audit,link,rare_candy=args.check_case=='summary-candy')
     elif args.check:
         from check_native_battle_menus import prepare_battle_menus_guest
         guest_destination=Path(tempfile.mkdtemp(prefix='battle-menus-guest-',dir=destination))
@@ -189,7 +194,7 @@ def main():
     generated,writes,restores=generate_engine(destination,module,run)
     flags,sources=native_build_settings(destination)
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
-    if args.check_case=='summary-tm': check_flags.append('-DHEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK')
+    if args.check_case in ('summary-tm','summary-candy'): check_flags.append('-DHEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK')
     if args.check: sources.append(ROOT/'ios/Original/NativeAudioCheck.c')
     target='arm64-apple-ios16.0'+('-simulator' if args.sdk=='iphonesimulator' else '')
     def compile_one(item):
@@ -259,6 +264,7 @@ def main():
                 checkedStackWrites=writes,exceptionDepthRestores=restores,
                 executableSha256=hashlib.sha256((app/'HeartGoldOriginal').read_bytes()).hexdigest())
     if args.check_case=='summary-tm': report['summaryTm']=True
+    if args.check_case=='summary-candy': report['rareCandyLearn']=True
     (destination/'report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(app)
 

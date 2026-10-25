@@ -41,6 +41,7 @@ static void PartyCheckCopy16(const void *source, void *destination, u32 size);
 #define AddTextPrinterParameterizedWithColor PartyCheckPrintText
 #define TextPrinterCheckActive PartyCheckTextActive
 
+_Static_assert(sizeof(HGNativePartyUIState)==1480, "Public Party packet ABI");
 #define CHECK(value) do { if (!(value)) return __LINE__; } while (0)
 #define BOUNDARY(value) do { if (!(value)) { fprintf(stderr, "Party boundary line %d: %s\n", __LINE__, #value); abort(); } } while (0)
 static struct { Window *window; u8 *pixels; u32 size; } checkWindows[16];
@@ -519,6 +520,128 @@ u32 CheckOriginalPartyUI(void) {
     CHECK(!HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_TM_MESSAGE,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
     sTextPrinterTasks[3]=NULL; menu.yesNoPrompt=NULL; menu.partyMonIndex=0; args.moveId=MOVE_NONE;
     NativePartyUIBind(&menu);
+    // Candy bridge metadata only: no original item-use/learning callback or SaveData is invoked.
+    args.context=PARTY_MENU_CONTEXT_USE_ITEM; args.itemId=ITEM_RARE_CANDY; args.moveId=MOVE_NONE;
+    menu.partyMonIndex=0; menu.levelUpLearnMovesLoopState=0; NativePartyUIBind(NULL); NativePartyUIBind(&menu);
+    CHECK(HGNativePartyUIIsRareCandy(state) && !state->ready && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_BUSY);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits); revision=state->revision;
+    CHECK(state->ready && HGNativePartyUIIsRareCandy(state) && !HGNativePartyUIIsPotionUse(state) && !HGNativePartyUIIsItemProgress(state)
+        && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_TARGET && !state->actionEnabledMask
+        && HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y) && x==64 && y==24
+        && HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y) && x==228 && y==172
+        && !HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    copy=*state; copy.count=1; CHECK(!HGNativePartyUIIsRareCandy(&copy) && !HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    copy=*state; copy.slotMask^=2; CHECK(!HGNativePartyUIIsRareCandy(&copy) && !HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    copy=*state; copy.mons[1].active=0; CHECK(!HGNativePartyUIIsRareCandy(&copy) && !HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    copy=*state; copy.slotMask|=1u<<HG_PARTY_UI_SLOTS; CHECK(!HGNativePartyUIIsRareCandy(&copy));
+    copy=*state; copy.context=PARTY_MENU_CONTEXT_REPLACE_MOVE_LEVELUP; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    menu.partyMonIndex=HG_PARTY_UI_CONFIRM; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits); CHECK(!state->ready);
+    menu.partyMonIndex=0; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(!state->ready && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_BUSY);
+    printer=(TextPrinter){.template={.window=&menu.windows[PARTY_MENU_WINDOW_ID_34]},.active=TRUE,.id=3,.state=2};
+    SysTask candyTask={.data=&printer}; sTextPrinterTasks[3]=&candyTask; menu.textPrinterId=3;
+    NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(state->ready && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_ACK && state->actionEnabledMask==1 && !state->cancelEnabled
+        && HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y) && x==124 && y==168
+        && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_MON,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    printer.callbackResult=1; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); CHECK(!state->ready); printer.callbackResult=0;
+    printer.callbackParam=1; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); CHECK(!state->ready); printer.callbackParam=0;
+    printer.state=0; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); CHECK(!state->ready); printer.state=2;
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); revision=state->revision;
+    copy=*state; copy.message.tileWidth=20; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    copy=*state; copy.message.tileHeight=12; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    copy=*state; copy.actions[0].hitY++; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    copy=*state; copy.actionCount=2; CHECK(!HGNativePartyUIIsRareCandy(&copy) && !HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    const WindowTemplate candyStats={.bgId=GF_BG_LYR_MAIN_0,.left=1,.top=1,.width=14,.height=12,.palette=0,.baseTile=0x260};
+    AddWindow(&bg,&menu.levelUpStatsWindow[0],&candyStats); sTextPrinterTasks[3]=NULL;
+    // Owned synthetic numbers check only the real cache formula/getter lifetime, not a level-up business outcome.
+    const u16 statsBefore[6]={20,10,11,12,13,14},statsAfter[6]={22,11,13,15,17,19},statsDiff[6]={2,1,2,3,4,5};
+    memcpy(menu.levelUpStatsTmp,statsBefore,sizeof(statsBefore));
+    CHECK(HGNativePartyUIGetStats(state->revision)==NULL);
+    NativePartyUICacheStats(&menu,HG_PARTY_UI_TEXT_CANDY_STATS_DIFF,statsAfter);
+    CHECK(!memcmp(menu.levelUpStatsTmp,statsBefore,sizeof(statsBefore)));
+    menu.levelUpLearnMovesLoopState=1; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); revision=state->revision;
+    CHECK(state->ready && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF && !state->actions[0].text.pixelBuffer
+        && state->message.tileWidth==27 && state->message.tileHeight==4
+        && HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    const u16 *displayed=HGNativePartyUIGetStats(revision);
+    CHECK(displayed && sizeof(statsDiff)==12 && !memcmp(displayed,statsDiff,sizeof(statsDiff)) && HGNativePartyUIGetStats(revision-1)==NULL);
+    NativePartyUIBegin(&menu); CHECK(HGNativePartyUIGetStats(revision)==NULL && !memcmp(sNativePartyStats,statsDiff,sizeof(statsDiff)));
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); CHECK(HGNativePartyUIGetStats(revision)==displayed);
+    NativePartyUIBegin(&menu); memcpy(menu.levelUpStatsTmp,statsAfter,sizeof(statsAfter));
+    NativePartyUICacheStats(&menu,HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL,menu.levelUpStatsTmp);
+    menu.levelUpLearnMovesLoopState=2; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(state->ready && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL && state->revision>revision
+        && !HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    CHECK(HGNativePartyUIGetStats(revision)==NULL && HGNativePartyUIGetStats(state->revision)
+        && !memcmp(HGNativePartyUIGetStats(state->revision),statsAfter,sizeof(statsAfter)));
+    menu.levelUpLearnMovesLoopState=1; CHECK(HGNativePartyUIGetStats(state->revision)==NULL); menu.levelUpLearnMovesLoopState=2;
+    checkFade=FALSE; CHECK(HGNativePartyUIGetStats(state->revision)==NULL); checkFade=TRUE;
+    for (u32 transfer=0;transfer<2;++transfer) for (u32 layer=0;layer<8;++layer) {
+        u16 *pending=transfer ? &bg.scrollScheduled : &bg.bufferTransferScheduled; *pending=1u<<layer;
+        CHECK(HGNativePartyUIGetStats(state->revision)==NULL);
+        NativePartyUIBegin(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+        CHECK(!state->ready && !state->actionEnabledMask && !state->mons[0].nickname.pixelBuffer);
+        *pending=0; CHECK(!state->ready && HGNativePartyUIGetStats(state->revision)==NULL);
+        NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+        CHECK(state->ready && HGNativePartyUIGetStats(state->revision) && !memcmp(HGNativePartyUIGetStats(state->revision),statsAfter,sizeof(statsAfter)));
+    }
+    menu.levelUpStatsWindow[0].height=11; CHECK(HGNativePartyUIGetStats(state->revision)==NULL);
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); CHECK(!state->ready); menu.levelUpStatsWindow[0].height=12;
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); revision=state->revision;
+    PartyMenu foreignStats=menu; NativePartyUICacheStats(&foreignStats,HG_PARTY_UI_TEXT_CANDY_STATS_DIFF,statsAfter);
+    CHECK(HGNativePartyUIGetStats(revision) && !memcmp(HGNativePartyUIGetStats(revision),statsAfter,sizeof(statsAfter)));
+    NativePartyUIBind(&foreignStats); CHECK(HGNativePartyUIGetStats(revision)==NULL && !sNativePartyStatsRole);
+    NativePartyUIBind(&menu); CHECK(HGNativePartyUIGetStats(state->revision)==NULL);
+    NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]);
+    NativePartyUICacheStats(&menu,HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL,menu.levelUpStatsTmp); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(HGNativePartyUIGetStats(state->revision)!=NULL);
+    NativePartyUIInvalidateStats(&menu); CHECK(HGNativePartyUIGetStats(state->revision)==NULL && !sNativePartyStatsRole);
+    NativePartyUIBegin(&menu); RemoveWindow(&menu.levelUpStatsWindow[0]);
+    const u32 candyBusy[]={3,5,6};
+    for (u32 i=0;i<NELEMS(candyBusy);++i) {
+        menu.levelUpLearnMovesLoopState=candyBusy[i]; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+        CHECK(HGNativePartyUIIsRareCandy(state) && !state->ready && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_BUSY);
+        copy=*state; copy.ready=TRUE; copy.actionEnabledMask=1; copy.actions[0].enabled=TRUE;
+        CHECK(!HGNativePartyUIResolveTouch(&copy,copy.revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    }
+    CHECK(HGNativePartyUIGetStats(state->revision)==NULL);
+    menu.partyMonIndex=HG_PARTY_UI_CONFIRM; menu.levelUpLearnMovesLoopState=0; sTextPrinterTasks[3]=&candyTask;
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); revision=state->revision;
+    CHECK(state->ready && state->selected==HG_PARTY_UI_CONFIRM && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_ACK
+        && HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y)
+        && !HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    copy=*state; copy.context=PARTY_MENU_CONTEXT_REPLACE_MOVE_LEVELUP; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    args.context=PARTY_MENU_CONTEXT_REPLACE_MOVE_LEVELUP; args.itemId=ITEM_RARE_CANDY; args.moveId=MOVE_RAZOR_LEAF;
+    NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits); CHECK(!HGNativePartyUIIsRareCandy(state) && !state->ready && !state->count);
+    args.itemId=ITEM_NONE; menu.partyMonIndex=0; menu.levelUpLearnMovesLoopState=4; NativePartyUIBind(NULL); NativePartyUIBind(&menu);
+    NativePartyUISetMessage(&menu,&menu.windows[PARTY_MENU_WINDOW_ID_34]); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_USE,checkRosterHits);
+    CHECK(state->ready && HGNativePartyUIIsRareCandy(state) && !HGNativePartyUIIsPotionUse(state)
+        && !HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits);
+    CHECK(state->ready && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_ACK
+        && HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    const u32 candyBusyPhases[]={0,3,25,26,32,33};
+    for (u32 i=0;i<NELEMS(candyBusyPhases);++i) {
+        NativePartyUIPublish(&menu,candyBusyPhases[i],checkRosterHits);
+        CHECK(HGNativePartyUIIsRareCandy(state) && !state->ready && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_BUSY);
+        copy=*state; copy.ready=TRUE; copy.actionEnabledMask=1; copy.actions[0].enabled=TRUE;
+        CHECK(!HGNativePartyUIResolveTouch(&copy,copy.revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    }
+    menu.yesNoPrompt=&tmYesNo; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_YES_NO,checkRosterHits); revision=state->revision;
+    CHECK(state->ready && state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_YES && state->actions[1].textId==HG_PARTY_UI_TEXT_CANDY_NO);
+    for (u32 i=0;i<2;++i) CHECK(HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,i,&x,&y) && x==224 && y==96+32*i);
+    copy=*state; copy.actionEnabledMask=1; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    copy=*state; copy.actions[1].hitY--; CHECK(!HGNativePartyUIResolveTouch(&copy,revision,copy.phase,HG_PARTY_UI_TOUCH_ACTION,1,&x,&y));
+    args.moveId=MOVE_NONE; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits); CHECK(!HGNativePartyUIIsRareCandy(state) && !state->ready);
+    args.context=PARTY_MENU_CONTEXT_USE_ITEM; args.itemId=ITEM_POTION; menu.levelUpLearnMovesLoopState=0; args.moveId=MOVE_NONE;
+    NativePartyUIBind(NULL); NativePartyUIBind(&menu); NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits); revision=state->revision;
+    CHECK(state->ready && HGNativePartyUIIsPotionUse(state) && !HGNativePartyUIIsRareCandy(state) && !state->actionCount);
+    args.itemId=ITEM_RARE_CANDY; NativePartyUIPublish(&menu,HG_PARTY_UI_ITEM_TARGET,checkRosterHits);
+    CHECK(HGNativePartyUIIsRareCandy(state) && !HGNativePartyUIIsPotionUse(state) && state->revision>revision
+        && !HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y));
+    sTextPrinterTasks[3]=NULL; menu.yesNoPrompt=NULL;
     args.context=PARTY_MENU_CONTEXT_0; args.itemId=ITEM_NONE; menu.monsDrawState[0].hp=18;
     NativePartyUIBegin(&menu); CHECK(!state->message.pixelBuffer && !state->mons[0].nickname.pixelBuffer);
     RemoveWindow(&menu.windows[PARTY_MENU_WINDOW_ID_34]);

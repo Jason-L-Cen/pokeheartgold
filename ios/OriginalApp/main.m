@@ -308,7 +308,7 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     UILabel *_partyTitle;
     NSArray<UIButton *> *_partyMons, *_partyActions;
     NSArray<UIImageView *> *_partyCards;
-    UIImageView *_partySelectedName, *_partySelectedItem, *_partyMessage;
+    UIImageView *_partySelectedName, *_partySelectedItem, *_partyMessage, *_partyBody;
     NSArray<NSString *> *_partyActionNames;
     NSData *_partyUIState, *_displayedPartyUIState;
     NSDictionary *_partyPictures, *_partyOwnerPictures;
@@ -362,7 +362,7 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     uint32_t _summaryTMRequestRevision, _summaryTMPadReads, _summaryTMBootStep, _summaryTMBootFrame, _summaryTMBootInputStep, _summaryTMBootInputFrame;
     uint32_t _summaryTMRawKeys, _summaryTMRawX, _summaryTMRawY, _summaryTMRawReads, _summaryTMRawPresses, _summaryTMRawReleases, _summaryTMRawRejected, _summaryTMRawBagRevision;
     BOOL _summaryTMRawPressed; HGSummaryLearnQAState _summaryTMRawExpected;
-    uint32_t _summaryTMMon, _summaryTMBag, _summaryTMFlags, _summaryTMProfile, _summaryTMDex, _summaryTMTmOffset, _summaryTMMonBaseline[26];
+    uint32_t _summaryTMMon, _summaryTMBag, _summaryTMFlags, _summaryTMProfile, _summaryTMDex, _summaryTMTmOffset, _summaryTMMonBaseline[33];
     uint32_t _summaryTMMoney, _summaryTMDexEnabled, _summaryTMDexSeen, _summaryTMDexOwned, _summaryTMNameLength, _summaryTMMapSection, _summaryTMOriginalPersonality, _summaryTMOriginalOtId;
 #endif
 #endif
@@ -410,8 +410,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)viewDidLoad {
     [super viewDidLoad];
 #ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
-    _summaryTMEnabled=[[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivateCheckCase"] isEqual:@"summary-tm"]
-        && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_CHECK_CASE"] isEqual:@"summary-tm"]
+    NSString *summaryCase=[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivateCheckCase"];
+    _summaryTMEnabled=([summaryCase isEqual:@"summary-tm"] || [summaryCase isEqual:@"summary-candy"])
+        && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_CHECK_CASE"] isEqual:summaryCase]
         && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_TEST_MUTE"] isEqual:@"1"];
     _summaryTMRawIdle=YES;
 #endif
@@ -520,6 +521,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         image.clipsToBounds=YES;
         if (image!=_partyMessage) { image.backgroundColor=_partyTitle.textColor; image.layer.cornerRadius=6; }
     }
+    _partyBody=[UIImageView new]; _partyBody.hidden=YES; _partyBody.clipsToBounds=YES;
+    _partyBody.contentMode=UIViewContentModeScaleAspectFit; _partyBody.layer.magnificationFilter=kCAFilterNearest;
+    _partyBody.isAccessibilityElement=YES; _partyBody.accessibilityTraits=UIAccessibilityTraitImage;
+    [_partyPanel addSubview:_partyBody];
     _partyActionScroll=[UIScrollView new]; [_partyPanel addSubview:_partyActionScroll];
     NSMutableArray *partyActions=[NSMutableArray new];
     for (NSUInteger i=0;i<HG_PARTY_UI_ACTIONS;i++) {
@@ -702,11 +707,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         CGFloat rx=leftWidth+8,rw=pw-rx-12;
         _partySelectedName.frame=CGRectMake(rx,12,rw,28); _partySelectedItem.frame=CGRectMake(rx,44,rw,24);
         _partyMessage.frame=CGRectMake(rx,ph-56,rw,48);
-        _partyActionScroll.frame=CGRectMake(rx,72,rw,MAX(44,ph-116));
         const HGNativePartyUIState *state=_displayedPartyUIState.bytes;
+        BOOL candy=_displayedPartyUIState.length==sizeof(*state) && HGNativePartyUIIsRareCandy(state);
+        BOOL stats=candy && state->actionCount && (state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF || state->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL);
+        _partyBody.frame=CGRectMake(rx,12,rw,MAX(1,MIN(rw*112.0/128.0,ph-72)));
+        _partyActionScroll.frame=stats ? CGRectMake(rx,CGRectGetMaxY(_partyBody.frame)+8,rw,44) : CGRectMake(rx,72,rw,MAX(44,ph-116));
         NSUInteger count=_displayedPartyUIState.length==sizeof(*state) ? MIN(HG_PARTY_UI_ACTIONS,state->actionCount) : 0;
-        for (NSUInteger i=0;i<HG_PARTY_UI_ACTIONS;i++) _partyActions[i].frame=CGRectMake((i%2)*(rw+gap)/2,(i/2)*52,(rw-gap)/2,44);
-        _partyActionScroll.contentSize=CGSizeMake(rw,((count+1)/2)*52);
+        for (NSUInteger i=0;i<HG_PARTY_UI_ACTIONS;i++) _partyActions[i].frame=stats ? CGRectMake(0,0,rw,44) : CGRectMake((i%2)*(rw+gap)/2,(i/2)*52,(rw-gap)/2,44);
+        _partyActionScroll.contentSize=CGSizeMake(rw,stats ? 44 : ((count+1)/2)*52);
         _partyBack.frame=CGRectMake(area.origin.x,CGRectGetMaxY(area)-52,120,44);
         _buttons[@2].frame=_partyBack.frame;
         _buttons[@1].frame=CGRectMake(CGRectGetMaxX(area)-120,CGRectGetMaxY(area)-52,120,44);
@@ -1026,21 +1034,23 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _battleMenuMessage.hidden=!(kind==OriginalBattleMenuParty && phase==HG_BATTLE_PARTY_UI_MESSAGE);
 }
 - (NSDictionary *)copyPartyPictures:(const HGNativePartyUIState *)state frame:(NSData *)frame {
-    BOOL tm=HGNativePartyUIIsTMHM(state);
-    if (!state->active || state->panelLayout || (state->context && !HGNativePartyUIIsItemProgress(state) && !HGNativePartyUIIsPotionUse(state) && !tm)) { _partyOwnerPictures=nil; return nil; }
+    BOOL tm=HGNativePartyUIIsTMHM(state),candy=HGNativePartyUIIsRareCandy(state);
+    uint32_t role=candy && state->actionCount ? state->actions[0].textId : 0;
+    BOOL stats=candy && (role==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF || role==HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL);
+    if (!state->active || state->panelLayout || (state->context && !HGNativePartyUIIsItemProgress(state) && !HGNativePartyUIIsPotionUse(state) && !tm && !candy)) { _partyOwnerPictures=nil; return nil; }
     NSMutableDictionary *pictures=_partyOwnerPictures ? [_partyOwnerPictures mutableCopy] : [NSMutableDictionary new];
     BOOL sameView=[pictures[@"messageRevision"] unsignedIntValue]==state->revision
         && [pictures[@"messageContext"] unsignedIntValue]==state->context && [pictures[@"messagePhase"] unsignedIntValue]==state->phase;
-    BOOL sameMessage=(HGNativePartyUIIsItemProgress(state) || HGNativePartyUIIsPotionUse(state) || tm) && sameView;
+    BOOL sameMessage=(HGNativePartyUIIsItemProgress(state) || HGNativePartyUIIsPotionUse(state) || tm || candy) && sameView;
     for (NSString *key in @[@"cards",@"actions"]) {
         NSUInteger count=[key isEqual:@"actions"] ? HG_PARTY_UI_ACTIONS : HG_PARTY_UI_SLOTS;
         NSArray *old=pictures[key]; NSMutableArray *images=[NSMutableArray new];
         for (NSUInteger i=0;i<count;i++) {
             UIImage *image=nil;
             if ([key isEqual:@"actions"]) {
-                if (tm && state->phase==HG_PARTY_UI_TM_YES_NO && state->ready && i<state->actionCount) image=OriginalFrameRegion(frame,200,80+32*i,48,32);
+                if ((tm || candy) && state->phase==HG_PARTY_UI_TM_YES_NO && state->ready && i<state->actionCount) image=OriginalFrameRegion(frame,200,80+32*i,48,32);
                 else image=OriginalWindowImage(&state->actions[i].text,_env->memory->data,_env->memory->size);
-            } else if (state->mons[i].active && state->mons[i].nickname.pixelBuffer) image=OriginalPartyCard(frame,&state->mons[i]);
+            } else if (!stats && state->mons[i].active && state->mons[i].nickname.pixelBuffer) image=OriginalPartyCard(frame,&state->mons[i]);
             [images addObject:image ?: (sameView && i<old.count ? old[i] : NSNull.null)];
         }
         pictures[key]=[images copy];
@@ -1048,9 +1058,22 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     const HGNativePartyUIWindow *windows[]={&state->selectedName,&state->selectedItem,&state->message};
     NSArray *keys=@[@"selected",@"item",@"message"];
     for (NSUInteger i=0;i<3;i++) {
-        UIImage *image=OriginalWindowImage(windows[i],_env->memory->data,_env->memory->size);
-        if (image || i!=2 || !sameMessage) pictures[keys[i]]=image ?: NSNull.null;
+        UIImage *image=stats && i==2 ? nil : OriginalWindowImage(windows[i],_env->memory->data,_env->memory->size);
+        if (image || i!=2 || !sameMessage || stats) pictures[keys[i]]=image ?: NSNull.null;
     }
+    // Bind advances revision for each owner; the role separates the two phase-5 statistics pages.
+    BOOL sameBody=stats && [pictures[@"bodyRevision"] unsignedIntValue]==state->revision && [pictures[@"bodyContext"] unsignedIntValue]==state->context
+        && [pictures[@"bodyPhase"] unsignedIntValue]==state->phase && [pictures[@"bodyRole"] unsignedIntValue]==role;
+    NSData *statsValues=nil;
+    if (stats && state->ready) {
+        uint32_t address=w2c_hgengine_HGNativePartyUIGetStats(_game,state->revision);
+        if (address && address<=_env->memory->size && 12<=_env->memory->size-address)
+            statsValues=[NSData dataWithBytes:_env->memory->data+address length:12];
+    }
+    UIImage *body=statsValues ? OriginalFrameRegion(frame,0,0,128,112) : nil;
+    pictures[@"body"]=body ?: (sameBody ? pictures[@"body"] : NSNull.null);
+    pictures[@"stats"]=statsValues ?: (sameBody ? pictures[@"stats"] : NSNull.null);
+    pictures[@"bodyRevision"]=@(state->revision); pictures[@"bodyContext"]=@(state->context); pictures[@"bodyPhase"]=@(state->phase); pictures[@"bodyRole"]=@(role);
     pictures[@"messageRevision"]=@(state->revision); pictures[@"messageContext"]=@(state->context); pictures[@"messagePhase"]=@(state->phase);
     _partyOwnerPictures=[pictures copy]; return _partyOwnerPictures;
 }
@@ -1067,7 +1090,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)partyActionPressed:(UIButton *)button { [self queuePartyTouch:HG_PARTY_UI_TOUCH_ACTION index:(uint32_t)button.tag]; }
 - (void)partyBackPressed:(UIButton *)button { [self queuePartyTouch:HG_PARTY_UI_TOUCH_CANCEL index:0]; }
 - (void)takePartyTouchLocked:(const HGNativePartyUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed {
-    if (HGNativePartyUIIsItemProgress(state) || HGNativePartyUIIsPotionUse(state) || HGNativePartyUIIsTMHM(state)) {
+    if (HGNativePartyUIIsItemProgress(state) || HGNativePartyUIIsPotionUse(state) || HGNativePartyUIIsTMHM(state) || HGNativePartyUIIsRareCandy(state)) {
         _keys&=~3u; _pendingKeys&=~3u; _submittedKeys&=~3u; *keys&=~3u;
         _touchPressed=NO; *pressed=NO;
     }
@@ -1089,30 +1112,46 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)updatePartyControls:(NSData *)data pictures:(NSDictionary *)pictures paused:(BOOL)paused {
     const HGNativePartyUIState *state=data.bytes;
-    BOOL progress=data.length==sizeof(*state) && HGNativePartyUIIsItemProgress(state);
-    BOOL potion=data.length==sizeof(*state) && HGNativePartyUIIsPotionUse(state);
+    BOOL candy=data.length==sizeof(*state) && HGNativePartyUIIsRareCandy(state),candyTarget=candy && state->phase==HG_PARTY_UI_ITEM_TARGET;
+    uint32_t role=candy && state->actionCount ? state->actions[0].textId : 0;
+    BOOL stats=candy && (role==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF || role==HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL);
+    BOOL progress=data.length==sizeof(*state) && !candy && HGNativePartyUIIsItemProgress(state);
+    BOOL potion=data.length==sizeof(*state) && !candy && HGNativePartyUIIsPotionUse(state);
     BOOL tm=data.length==sizeof(*state) && HGNativePartyUIIsTMHM(state),tmTarget=tm && state->phase==HG_PARTY_UI_TM_TARGET;
-    BOOL scene=data.length==sizeof(*state) && state->active && !state->panelLayout && (!state->context || progress || potion || tm);
-    BOOL panel=scene && (tm || potion || progress || state->phase==HG_PARTY_UI_ROSTER || state->phase==HG_PARTY_UI_CONTEXT || state->phase==HG_PARTY_UI_SUBCONTEXT);
+    BOOL scene=data.length==sizeof(*state) && state->active && !state->panelLayout && (!state->context || progress || potion || tm || candy);
+    BOOL panel=scene && (candy || tm || potion || progress || state->phase==HG_PARTY_UI_ROSTER || state->phase==HG_PARTY_UI_CONTEXT || state->phase==HG_PARTY_UI_SUBCONTEXT);
     BOOL changed=_partyScene!=scene || !_displayedPartyUIState || data.length!=_displayedPartyUIState.length
         || (scene && memcmp(data.bytes,_displayedPartyUIState.bytes,offsetof(HGNativePartyUIState,mons)));
     if (scene && !_partyScene) {
         [_condition lock]; _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; [_condition unlock]; [self resetJoystick];
     }
     _partyScene=scene; _displayedPartyUIState=data;
-    _partyPanel.hidden=!panel; _partyBack.hidden=!panel || (tm && !tmTarget);
+    _partyPanel.hidden=!panel; _partyBack.hidden=!panel || (tm && !tmTarget) || (candy && !candyTarget);
+    _partyBody.image=stats && [pictures[@"body"] isKindOfClass:UIImage.class] ? pictures[@"body"] : nil;
+    _partyBody.hidden=!panel || !stats || !_partyBody.image;
+    _partyBody.accessibilityLabel=stats ? (role==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF ? @"能力变化" : @"当前能力值") : nil;
+    _partyBody.accessibilityValue=nil;
+    NSData *statsData=[pictures[@"stats"] isKindOfClass:NSData.class] ? pictures[@"stats"] : nil;
+    if (stats && statsData.length==12) {
+        uint16_t values[6]; memcpy(values,statsData.bytes,sizeof(values));
+        NSArray *labels=@[@"HP",@"攻击",@"防御",@"特攻",@"特防",@"速度"];
+        NSString *sign=role==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF ? @"+" : @"";
+        NSMutableArray *description=[NSMutableArray new];
+        for (NSUInteger i=0;i<6;i++) [description addObject:[NSString stringWithFormat:@"%@ %@%u",labels[i],sign,(unsigned)values[i]]];
+        _partyBody.accessibilityValue=[description componentsJoinedByString:@"，"];
+    }
     OriginalSetButtonContent(_partyBack,nil,nil,progress ? @"继续" : @"返回");
     _partyBack.accessibilityLabel=_partyBack.currentTitle;
     if (changed) [self.view setNeedsLayout];
     if (!panel) return;
     [_condition lock]; BOOL waiting=_partyChoicePending || _partyTouchActive; [_condition unlock];
-    BOOL ready=state->ready && !paused && !waiting;
+    BOOL ready=state->ready && !paused && !waiting && (!stats || _partyBody.image);
     uint32_t touchX,touchY;
     _partyBack.enabled=ready && HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&touchX,&touchY);
     NSArray *cards=pictures[@"cards"],*actions=pictures[@"actions"];
     for (NSUInteger i=0;i<HG_PARTY_UI_SLOTS;i++) {
         const HGNativePartyUIMon *mon=&state->mons[i]; UIButton *button=_partyMons[i];
-        button.hidden=!(state->slotMask&(1u<<i)) || !mon->active;
+        button.hidden=stats || !(state->slotMask&(1u<<i)) || !mon->active;
         button.enabled=ready && HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_MON,(uint32_t)i,&touchX,&touchY);
         button.layer.borderColor=(i==state->selected ? [UIColor colorWithRed:0.91 green:0.49 blue:0.12 alpha:1] : [UIColor colorWithRed:0.45 green:0.62 blue:0.72 alpha:1]).CGColor;
         _partyCards[i].image=i<cards.count && [cards[i] isKindOfClass:UIImage.class] ? cards[i] : nil;
@@ -1120,30 +1159,32 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         NSString *stats=mon->isEgg ? @"蛋" : [NSString stringWithFormat:@"Lv.%u  %u/%u",mon->level,mon->hp,mon->maxHp];
         NSString *status=OriginalPartyStatusName(mon->status);
         button.accessibilityLabel=mon->isEgg ? @"蛋" : [NSString stringWithFormat:@"%@，%@，%@%@%@",name,stats,status,mon->heldItem ? @"，携带道具" : @"",i==state->selected ? @"，已选择" : @""];
-        button.accessibilityHint=state->phase==HG_PARTY_UI_ROSTER ? @"打开原版宝可梦操作菜单" : (potion && !progress) || tmTarget ? @"选择原版道具使用目标" : nil;
+        button.accessibilityHint=state->phase==HG_PARTY_UI_ROSTER ? @"打开原版宝可梦操作菜单" : (potion && !progress) || tmTarget || candyTarget ? @"选择原版道具使用目标" : nil;
         button.accessibilityTraits=UIAccessibilityTraitButton | (i==state->selected ? UIAccessibilityTraitSelected : 0);
     }
     for (NSUInteger i=0;i<HG_PARTY_UI_ACTIONS;i++) {
-        UIButton *button=_partyActions[i]; button.hidden=progress || potion || tmTarget || i>=state->actionCount;
+        UIButton *button=_partyActions[i]; button.hidden=progress || potion || tmTarget || candyTarget || i>=state->actionCount;
         button.enabled=ready && !progress && !potion && i<state->actionCount && (state->actionEnabledMask&(1u<<i))
-            && (!tm || HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,(uint32_t)i,&touchX,&touchY));
+            && (!(tm || candy) || HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,(uint32_t)i,&touchX,&touchY));
         uint32_t textId=state->actions[i].textId;
-        NSString *name=tm && textId==HG_PARTY_UI_TEXT_TM_ACK ? @"继续" : tm && textId==HG_PARTY_UI_TEXT_TM_YES ? @"是" : tm && textId==HG_PARTY_UI_TEXT_TM_NO ? @"否"
+        NSString *name=candy && (textId==HG_PARTY_UI_TEXT_CANDY_ACK || textId==HG_PARTY_UI_TEXT_CANDY_BUSY || textId==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF || textId==HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL) ? @"继续"
+            : candy && textId==HG_PARTY_UI_TEXT_CANDY_YES ? @"是" : candy && textId==HG_PARTY_UI_TEXT_CANDY_NO ? @"否"
+            : tm && textId==HG_PARTY_UI_TEXT_TM_ACK ? @"继续" : tm && textId==HG_PARTY_UI_TEXT_TM_YES ? @"是" : tm && textId==HG_PARTY_UI_TEXT_TM_NO ? @"否"
             : textId<_partyActionNames.count && [_partyActionNames[textId] length] ? _partyActionNames[textId] : @"操作";
         UIButtonConfiguration *config=UIButtonConfiguration.filledButtonConfiguration;
         config.contentInsets=NSDirectionalEdgeInsetsMake(2,4,2,4);
         config.baseBackgroundColor=i==state->actionSelected ? [UIColor colorWithRed:1 green:0.81 blue:0.48 alpha:1] : UIColor.whiteColor;
         config.baseForegroundColor=_partyTitle.textColor;
         UIImage *image=i<actions.count && [actions[i] isKindOfClass:UIImage.class] ? actions[i] : nil;
-        if (tm && state->phase==HG_PARTY_UI_TM_YES_NO && !image) button.enabled=NO;
+        if ((tm || candy) && state->phase==HG_PARTY_UI_TM_YES_NO && !image) button.enabled=NO;
         OriginalSetButtonContent(button,config,image,name); button.accessibilityLabel=name;
     }
     _partySelectedName.image=[pictures[@"selected"] isKindOfClass:UIImage.class] ? pictures[@"selected"] : nil;
     _partySelectedItem.image=[pictures[@"item"] isKindOfClass:UIImage.class] ? pictures[@"item"] : nil;
-    _partyMessage.image=(progress || potion || tm) && [pictures[@"message"] isKindOfClass:UIImage.class] ? pictures[@"message"] : nil;
-    _partyMessage.hidden=!(progress || potion || tm) || !_partyMessage.image;
-    _partySelectedName.hidden=progress || potion || tm || state->phase==HG_PARTY_UI_ROSTER || !_partySelectedName.image;
-    _partySelectedItem.hidden=progress || potion || tm || state->phase==HG_PARTY_UI_ROSTER || !_partySelectedItem.image;
+    _partyMessage.image=(progress || potion || tm || candy) && !stats && [pictures[@"message"] isKindOfClass:UIImage.class] ? pictures[@"message"] : nil;
+    _partyMessage.hidden=!(progress || potion || tm || candy) || stats || !_partyMessage.image;
+    _partySelectedName.hidden=progress || potion || tm || candy || state->phase==HG_PARTY_UI_ROSTER || !_partySelectedName.image;
+    _partySelectedItem.hidden=progress || potion || tm || candy || state->phase==HG_PARTY_UI_ROSTER || !_partySelectedItem.image;
 }
 - (NSDictionary *)copyBagPictures:(const HGNativeBagUIState *)state frame:(NSData *)frame subFrame:(NSData *)subFrame {
     if (!state->active || (state->mode && !HGNativeBagUIIsList(state))) { _bagOwnerPictures=nil; return nil; }
@@ -1839,6 +1880,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (BOOL)prepareSummaryTMFixture:(const HGSummaryLearnQAState *)q {
 #define TM_REQUIRE(value,message) do { if (!(value)) { _summaryTMFixtureError=(message); return NO; } } while (0)
+    BOOL candy=[[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivateCheckCase"] isEqual:@"summary-candy"];
+    uint32_t item=candy ? ITEM_RARE_CANDY : ITEM_TM17,pocket=candy ? POCKET_MEDICINE : POCKET_TMHMS;
     uint32_t save=w2c_hgengine_SaveData_Get(_game),party=w2c_hgengine_SaveArray_Party_Get(_game,save);
     _summaryTMFlags=w2c_hgengine_Save_VarsFlags_Get(_game,save); _summaryTMBag=w2c_hgengine_Save_Bag_Get(_game,save);
     _summaryTMProfile=w2c_hgengine_Save_PlayerData_GetProfile(_game,save); _summaryTMDex=w2c_hgengine_Save_Pokedex_Get(_game,save);
@@ -1848,7 +1891,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         && w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_HP,0)==20 && w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_MAX_HP,0)==20
         && !w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_HELD_ITEM,0)
         && w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_OT_ID,0)==w2c_hgengine_PlayerProfile_GetTrainerID(_game,_summaryTMProfile)
-        && !w2c_hgengine_Bag_GetQuantity(_game,_summaryTMBag,ITEM_TM17,HEAP_ID_FIELD2),@"original_starter_or_tm_prerequisite");
+        && !w2c_hgengine_Bag_GetQuantity(_game,_summaryTMBag,item,HEAP_ID_FIELD2),candy ? @"original_starter_or_candy_prerequisite" : @"original_starter_or_tm_prerequisite");
     _summaryTMOriginalPersonality=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_PERSONALITY,0);
     _summaryTMOriginalOtId=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_OT_ID,0);
     uint16_t name[PLAYER_NAME_LENGTH+1]; memcpy(name,[self summaryTMGuest:_summaryTMProfile+offsetof(PlayerProfile,name) size:sizeof(name)],sizeof(name));
@@ -1857,23 +1900,43 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t scratch=w2c_hgengine_HGNativeFrameBuffer(_game); [self summaryTMGuest:scratch size:sizeof(name)];
     w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_OT_NAME,scratch);
     TM_REQUIRE(!memcmp(name,[self summaryTMGuest:scratch size:sizeof(name)],(_summaryTMNameLength+1)*sizeof(uint16_t)),@"original_trainer_name_mismatch");
-    const uint16_t moves[]={MOVE_TACKLE,MOVE_GROWL,MOVE_RAZOR_LEAF,MOVE_CUT};
+    const uint16_t moves[]={MOVE_TACKLE,MOVE_GROWL,candy ? MOVE_REFLECT : MOVE_RAZOR_LEAF,MOVE_CUT};
     for (NSUInteger i=0;i<4;i++) w2c_hgengine_MonSetMoveInSlot_ResetPpUp(_game,_summaryTMMon,moves[i],i);
-    TM_REQUIRE(w2c_hgengine_Bag_AddItem(_game,_summaryTMBag,ITEM_TM17,2,HEAP_ID_FIELD2),@"private_tm_add_failed");
+    TM_REQUIRE(w2c_hgengine_Bag_AddItem(_game,_summaryTMBag,item,2,HEAP_ID_FIELD2),candy ? @"private_candy_add_failed" : @"private_tm_add_failed");
     TM_REQUIRE(w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_FRIENDSHIP,0)==70 && !w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_MOOD,0)
         && !w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_EGG_LOCATION,0) && !w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_HELD_ITEM,0)
         && w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_DP_POKEBALL,0)!=BALL_LUXURY,@"original_starter_metadata");
     for (NSUInteger i=0;i<26;i++) _summaryTMMonBaseline[i]=w2c_hgengine_GetMonData(_game,_summaryTMMon,SummaryTMAttributes[i],0);
     TM_REQUIRE(_summaryTMMonBaseline[0]==_summaryTMOriginalPersonality && _summaryTMMonBaseline[1]==_summaryTMOriginalOtId,@"original_starter_identity_changed");
+    if (candy) {
+        const uint32_t ids[]={MON_DATA_MAX_HP,MON_DATA_ATK,MON_DATA_DEF,MON_DATA_SP_ATK,MON_DATA_SP_DEF,MON_DATA_SPEED};
+        const uint32_t ivs[]={MON_DATA_HP_IV,MON_DATA_ATK_IV,MON_DATA_DEF_IV,MON_DATA_SPATK_IV,MON_DATA_SPDEF_IV,MON_DATA_SPEED_IV};
+        const uint32_t evs[]={MON_DATA_HP_EV,MON_DATA_ATK_EV,MON_DATA_DEF_EV,MON_DATA_SPATK_EV,MON_DATA_SPDEF_EV,MON_DATA_SPEED_EV};
+        const uint32_t base[]={45,49,65,49,65,45},natureIndex[]={0,0,1,3,4,2};
+        uint32_t nature=_summaryTMOriginalPersonality%25;
+        for (NSUInteger i=0;i<6;i++) {
+            uint32_t iv=w2c_hgengine_GetMonData(_game,_summaryTMMon,ivs[i],0),ev=w2c_hgengine_GetMonData(_game,_summaryTMMon,evs[i],0);
+            TM_REQUIRE(iv<=31 && ev<=255,@"original_candy_iv_ev_bounds");
+            uint32_t expected=(2*base[i]+iv+ev/4)*5/100+(i ? 5 : 15);
+            if (i && nature/5!=nature%5) {
+                if (natureIndex[i]==nature/5) expected=(uint16_t)(expected*110)/100;
+                else if (natureIndex[i]==nature%5) expected=(uint16_t)(expected*90)/100;
+            }
+            _summaryTMMonBaseline[26+i]=w2c_hgengine_GetMonData(_game,_summaryTMMon,ids[i],0);
+            TM_REQUIRE(_summaryTMMonBaseline[26+i]==expected,@"original_candy_stats_or_data_mismatch");
+        }
+        _summaryTMMonBaseline[32]=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_EXPERIENCE,0);
+        TM_REQUIRE(_summaryTMMonBaseline[32]>=135 && _summaryTMMonBaseline[32]<179,@"original_level5_experience");
+    }
     uint32_t bagSize=w2c_hgengine_Save_Bag_sizeof(_game),flagsSize=w2c_hgengine_Save_VarsFlags_sizeof(_game);
     TM_REQUIRE(bagSize && bagSize<65536 && flagsSize && flagsSize<65536,@"private_baseline_sizes");
     _summaryTMBagBaseline=[NSData dataWithBytes:[self summaryTMGuest:_summaryTMBag size:bagSize] length:bagSize];
     _summaryTMFlagsBaseline=[NSData dataWithBytes:[self summaryTMGuest:_summaryTMFlags size:flagsSize] length:flagsSize];
     _summaryTMTmOffset=bagSize;
-    for (NSUInteger i=0;i<NUM_BAG_TMS_HMS;i++) { uint32_t slot=w2c_hgengine_Bag_GetPocketSlotN(_game,_summaryTMBag,POCKET_TMHMS,i); uint16_t value[2];
+    for (NSUInteger i=0;i<(candy ? NUM_BAG_MEDICINE : NUM_BAG_TMS_HMS);i++) { uint32_t slot=w2c_hgengine_Bag_GetPocketSlotN(_game,_summaryTMBag,pocket,i); uint16_t value[2];
         memcpy(value,[self summaryTMGuest:slot size:sizeof(value)],sizeof(value));
-        if (value[0]==ITEM_TM17) { TM_REQUIRE(value[1]==2 && slot>=_summaryTMBag && slot-_summaryTMBag<=bagSize-4,@"private_tm_slot"); _summaryTMTmOffset=slot-_summaryTMBag; break; } }
-    TM_REQUIRE(_summaryTMTmOffset<bagSize,@"private_tm_slot_missing");
+        if (value[0]==item) { TM_REQUIRE(value[1]==2 && slot>=_summaryTMBag && slot-_summaryTMBag<=bagSize-4,candy ? @"private_candy_slot" : @"private_tm_slot"); _summaryTMTmOffset=slot-_summaryTMBag; break; } }
+    TM_REQUIRE(_summaryTMTmOffset<bagSize,candy ? @"private_candy_slot_missing" : @"private_tm_slot_missing");
     _summaryTMMoney=w2c_hgengine_PlayerProfile_GetMoney(_game,_summaryTMProfile); _summaryTMDexEnabled=w2c_hgengine_Pokedex_IsEnabled(_game,_summaryTMDex);
     _summaryTMDexSeen=w2c_hgengine_Pokedex_CountNationalDexSeen(_game,_summaryTMDex); _summaryTMDexOwned=w2c_hgengine_Pokedex_CountNationalDexOwned(_game,_summaryTMDex);
     _summaryTMMapSection=q->mapSection; _summaryTMFixturePrepared=YES; return YES;
@@ -1883,6 +1946,56 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSMutableDictionary *facts=[@{@"fixturePrepared":@(_summaryTMFixturePrepared),@"fixtureError":_summaryTMFixtureError ?: @"",
         @"rawPresses":@(_summaryTMRawPresses),@"rawReleases":@(_summaryTMRawReleases),@"rawRejected":@(_summaryTMRawRejected)} mutableCopy];
     if (!_summaryTMFixturePrepared) return facts;
+    if ([[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivateCheckCase"] isEqual:@"summary-candy"]) {
+        uint32_t current[26],expectedStats[6]; BOOL unchanged=YES,upgraded=YES,learned=YES,statsMatch=YES;
+        NSMutableArray *moves=[NSMutableArray new],*pp=[NSMutableArray new],*maxPP=[NSMutableArray new],*ups=[NSMutableArray new];
+        NSMutableArray *initialStats=[NSMutableArray new],*stats=[NSMutableArray new],*expected=[NSMutableArray new];
+        const uint32_t ids[]={MON_DATA_MAX_HP,MON_DATA_ATK,MON_DATA_DEF,MON_DATA_SP_ATK,MON_DATA_SP_DEF,MON_DATA_SPEED};
+        const uint32_t ivs[]={MON_DATA_HP_IV,MON_DATA_ATK_IV,MON_DATA_DEF_IV,MON_DATA_SPATK_IV,MON_DATA_SPDEF_IV,MON_DATA_SPEED_IV};
+        const uint32_t evs[]={MON_DATA_HP_EV,MON_DATA_ATK_EV,MON_DATA_DEF_EV,MON_DATA_SPATK_EV,MON_DATA_SPDEF_EV,MON_DATA_SPEED_EV};
+        const uint32_t base[]={45,49,65,49,65,45},natureIndex[]={0,0,1,3,4,2};
+        uint32_t nature=_summaryTMOriginalPersonality%25;
+        // Original CalcMonStats/ModifyStatByNature at level6, using the valid starter's actual IVs/EVs/PID.
+        for (NSUInteger i=0;i<6;i++) {
+            uint32_t iv=w2c_hgengine_GetMonData(_game,_summaryTMMon,ivs[i],0),ev=w2c_hgengine_GetMonData(_game,_summaryTMMon,evs[i],0);
+            expectedStats[i]=(2*base[i]+iv+ev/4)*6/100+(i ? 5 : 16);
+            if (i && nature/5!=nature%5) {
+                if (natureIndex[i]==nature/5) expectedStats[i]=(uint16_t)(expectedStats[i]*110)/100;
+                else if (natureIndex[i]==nature%5) expectedStats[i]=(uint16_t)(expectedStats[i]*90)/100;
+            }
+            uint32_t value=w2c_hgengine_GetMonData(_game,_summaryTMMon,ids[i],0);
+            [initialStats addObject:@(_summaryTMMonBaseline[26+i])];[stats addObject:@(value)];[expected addObject:@(expectedStats[i])];
+            statsMatch&=iv<=31 && ev<=255 && value==expectedStats[i];
+        }
+        uint32_t ppMax=w2c_hgengine_GetMoveMaxPP(_game,MOVE_RAZOR_LEAF,0);
+        for (NSUInteger i=0;i<26;i++) {
+            current[i]=w2c_hgengine_GetMonData(_game,_summaryTMMon,SummaryTMAttributes[i],0);unchanged&=current[i]==_summaryTMMonBaseline[i];
+            uint32_t value=i==6 || i==7 ? expectedStats[0] : i==8 ? 6 : _summaryTMMonBaseline[i];
+            upgraded&=current[i]==value;
+            if (i==10) value=MOVE_RAZOR_LEAF;else if (i==14 || i==22) value=ppMax;else if (i==18) value=0;
+            learned&=current[i]==value;
+        }
+        for (NSUInteger i=0;i<4;i++) {[moves addObject:@(current[10+i])];[pp addObject:@(current[14+i])];[ups addObject:@(current[18+i])];[maxPP addObject:@(current[22+i])];}
+        uint32_t experience=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_EXPERIENCE,0),friendship=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_FRIENDSHIP,0),mood=w2c_hgengine_GetMonData(_game,_summaryTMMon,MON_DATA_MOOD,0);
+        uint32_t quantity=w2c_hgengine_Bag_GetQuantity(_game,_summaryTMBag,ITEM_RARE_CANDY,HEAP_ID_FIELD2);
+        BOOL bagSame=!memcmp(_summaryTMBagBaseline.bytes,[self summaryTMGuest:_summaryTMBag size:_summaryTMBagBaseline.length],_summaryTMBagBaseline.length);
+        NSMutableData *oneConsumed=[_summaryTMBagBaseline mutableCopy];uint16_t one=1;memcpy((uint8_t *)oneConsumed.mutableBytes+_summaryTMTmOffset+2,&one,sizeof(one));
+        BOOL bagConsumed=quantity==1 && !memcmp(oneConsumed.bytes,[self summaryTMGuest:_summaryTMBag size:oneConsumed.length],oneConsumed.length);
+        BOOL preserved=!memcmp(_summaryTMFlagsBaseline.bytes,[self summaryTMGuest:_summaryTMFlags size:_summaryTMFlagsBaseline.length],_summaryTMFlagsBaseline.length)
+            && w2c_hgengine_PlayerProfile_GetMoney(_game,_summaryTMProfile)==_summaryTMMoney && w2c_hgengine_Pokedex_IsEnabled(_game,_summaryTMDex)==_summaryTMDexEnabled
+            && w2c_hgengine_Pokedex_CountNationalDexSeen(_game,_summaryTMDex)==_summaryTMDexSeen && w2c_hgengine_Pokedex_CountNationalDexOwned(_game,_summaryTMDex)==_summaryTMDexOwned;
+        BOOL effect=statsMatch && experience==179 && friendship==75 && mood==40;
+        [facts addEntriesFromDictionary:@{@"fixtureCase":@"summary-candy",@"species":@(current[2]),@"partyCount":@(w2c_hgengine_Party_GetCount(_game,w2c_hgengine_SaveArray_Party_Get(_game,w2c_hgengine_SaveData_Get(_game)))),
+            @"moves":moves,@"pp":pp,@"maxPP":maxPP,@"ppUps":ups,@"candyQuantity":@(quantity),@"friendship":@(friendship),@"mood":@(mood),
+            @"level":@(current[8]),@"experience":@(experience),@"initialExperience":@(_summaryTMMonBaseline[32]),@"hp":@(current[6]),@"maxHp":@(current[7]),
+            @"initialStats":initialStats,@"stats":stats,@"expectedStats":expected,@"statsMatchOriginalFormula":@(statsMatch),
+            @"baseline26Preserved":@(unchanged && experience==_summaryTMMonBaseline[32] && friendship==70 && !mood),
+            @"expectedCandyDelta":@(upgraded && effect),@"expectedLearningDelta":@(learned && effect),@"bagUnchanged":@(bagSame),@"bagOnlyOneCandyConsumed":@(bagConsumed),@"flagsMoneyDexUnchanged":@(preserved),
+            @"otNameProfileMatched":@YES,@"otNameLength":@(_summaryTMNameLength),@"fixtureUsesExistingStarter":@YES,
+            @"originalPersonality":@(_summaryTMOriginalPersonality),@"originalOtId":@(_summaryTMOriginalOtId),
+            @"originalIdentityPreserved":@(current[0]==_summaryTMOriginalPersonality && current[1]==_summaryTMOriginalOtId),@"mapSection":@(_summaryTMMapSection)}];
+        return facts;
+    }
     uint32_t current[26]; BOOL unchanged=YES,learned=YES;
     NSMutableArray *moves=[NSMutableArray new],*pp=[NSMutableArray new],*maxPP=[NSMutableArray new],*ups=[NSMutableArray new];
     for (NSUInteger i=0;i<26;i++) { current[i]=w2c_hgengine_GetMonData(_game,_summaryTMMon,SummaryTMAttributes[i],0); unchanged&=current[i]==_summaryTMMonBaseline[i];
@@ -1982,7 +2095,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (summaryContext) _selectedEngine=(summaryLearning ? currentSummary->phase==HG_SUMMARY_UI_FORGET_MOVE || currentSummary->phase==HG_SUMMARY_UI_FORGET_CONFIRM
         : currentSummary->page<=2 && (currentSummary->phase==HG_SUMMARY_UI_INPUT || (currentSummary->phase==HG_SUMMARY_UI_MOVE_SELECT && currentSummary->page==1))) ? 0 : _touchEngine;
     else if (battleChild) _selectedEngine=battleMenuKind ? 0 : _touchEngine;
-    else if (fieldMap || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty)))) _selectedEngine=0;
+    else if (fieldMap || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty) || HGNativePartyUIIsRareCandy(currentParty)))) _selectedEngine=0;
     else if (currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag))) _selectedEngine=HGNativeBagUIIsList(currentBag) || HGNativeBagUIIsTMHM(currentBag) || currentBag->phase==HG_BAG_UI_ITEM_MENU ? 0 : _touchEngine;
     else if (currentBattle->active && (currentBattle->mode || _automaticMenuEngine)) _selectedEngine=0;
     else if (_automaticMenuEngine) _selectedEngine=_touchEngine;
@@ -2070,7 +2183,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
 #endif
     const HGNativeBattleUIState *battleState = battleUI.bytes;
-    BOOL originalPage=summaryContext || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty)))
+    BOOL originalPage=summaryContext || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty) || HGNativePartyUIIsRareCandy(currentParty)))
         || (currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag)));
     BOOL battleScene=(battleState->active || battleChild) && !engine && !originalPage;
     uint32_t sceneWidth=originalPage ? 256 : fieldMap ? MAX(256,preferredWidth) : 256;

@@ -1509,11 +1509,396 @@ static const NSUInteger sPrivateSampleLimit=1024;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step);
     }; step();
 }
+- (void)checkSummaryCandyCase {
+    enum { C_OPEN_BAG=1,C_POCKET,C_ITEM,C_USE,C_CANCEL_TARGET,C_CANCEL_BAG,C_USE_AGAIN,C_TARGET,C_LEVEL_MESSAGE,
+        C_STATS_DIFF,C_STATS_TOTAL,C_FORGET_YES,C_FIRST_SUMMARY,C_FIFTH_CONFIRM,C_STOP_NO,C_RETRY_YES,C_SECOND_SUMMARY,
+        C_HM_RESULT,C_OLD_MOVE,C_CONFIRM_BACK,C_OLD_AGAIN,C_CONFIRM_REPLACE,C_RETURN_BAG,C_CLOSE_BAG,C_FIELD,C_FIELD_VISIBLE };
+    NSArray *requiredKeys=@[@"caseBinding",@"muted",@"completeFixture",@"otNameMatchesProfile",@"targetCancelPreservesAll",@"targetReopenRejectsStale",@"originalLevelUp",@"originalStatsDifference",@"originalStatsTotal",@"statsDisplayCoherence",@"busyInputBlocked",@"nativeFiveMoveList",@"fifthCancelled",@"continuedTrying",@"secondSummaryLifetime",@"originalHMWarning",@"hmRejected",@"originalConfirm",@"confirmBack",@"replacementRazorLeaf",@"replacementPP",@"consumedOneCandy",@"ctx8ContinuationPreservesUpgrade",@"otherStatePreserved",@"rawLeaseReleased",@"staleRejected",@"nativeSummaryButtons",@"returnedField",@"privateSave4Preserved",@"resetQuiescent",@"capturesComplete",@"nativeBagButtons",@"nativePartyButtons"];
+    NSArray *requiredPNGs=@[@"private-candy-target-cancel.png",@"private-candy-cancel-bag.png",@"private-candy-target-use.png",@"private-candy-level-up-message.png",@"private-candy-stats-difference.png",@"private-candy-stats-total.png",@"private-candy-forget-question.png",@"private-candy-first-list.png",@"private-candy-fifth-cancel.png",@"private-candy-stop-question.png",@"private-candy-retry-list.png",@"private-candy-hm-warning.png",@"private-candy-confirm.png",@"private-candy-back-to-list.png",@"private-candy-return-message.png",@"private-candy-final-bag.png",@"private-candy-field-return.png"];
+    NSMutableDictionary *checks=[NSMutableDictionary new]; for (NSString *key in requiredKeys) checks[key]=@NO;
+    NSMutableArray *events=[NSMutableArray new];
+    NSURL *support=[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
+    support=[support URLByAppendingPathComponent:@"HeartGoldOriginal" isDirectory:YES];
+    NSMutableDictionary *privateBefore=[NSMutableDictionary new];
+    for (NSString *suffix in @[@"",@".console",@".wifi",@".lock"]) {
+        NSString *name=[@"heartgold.sav" stringByAppendingString:suffix]; NSData *data=[NSData dataWithContentsOfURL:[support URLByAppendingPathComponent:name]];
+        if (data) privateBefore[name]=data;
+    }
+    [_condition lock]; sPrivateUICase=@"summary-candy"; sPrivateCaptures=[NSMutableArray new]; sPrivateObserving=NO; [_condition unlock];
+    __block NSUInteger stage=0,polls=0,lastStage=NSNotFound,lifetimes=0,stale=0,summaryClicks=0;
+    __block uint32_t stageFrame=0,lastRevision=0,firstGeneration=0,firstRevision=0,oldRevision=0,hmCalls=0,releaseReads=0;
+    __block BOOL finishing=NO,typedRelease=NO,releaseStarted=NO,busyOK=YES;
+    __block NSUInteger busySamples=0,statsChangedPixels=0; __block uint32_t targetGeneration=0,targetRevision=0,fieldFrame=0;
+    __block NSData *differencePixels=nil; NSMutableArray *statSamples=[NSMutableArray new];
+    __block NSUInteger bagClicks=0,partyClicks=0; __block uint32_t bagKinds=0,bagRoles=0,partyKinds=0,partyRoles=0;
+    NSMutableSet *capturedNames=[NSMutableSet new];
+    __block void (^step)(void);
+    BOOL (^initialUntouched)(NSDictionary *)=^BOOL(NSDictionary *facts) {
+        return [facts[@"fixturePrepared"] boolValue] && ![facts[@"fixtureError"] length] && [facts[@"baseline26Preserved"] boolValue]
+            && [facts[@"originalIdentityPreserved"] boolValue] && [facts[@"bagUnchanged"] boolValue] && [facts[@"flagsMoneyDexUnchanged"] boolValue]
+            && [facts[@"candyQuantity"] unsignedIntValue]==2 && [facts[@"level"] unsignedIntValue]==5
+            && [facts[@"experience"] isEqual:facts[@"initialExperience"]] && [facts[@"stats"] isEqual:facts[@"initialStats"]]
+            && [facts[@"friendship"] unsignedIntValue]==70 && ![facts[@"mood"] unsignedIntValue] && [facts[@"moves"] isEqual:@[@33,@45,@115,@15]];
+    };
+    BOOL (^upgraded)(NSDictionary *)=^BOOL(NSDictionary *facts) {
+        return [facts[@"fixturePrepared"] boolValue] && ![facts[@"fixtureError"] length] && [facts[@"expectedCandyDelta"] boolValue]
+            && [facts[@"originalIdentityPreserved"] boolValue] && [facts[@"bagOnlyOneCandyConsumed"] boolValue] && [facts[@"flagsMoneyDexUnchanged"] boolValue]
+            && [facts[@"candyQuantity"] unsignedIntValue]==1 && [facts[@"level"] unsignedIntValue]==6 && [facts[@"experience"] unsignedIntValue]==179
+            && [facts[@"friendship"] unsignedIntValue]==75 && [facts[@"mood"] unsignedIntValue]==40
+            && [facts[@"stats"] isEqual:facts[@"expectedStats"]] && [facts[@"moves"] isEqual:@[@33,@45,@115,@15]];
+    };
+    void (^finish)(NSString *)=^(NSString *status) {
+        if (finishing) return; finishing=YES; step=nil;
+        [self->_condition lock]; NSData *finalQA=[self->_summaryTMQAState copy]; NSDictionary *finalFacts=[self->_summaryTMFacts copy] ?: @{};
+        uint32_t boots=self->_bootCount; self->_checkResetPending=YES; [self->_condition unlock];
+        __block NSUInteger resetPolls=0; __block void (^resetStep)(void);
+        resetStep=^{
+            [self->_condition lock]; BOOL field=self->_bootCount==boots+1 && self->_fieldMapId==MAP_ROUTE_29 && self->_publishedFrames>self->_bootFrameBase;
+            BOOL clean=self->_resetQuiesced && self->_restartClean,failed=self->_failure!=nil || self->_finished;
+            NSDictionary *audio=self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
+            if (!field && !failed && ++resetPolls<200) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),resetStep); return; }
+            checks[@"resetQuiescent"]=@(field && clean); checks[@"muted"]=@([checks[@"muted"] boolValue] && [audio[@"muted"] boolValue]);
+            resetStep=nil; [self stop];
+            __block NSUInteger stopPolls=0; __block void (^stopStep)(void);
+            stopStep=^{
+                [self->_condition lock]; BOOL stopped=self->_finished && !self->_env && !self->_game && !self->_wasi; [self->_condition unlock];
+                if (!stopped && ++stopPolls<100) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),stopStep); return; }
+                checks[@"resetQuiescent"]=@([checks[@"resetQuiescent"] boolValue] && stopped);
+                BOOL preserved=privateBefore.count==4;
+                for (NSString *name in privateBefore) preserved&=[privateBefore[name] isEqualToData:[NSData dataWithContentsOfURL:[support URLByAppendingPathComponent:name]]];
+                checks[@"privateSave4Preserved"]=@(preserved);
+                NSMutableSet *files=[NSMutableSet new]; BOOL captures=sPrivateCaptures.count==requiredPNGs.count;
+                for (NSDictionary *capture in sPrivateCaptures) { captures&=[capture[@"drawn"] boolValue] && [capture[@"written"] boolValue]; [files addObject:capture[@"file"]]; }
+                captures&=[files isEqualToSet:[NSSet setWithArray:requiredPNGs]]; checks[@"capturesComplete"]=@(captures);
+                BOOL passed=[status isEqual:@"completed"]; for (NSString *key in requiredKeys) passed&=[checks[key] boolValue];
+                NSMutableArray *words=[NSMutableArray new]; if (finalQA.length==sizeof(HGSummaryLearnQAState))
+                    for (NSUInteger i=0;i<finalQA.length/4;i++) [words addObject:@(((const uint32_t *)finalQA.bytes)[i])];
+                NSDictionary *result=@{@"version":@1,@"case":@"summary-candy",@"complete":@(stopped),@"passed":@(passed),@"status":status,
+                    @"stage":@(stage),@"polls":@(polls),@"checks":checks,@"requiredKeys":requiredKeys,@"requiredPNGs":requiredPNGs,
+                    @"captures":[sPrivateCaptures copy],@"events":events,@"qaWordsBeforeReset":words,@"factsBeforeReset":finalFacts,
+                    @"summaryLifetimes":@(lifetimes),@"staleRejected":@(stale),@"summaryButtonActions":@(summaryClicks),
+                    @"privateSaveFileCount":@(privateBefore.count),@"privateRawPeripheralInputDiagnostic":@NO,@"newProductionAPI":@YES,
+                    @"peripheralInputMode":@"native-UIKit-controls",@"bagButtonActions":@(bagClicks),@"partyButtonActions":@(partyClicks),
+                    @"bagInputKinds":@(bagKinds),@"bagInputRoles":@(bagRoles),@"partyInputKinds":@(partyKinds),@"partyCandyRoles":@(partyRoles),
+                    @"statSamples":statSamples,@"statsChangedPixels":@(statsChangedPixels),@"busySamples":@(busySamples),
+                    @"scope":@"Actual native Candy target/cancel, original level5-to6 statistics, Summary cancel/HM/retry/replace and ctx8 continuation on one valid private starter. Uses the one read-only shipping HGNativePartyUIGetStats(revision) getter; Party1480/QA232 unchanged. UIKit button-sent events are not CQA accepted records. Seventeen captures; no evolution, other species/items, full-game, audible-audio or physical-device claim."};
+                NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
+                [[NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:nil]
+                    writeToURL:[folder URLByAppendingPathComponent:@"private-summary-candy-check.json"] options:NSDataWritingAtomic error:nil];
+                stopStep=nil;
+            }; stopStep();
+        }; resetStep();
+    };
+    NSString *built=[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivateCheckCase"] ?: @"default";
+    checks[@"caseBinding"]=@([built isEqual:@"summary-candy"] && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_TEST_MUTE"] isEqual:@"1"]);
+    if (![checks[@"caseBinding"] boolValue] || privateBefore.count!=4) { finish(@"case_or_private_save_binding_failed"); return; }
+    step=^{
+        [self->_condition lock]; NSData *qaData=[self->_summaryTMQAState copy],*ownerSummary=[self->_summaryUIState copy],*ownerBag=[self->_bagUIState copy],*ownerParty=[self->_partyUIState copy];
+        NSDictionary *facts=[self->_summaryTMFacts copy] ?: @{}; UIImage *hmImage=self->_summaryTMHMWarningImage; NSData *mainFrame=[self->_frame copy]; BOOL menuOpen=self->_fieldMenuOpen;
+        uint32_t map=self->_fieldMapId,reads=self->_summaryTMPadReads,bootStep=self->_summaryTMBootInputStep,bootFrame=self->_summaryTMBootInputFrame;
+        BOOL failed=self->_failure!=nil || self->_finished,accepted=self->_summaryTMRequestAccepted,rawIdle=self->_summaryTMRawIdle;
+        BOOL inputIdle=rawIdle && !self->_summaryChoicePending && !self->_summaryInputActive && !self->_bagChoicePending && !self->_bagTouchActive
+            && !self->_partyChoicePending && !self->_partyTouchActive && !self->_keys && !self->_pendingKeys && !self->_submittedKeys && !self->_touchPressed;
+        NSDictionary *audio=self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
+        const HGSummaryLearnQAState *q=qaData.length==sizeof(*q) ? qaData.bytes : NULL;
+        if (q && (q->version!=HG_SUMMARY_LEARN_QA_VERSION || q->byteSize!=sizeof(*q))) { finish(@"observer_abi_mismatch"); return; }
+        if (failed || ++polls>3600 || events.count>=1024 || [facts[@"fixtureError"] length]) {
+            finish(failed ? @"engine_failed" : [facts[@"fixtureError"] length] ? @"fixture_failed" : events.count>=1024 ? @"evidence_bound_exceeded" : @"flow_timeout"); return;
+        }
+        if (lastStage!=stage || (q && lastRevision!=q->revision)) {
+            if (lastStage!=stage) { stageFrame=q ? q->frame : 0; lastStage=stage; }
+            [events addObject:@{@"event":@"state",@"stage":@(stage),@"qaFrame":@(q ? q->frame : 0),@"revision":@(q ? q->revision : 0),
+                @"owner":@(q ? q->owner : 0),@"generation":@(q ? q->generation : 0),@"phase":@(q ? q->phase : 0),
+                @"context":@(q ? q->context : 0),@"taskState":@(q ? q->taskState : 0),@"padReads":@(reads),
+                @"bootStep":@(bootStep),@"bootInputFrame":@(bootFrame)}]; lastRevision=q ? q->revision : 0;
+        }
+        if (q && stageFrame && q->frame-stageFrame>3600) { finish(@"original_scene_or_input_handshake_timeout"); return; }
+        if (!q) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step); return; }
+        if (typedRelease) {
+            if (!inputIdle) releaseStarted=NO;
+            else if (!releaseStarted) { releaseStarted=YES; releaseReads=reads; }
+            else if (reads-releaseReads>=2) { typedRelease=NO; releaseStarted=NO; }
+        }
+        if (!inputIdle || typedRelease) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step); return; }
+        const HGNativeSummaryUIState *summary=self->_displayedSummaryUIState.length==sizeof(*summary) ? self->_displayedSummaryUIState.bytes : NULL;
+        const HGNativePartyUIState *party=self->_displayedPartyUIState.length==sizeof(*party) ? self->_displayedPartyUIState.bytes : NULL;
+        const HGNativeBagUIState *bag=self->_displayedBagUIState.length==sizeof(*bag) ? self->_displayedBagUIState.bytes : NULL;
+        BOOL summaryReady=summary && summary->active && summary->ready && HGNativeSummaryUIIsLearning(summary)
+            && ownerSummary.length==sizeof(*summary) && !memcmp(ownerSummary.bytes,summary,sizeof(*summary))
+            && q->owner==HG_SUMMARY_LEARN_SUMMARY && q->execState==2 && q->graphicsReady && q->fadeFinished;
+        BOOL bagReady=bag && bag->active && bag->ready && !bag->mode && q->owner==HG_SUMMARY_LEARN_BAG && q->phase==bag->phase
+            && q->execState==2 && q->graphicsReady && q->fadeFinished && ownerBag.length==sizeof(*bag) && !memcmp(ownerBag.bytes,bag,sizeof(*bag));
+        BOOL partyReady=party && party->active && party->ready && HGNativePartyUIIsRareCandy(party) && q->owner==HG_SUMMARY_LEARN_PARTY
+            && q->phase==party->phase && q->context==party->context && q->execState==2 && q->graphicsReady && q->fadeFinished
+            && ownerParty.length==sizeof(*party) && !memcmp(ownerParty.bytes,party,sizeof(*party));
+        BOOL candyScene=party && HGNativePartyUIIsRareCandy(party) && ownerParty.length==sizeof(*party) && !memcmp(ownerParty.bytes,party,sizeof(*party))
+            && q->owner==HG_SUMMARY_LEARN_PARTY && q->phase==party->phase && q->context==party->context;
+        if (candyScene && !party->ready) {
+            BOOL blocked=!self->_partyPanel.hidden && self->_canvas.hidden && !self->_canvas.userInteractionEnabled
+                && self->_buttons[@1].hidden && self->_buttons[@2].hidden && !self->_partyBack.enabled;
+            for (UIButton *button in self->_partyMons) blocked&=!button.enabled;
+            for (UIButton *button in self->_partyActions) blocked&=!button.enabled;
+            busySamples++;busyOK&=blocked;
+            if (!blocked) { finish(@"busy_candy_input_exposed");return; }
+        }
+        BOOL (^nativeStats)(uint32_t,uint32_t)=^BOOL(uint32_t role,uint32_t loop) {
+            if (!partyReady || party->phase!=HG_PARTY_UI_ITEM_USE || party->context!=5 || q->itemId!=50 || q->taskState!=loop
+                || party->actionCount!=1 || party->actions[0].textId!=role || self->_partyPanel.hidden || self->_partyBody.hidden
+                || self->_partyBody.image.size.width!=128 || self->_partyBody.image.size.height!=112 || ![self checkPrivatePixels:self->_partyBody.image]
+                || !self->_partyBack.hidden || !self->_canvas.hidden || self->_canvas.userInteractionEnabled
+                || !self->_buttons[@1].hidden || !self->_buttons[@2].hidden || self->_partyActions[0].hidden || !self->_partyActions[0].enabled) return NO;
+            for (UIButton *button in self->_partyMons) if (!button.hidden || button.enabled) return NO;
+            uint32_t x,y;if (!HGNativePartyUIResolveTouch(party,party->revision,party->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y) || x!=124 || y!=168) return NO;
+            NSArray *initial=facts[@"initialStats"],*expected=facts[@"expectedStats"],*statNames=@[@"HP",@"攻击",@"防御",@"特攻",@"特防",@"速度"];
+            if (initial.count!=6 || expected.count!=6 || !self->_partyBody.isAccessibilityElement) return NO;
+            BOOL difference=role==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF;NSMutableArray *parts=[NSMutableArray new];
+            for (NSUInteger i=0;i<6;i++) {
+                uint32_t old=[initial[i] unsignedIntValue],now=[expected[i] unsignedIntValue];if (now<old) return NO;
+                [parts addObject:[NSString stringWithFormat:@"%@ %@%u",statNames[i],difference ? @"+" : @"",difference ? now-old : now]];
+            }
+            if (![self->_partyBody.accessibilityLabel isEqual:difference ? @"能力变化" : @"当前能力值"]
+                || ![self->_partyBody.accessibilityValue isEqual:[parts componentsJoinedByString:@"，"]]) return NO;
+            UIImage *original=OriginalFrameRegion(mainFrame,0,0,128,112);
+            return original && [self checkGlyph:original inCard:self->_partyBody.image x:0 y:0];
+        };
+        BOOL (^nativeSummary)(void)=^BOOL {
+            if (!summaryReady || summary->mode!=2 || summary->monDataType!=1 || summary->partyCount!=1 || summary->partySlot
+                || summary->moveToLearn!=75 || summary->page!=1 || self->_summaryPanel.hidden || !self->_canvas.hidden
+                || self->_canvas.userInteractionEnabled || !self->_bagPanel.hidden || !self->_partyPanel.hidden
+                || !self->_buttons[@1].hidden || !self->_buttons[@2].hidden || self->_summaryPreview.image.size.width!=256
+                || self->_summaryPreview.image.size.height!=192 || self->_summaryContent.image.size.width!=120 || self->_summaryContent.image.size.height!=160
+                || ![self checkPrivatePixels:self->_summaryPreview.image] || ![self checkPrivatePixels:self->_summaryContent.image]
+                || self->_summaryNavigation[0].hidden || !self->_summaryNavigation[0].enabled || ![self checkSummaryRasterBack]) return NO;
+            for (NSUInteger i=2;i<5;i++) if (!self->_summaryNavigation[i].hidden) return NO;
+            NSArray *moves=facts[@"moves"],*pp=facts[@"pp"],*max=facts[@"maxPP"];
+            if (moves.count!=4 || pp.count!=4 || max.count!=4) return NO;
+            for (NSUInteger i=0;i<4;i++) {
+                const HGNativeSummaryUIMove *move=&summary->moves[i];
+                if (move->moveId!=[moves[i] unsignedIntValue] || move->pp!=[pp[i] unsignedIntValue] || move->maxPP!=[max[i] unsignedIntValue]
+                    || !move->moveId || self->_summaryMoves[i].hidden || self->_summaryMoves[i].bounds.size.height<44
+                    || self->_summaryMoveImages[i].image.size.width!=move->cropWidth || self->_summaryMoveImages[i].image.size.height!=move->cropHeight
+                    || ![self checkPrivatePixels:self->_summaryMoveImages[i].image]) return NO;
+                if (summary->phase==HG_SUMMARY_UI_FORGET_MOVE && !self->_summaryMoves[i].enabled) return NO;
+            }
+            return YES;
+        };
+        NSString *capture=nil; dispatch_block_t action=nil; HGNativeSummaryUIInput ignored;
+        UIButton *peripheralButton=nil; BOOL peripheralBag=NO; uint32_t peripheralKind=0,peripheralIndex=0,touchX=0,touchY=0; NSUInteger originStage=stage;
+        BOOL candy=partyReady && HGNativePartyUIIsRareCandy(party),target=candy && party->phase==HG_PARTY_UI_ITEM_TARGET;
+        BOOL printer=candy && party->actions[0].textId==HG_PARTY_UI_TEXT_CANDY_ACK
+            && (q->phase==HG_PARTY_UI_TM_MESSAGE || (q->phase==HG_PARTY_UI_ITEM_USE && (q->taskState==0 || q->taskState==4)))
+            && q->printerId<8 && q->printerActive && q->printerMatches && q->printerState==2 && q->printerWaiting;
+        if (printer && stage!=C_LEVEL_MESSAGE && HGNativePartyUIResolveTouch(party,party->revision,party->phase,HG_PARTY_UI_TOUCH_ACTION,0,&touchX,&touchY)) {
+            peripheralButton=self->_partyActions[0];peripheralKind=HG_PARTY_UI_TOUCH_ACTION;
+            if (stage==C_RETURN_BAG && q->context==8 && !q->itemId && [facts[@"expectedLearningDelta"] boolValue]) {
+                checks[@"ctx8ContinuationPreservesUpgrade"]=@([facts[@"bagOnlyOneCandyConsumed"] boolValue] && [facts[@"candyQuantity"] unsignedIntValue]==1);
+                if (![capturedNames containsObject:@"private-candy-return-message.png"]) capture=@"private-candy-return-message.png";
+            }
+        } else if (!stage && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && bootStep==3 && !bootFrame) {
+            checks[@"muted"]=@([audio[@"muted"] boolValue]);
+            if ([self queueSummaryTMFixture:q->revision]) stage=C_OPEN_BAG;
+        } else if (stage==C_OPEN_BAG && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && accepted && [facts[@"fixturePrepared"] boolValue]) {
+            BOOL fixture=[facts[@"fixtureCase"] isEqual:@"summary-candy"] && [facts[@"species"] unsignedIntValue]==152
+                && [facts[@"partyCount"] unsignedIntValue]==1 && initialUntouched(facts);
+            NSArray *pp=facts[@"pp"],*max=facts[@"maxPP"],*ups=facts[@"ppUps"];
+            fixture&=pp.count==4 && max.count==4 && ups.count==4;
+            for (NSUInteger i=0;i<MIN(pp.count,MIN(max.count,ups.count));i++) fixture&=[pp[i] unsignedIntValue]>0 && [pp[i] isEqual:max[i]] && ![ups[i] unsignedIntValue];
+            BOOL ot=[facts[@"otNameProfileMatched"] boolValue] && [facts[@"otNameLength"] unsignedIntValue]>=1 && [facts[@"otNameLength"] unsignedIntValue]<=7
+                && [facts[@"fixtureUsesExistingStarter"] boolValue] && [facts[@"originalIdentityPreserved"] boolValue] && [facts[@"mapSection"] unsignedIntValue];
+            checks[@"completeFixture"]=@(fixture);checks[@"otNameMatchesProfile"]=@(ot);
+            if (!fixture || !ot) { finish(@"original_candy_fixture_mismatch");return; }
+            if (!menuOpen) action=^{ [self->_menuButton sendActionsForControlEvents:UIControlEventTouchUpInside]; };
+            else if (!self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
+                for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==2 && [self->_fieldMenuElements[i] accessibilityActivate]) {stage=C_POCKET;break;}
+            }
+        } else if (stage==C_POCKET && bagReady && HGNativeBagUIIsList(bag)) {
+            for (uint32_t i=0;i<HG_BAG_UI_POCKETS;i++) if (bag->pockets[i].enabled && bag->pockets[i].pocketId==POCKET_MEDICINE
+                && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_POCKET,i,&touchX,&touchY)) {
+                peripheralButton=self->_bagPockets[i];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_POCKET;peripheralIndex=i;stage=C_ITEM;break;
+            }
+        } else if ((stage==C_ITEM || stage==C_CANCEL_BAG) && bagReady && HGNativeBagUIIsList(bag) && bag->pocketId==POCKET_MEDICINE) {
+            if (stage==C_CANCEL_BAG) {
+                checks[@"targetCancelPreservesAll"]=@(initialUntouched(facts) && (!party || !party->active));
+                if (![checks[@"targetCancelPreservesAll"] boolValue]) {finish(@"candy_cancel_changed_state");return;}
+                capture=@"private-candy-cancel-bag.png";
+            }
+            for (uint32_t i=0;i<MIN(bag->visibleCount,HG_BAG_UI_ITEMS);i++) if (bag->items[i].enabled && bag->items[i].itemId==50 && bag->items[i].quantity==2
+                && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_ITEM,i,&touchX,&touchY)) {
+                peripheralButton=self->_bagItems[i];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_ITEM;peripheralIndex=i;stage=stage==C_ITEM ? C_USE : C_USE_AGAIN;break;
+            }
+        } else if ((stage==C_USE || stage==C_USE_AGAIN) && bagReady && bag->phase==HG_BAG_UI_ITEM_MENU && bag->selectedItemId==50) {
+            for (uint32_t i=0;i<MIN(bag->actionCount,HG_BAG_UI_ACTIONS);i++) if (bag->actions[i].enabled && !bag->actions[i].actionId
+                && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_ACTION,i,&touchX,&touchY)) {
+                peripheralButton=self->_bagActions[i];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_ACTION;peripheralIndex=i;stage=stage==C_USE ? C_CANCEL_TARGET : C_TARGET;break;
+            }
+        } else if ((stage==C_CANCEL_TARGET || stage==C_TARGET) && target && q->context==5 && q->itemId==50 && !q->partyBusy) {
+            if (!initialUntouched(facts)) {finish(@"candy_target_baseline_changed");return;}
+            if (stage==C_CANCEL_TARGET && HGNativePartyUIResolveTouch(party,party->revision,party->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&touchX,&touchY)) {
+                targetGeneration=q->generation;targetRevision=party->revision;capture=@"private-candy-target-cancel.png";
+                peripheralButton=self->_partyBack;peripheralKind=HG_PARTY_UI_TOUCH_CANCEL;stage=C_CANCEL_BAG;
+            } else if (stage==C_TARGET && HGNativePartyUIResolveTouch(party,party->revision,party->phase,HG_PARTY_UI_TOUCH_MON,0,&touchX,&touchY)) {
+                uint32_t ignoredX,ignoredY;
+                BOOL fresh=q->generation>targetGeneration && party->revision>targetRevision
+                    && !HGNativePartyUIResolveTouch(party,targetRevision,HG_PARTY_UI_ITEM_TARGET,HG_PARTY_UI_TOUCH_MON,0,&ignoredX,&ignoredY);
+                checks[@"targetReopenRejectsStale"]=@(fresh);if (!fresh) {finish(@"old_candy_target_accepted");return;}stale++;
+                capture=@"private-candy-target-use.png";peripheralButton=self->_partyMons[0];peripheralKind=HG_PARTY_UI_TOUCH_MON;stage=C_LEVEL_MESSAGE;
+            }
+        } else if (stage==C_LEVEL_MESSAGE && printer && q->context==5 && q->itemId==50 && q->phase==HG_PARTY_UI_ITEM_USE && q->taskState==0
+            && HGNativePartyUIResolveTouch(party,party->revision,party->phase,HG_PARTY_UI_TOUCH_ACTION,0,&touchX,&touchY)) {
+            checks[@"originalLevelUp"]=@(upgraded(facts));
+            if (![checks[@"originalLevelUp"] boolValue]) {finish(@"original_candy_level_delta_mismatch");return;}
+            capture=@"private-candy-level-up-message.png";peripheralButton=self->_partyActions[0];peripheralKind=HG_PARTY_UI_TOUCH_ACTION;stage=C_STATS_DIFF;
+        } else if (stage==C_STATS_DIFF && nativeStats(HG_PARTY_UI_TEXT_CANDY_STATS_DIFF,1)) {
+            if (!upgraded(facts)) {finish(@"candy_stats_difference_delta_mismatch");return;}
+            CGImageRef body=self->_partyBody.image.CGImage;
+            if (CGImageGetBytesPerRow(body)!=512) {finish(@"stats_pixel_stride_mismatch");return;}
+            differencePixels=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(body)));
+            checks[@"originalStatsDifference"]=@(differencePixels.length==128*112*4);
+            if (![checks[@"originalStatsDifference"] boolValue]) {finish(@"stats_pixel_size_mismatch");return;}
+            [statSamples addObject:@{@"role":@(party->actions[0].textId),@"revision":@(party->revision),@"phase":@(party->phase),
+                @"loop":@(q->taskState),@"displayFrame":@(sPrivateDisplayFrame),@"qaFrame":@(q->frame),@"stats":facts[@"stats"],@"expectedStats":facts[@"expectedStats"]}];
+            capture=@"private-candy-stats-difference.png";peripheralButton=self->_partyActions[0];peripheralKind=HG_PARTY_UI_TOUCH_ACTION;stage=C_STATS_TOTAL;
+            HGNativePartyUIResolveTouch(party,party->revision,party->phase,peripheralKind,0,&touchX,&touchY);
+        } else if (stage==C_STATS_TOTAL && nativeStats(HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL,2)) {
+            if (!upgraded(facts)) {finish(@"candy_stats_total_delta_mismatch");return;}
+            CGImageRef body=self->_partyBody.image.CGImage;NSData *total=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(body)));
+            BOOL geometry=CGImageGetBytesPerRow(body)==512 && total.length==differencePixels.length && total.length==128*112*4;
+            if (geometry) for (NSUInteger y=8;y<104;y++) for (NSUInteger x=88;x<120;x++)
+                if (memcmp((const uint8_t *)differencePixels.bytes+(y*128+x)*4,(const uint8_t *)total.bytes+(y*128+x)*4,4)) statsChangedPixels++;
+            checks[@"originalStatsTotal"]=@(geometry);checks[@"statsDisplayCoherence"]=@(geometry && statsChangedPixels>=8);
+            if (![checks[@"statsDisplayCoherence"] boolValue]) {finish(@"original_stats_pages_not_distinct");return;}
+            [statSamples addObject:@{@"role":@(party->actions[0].textId),@"revision":@(party->revision),@"phase":@(party->phase),
+                @"loop":@(q->taskState),@"displayFrame":@(sPrivateDisplayFrame),@"qaFrame":@(q->frame),@"stats":facts[@"stats"],@"expectedStats":facts[@"expectedStats"],@"changedNumberPixels":@(statsChangedPixels)}];
+            capture=@"private-candy-stats-total.png";peripheralButton=self->_partyActions[0];peripheralKind=HG_PARTY_UI_TOUCH_ACTION;stage=C_FORGET_YES;
+            HGNativePartyUIResolveTouch(party,party->revision,party->phase,peripheralKind,0,&touchX,&touchY);
+        } else if ((stage==C_FORGET_YES || stage==C_STOP_NO || stage==C_RETRY_YES) && candy && q->phase==HG_PARTY_UI_TM_YES_NO
+            && q->context==(stage==C_FORGET_YES ? 5u : 8u) && q->itemId==(stage==C_FORGET_YES ? 50u : 0u) && q->moveId==75
+            && q->yesNoReady && q->yesNoActive==1 && q->yesNoResult==3 && !q->yesNoTimer
+            && q->yesNoX==25 && q->yesNoY==10 && q->yesNoWidth==6 && q->yesNoHeight==4) {
+            uint32_t row=stage==C_STOP_NO ? 1 : 0;
+            if (!upgraded(facts) || (stage==C_STOP_NO && q->selectedMoveSlot!=4)) {finish(@"candy_cancel_upgrade_changed");return;}
+            if (HGNativePartyUIResolveTouch(party,party->revision,party->phase,HG_PARTY_UI_TOUCH_ACTION,row,&touchX,&touchY)) {
+                if (touchX!=q->yesHitX[row] || touchY!=q->yesHitY[row] || touchX!=224 || touchY!=96+32*row) {finish(@"candy_yes_no_geometry_mismatch");return;}
+                if (stage==C_STOP_NO) {checks[@"fifthCancelled"]=@YES;capture=@"private-candy-stop-question.png";}
+                else if (stage==C_FORGET_YES) capture=@"private-candy-forget-question.png";
+                peripheralButton=self->_partyActions[row];peripheralKind=HG_PARTY_UI_TOUCH_ACTION;peripheralIndex=row;stage++;
+            }
+        } else if ((stage==C_FIRST_SUMMARY || stage==C_SECOND_SUMMARY) && summaryReady && summary->phase==HG_SUMMARY_UI_FORGET_MOVE) {
+            BOOL native=nativeSummary() && summary->moveMask==31 && !self->_summaryNavigation[5].hidden && self->_summaryNavigation[5].enabled
+                && [self checkPrivatePixels:self->_summaryNavigation[5].configuration.image] && self->_partyBody.hidden && !self->_partyBody.accessibilityValue.length;
+            if (!native || !upgraded(facts)) {finish(@"native_candy_five_move_list_mismatch");return;}
+            checks[@"nativeFiveMoveList"]=@(native && (!lifetimes || [checks[@"nativeFiveMoveList"] boolValue]));lifetimes++;
+            if (stage==C_FIRST_SUMMARY) {
+                firstGeneration=q->generation;firstRevision=summary->revision;capture=@"private-candy-first-list.png";
+                if (HGNativeSummaryUIResolveInput(summary,summary->revision,summary->phase,HG_SUMMARY_UI_INPUT_MOVE,5,&ignored)) {finish(@"invalid_fifth_index_accepted");return;}stale++;
+                action=^{[self->_summaryNavigation[5] sendActionsForControlEvents:UIControlEventTouchUpInside];};stage=C_FIFTH_CONFIRM;
+            } else {
+                if (q->generation<=firstGeneration || lifetimes!=2 || HGNativeSummaryUIResolveInput(summary,firstRevision,HG_SUMMARY_UI_FORGET_MOVE,HG_SUMMARY_UI_INPUT_MOVE,4,&ignored)) {finish(@"old_candy_summary_owner_accepted");return;}
+                stale++;checks[@"continuedTrying"]=@YES;checks[@"secondSummaryLifetime"]=@YES;hmCalls=q->hmCalls;
+                capture=@"private-candy-retry-list.png";action=^{[self->_summaryMoves[3] sendActionsForControlEvents:UIControlEventTouchUpInside];};stage=C_HM_RESULT;
+            }
+        } else if (stage==C_FIFTH_CONFIRM && summaryReady && summary->phase==HG_SUMMARY_UI_FORGET_MOVE && summary->moveSlot==4
+            && !self->_summaryNavigation[1].hidden && self->_summaryNavigation[1].enabled) {
+            if (!nativeSummary() || !upgraded(facts) || HGNativeSummaryUIResolveInput(summary,firstRevision,HG_SUMMARY_UI_FORGET_MOVE,HG_SUMMARY_UI_INPUT_MOVE,4,&ignored)) {finish(@"candy_fifth_or_stale_failed");return;}
+            stale++;capture=@"private-candy-fifth-cancel.png";action=^{[self->_summaryNavigation[1] sendActionsForControlEvents:UIControlEventTouchUpInside];};stage=C_STOP_NO;
+        } else if (stage==C_HM_RESULT && summaryReady && summary->phase==HG_SUMMARY_UI_FORGET_MOVE && summary->moveSlot==3 && q->hmCalls==hmCalls+1) {
+            BOOL warning=nativeSummary() && q->hmOwner==q->data && q->hmMoveSlot==3 && summary->moves[3].moveId==15
+                && q->hmWarning.pixelBuffer && q->hmWarning.tileWidth==15 && q->hmWarning.tileHeight==10 && q->hmWarning.engine==1 && !q->hmWarning.clearColor
+                && hmImage.size.width==120 && hmImage.size.height==80 && [self checkPrivatePixels:hmImage] && [self checkGlyph:hmImage inCard:self->_summaryContent.image x:0 y:80];
+            checks[@"originalHMWarning"]=@(warning);checks[@"hmRejected"]=@(warning && upgraded(facts));
+            if (![checks[@"hmRejected"] boolValue]) {finish(@"original_candy_hm_warning_mismatch");return;}
+            capture=@"private-candy-hm-warning.png";stage=C_OLD_MOVE;
+        } else if ((stage==C_OLD_MOVE || stage==C_OLD_AGAIN) && summaryReady && summary->phase==HG_SUMMARY_UI_FORGET_MOVE && self->_summaryMoves[0].enabled) {
+            if (!nativeSummary() || !upgraded(facts)) {finish(@"candy_move_before_confirmation_mismatch");return;}
+            if (stage==C_OLD_AGAIN) {checks[@"confirmBack"]=@YES;capture=@"private-candy-back-to-list.png";}
+            oldRevision=summary->revision;action=^{[self->_summaryMoves[0] sendActionsForControlEvents:UIControlEventTouchUpInside];};stage++;
+        } else if ((stage==C_CONFIRM_BACK || stage==C_CONFIRM_REPLACE) && summaryReady && summary->phase==HG_SUMMARY_UI_FORGET_CONFIRM && summary->moveSlot==0) {
+            BOOL confirm=nativeSummary() && !self->_summaryNavigation[1].hidden && self->_summaryNavigation[1].enabled && self->_summaryNavigation[5].hidden
+                && [self checkPrivatePixels:self->_summaryNavigation[1].configuration.image];
+            if (!confirm || !upgraded(facts) || HGNativeSummaryUIResolveInput(summary,oldRevision,HG_SUMMARY_UI_FORGET_MOVE,HG_SUMMARY_UI_INPUT_MOVE,0,&ignored)) {finish(@"candy_confirm_or_stale_mismatch");return;}
+            stale++;checks[@"originalConfirm"]=@YES;
+            if (stage==C_CONFIRM_BACK) {capture=@"private-candy-confirm.png";action=^{[self->_summaryNavigation[0] sendActionsForControlEvents:UIControlEventTouchUpInside];};}
+            else action=^{[self->_summaryNavigation[1] sendActionsForControlEvents:UIControlEventTouchUpInside];};
+            stage++;
+        } else if (stage==C_RETURN_BAG && bagReady && HGNativeBagUIIsList(bag)) {
+            NSArray *pp=facts[@"pp"],*max=facts[@"maxPP"],*ups=facts[@"ppUps"];
+            BOOL learned=[facts[@"expectedLearningDelta"] boolValue] && [facts[@"moves"] isEqual:@[@75,@45,@115,@15]] && pp.count==4 && max.count==4 && ups.count==4
+                && [pp[0] unsignedIntValue]==25 && [max[0] unsignedIntValue]==25 && ![ups[0] unsignedIntValue];
+            BOOL others=[facts[@"flagsMoneyDexUnchanged"] boolValue] && [facts[@"originalIdentityPreserved"] boolValue] && [facts[@"bagOnlyOneCandyConsumed"] boolValue]
+                && [facts[@"level"] unsignedIntValue]==6 && [facts[@"experience"] unsignedIntValue]==179 && [facts[@"friendship"] unsignedIntValue]==75 && [facts[@"mood"] unsignedIntValue]==40;
+            BOOL item=NO;for (NSUInteger i=0;i<MIN(bag->visibleCount,HG_BAG_UI_ITEMS);i++) if (bag->items[i].itemId==50 && bag->items[i].quantity==1
+                && self->_bagItems[i].enabled && [self checkBagItem:i state:bag]) item=YES;
+            checks[@"replacementRazorLeaf"]=@(learned);checks[@"replacementPP"]=@(learned);checks[@"otherStatePreserved"]=@(others);
+            checks[@"consumedOneCandy"]=@(item && [facts[@"candyQuantity"] unsignedIntValue]==1);
+            if (!learned || !others || !item || ![checks[@"ctx8ContinuationPreservesUpgrade"] boolValue] || (summary && summary->active) || (party && party->active)) {finish(@"original_candy_learning_delta_mismatch");return;}
+            capture=@"private-candy-final-bag.png";stage=C_CLOSE_BAG;
+        } else if (stage==C_CLOSE_BAG && bagReady && HGNativeBagUIIsList(bag)) {
+            if (HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_CANCEL,0,&touchX,&touchY)) {
+                peripheralButton=self->_bagNavigation[0];peripheralBag=YES;peripheralKind=HG_BAG_UI_TOUCH_CANCEL;stage=C_FIELD;
+            }
+        } else if (stage==C_FIELD && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && (!bag || !bag->active) && (!party || !party->active) && (!summary || !summary->active)) {
+            if (menuOpen) [self toggleMenu];fieldFrame=sPrivateDisplayFrame;stage=C_FIELD_VISIBLE;
+        } else if (stage==C_FIELD_VISIBLE && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && !menuOpen && sPrivateDisplayFrame>fieldFrame
+            && !self->_canvas.hidden && self->_canvas.userInteractionEnabled && self->_partyPanel.hidden && self->_bagPanel.hidden && self->_summaryPanel.hidden
+            && self->_battleMenuPanel.hidden && self->_fieldMenu.hidden && self->_fieldMenuShade.hidden && !self->_joystick.hidden && self->_joystick.userInteractionEnabled
+            && !self->_menuButton.hidden && !self->_buttons[@1].hidden && !self->_buttons[@2].hidden && [self->_menuButton.currentTitle isEqual:@"菜单"]
+            && !self->_menuButton.titleLabel.hidden && self->_menuButton.titleLabel.alpha==1) {
+            [self->_condition lock];NSData *geometry=[self->_geometryState copy];[self->_condition unlock];const uint32_t *scene=geometry.bytes;CGImageRef image=self->_canvas.image.CGImage;
+            if (geometry.length==8*sizeof(uint32_t) && scene[0] && scene[1] && image && [self checkPrivatePixels:self->_canvas.image]
+                && CGImageGetWidth(image)>256 && self->_displayedWidth==CGImageGetWidth(image)) {
+                checks[@"rawLeaseReleased"]=@(rawIdle && inputIdle && !typedRelease && ![facts[@"rawPresses"] unsignedIntValue] && ![facts[@"rawReleases"] unsignedIntValue] && ![facts[@"rawRejected"] unsignedIntValue]);
+                checks[@"nativeBagButtons"]=@(bagClicks>=6 && (bagKinds&0x27)==0x27);checks[@"nativePartyButtons"]=@(partyClicks>=8 && (partyKinds&7)==7 && (partyRoles&31)==31);
+                checks[@"busyInputBlocked"]=@(busySamples>0 && busyOK);checks[@"staleRejected"]=@(stale>=5);checks[@"nativeSummaryButtons"]=@(summaryClicks==7);checks[@"returnedField"]=@YES;
+                [events addObject:@{@"event":@"field-visible",@"displayFrame":@(sPrivateDisplayFrame),@"afterMenuCloseFrame":@(fieldFrame),
+                    @"canvasWidth":@(CGImageGetWidth(image)),@"vertices":@(scene[0]),@"polygons":@(scene[1])}];
+                capture=@"private-candy-field-return.png";stage=99;
+            }
+        }
+        if (peripheralButton) {
+            NSString *selector=peripheralBag ? (peripheralKind==HG_BAG_UI_TOUCH_CANCEL ? @"bagNavigate:" : @"bagPressed:")
+                : peripheralKind==HG_PARTY_UI_TOUCH_MON ? @"partyMonPressed:" : peripheralKind==HG_PARTY_UI_TOUCH_CANCEL ? @"partyBackPressed:" : @"partyActionPressed:";
+            CGPoint point=[peripheralButton convertPoint:CGPointMake(CGRectGetMidX(peripheralButton.bounds),CGRectGetMidY(peripheralButton.bounds)) toView:self.view];
+            UIView *hit=[self.view hitTest:point withEvent:nil];
+            if (peripheralButton.hidden || !peripheralButton.enabled || !peripheralButton.window
+                || ![[peripheralButton actionsForTarget:self forControlEvent:UIControlEventTouchUpInside] containsObject:selector]
+                || (hit!=peripheralButton && ![hit isDescendantOfView:peripheralButton])) { finish(@"native_peripheral_button_not_reachable"); return; }
+            if (!peripheralBag && party->phase==HG_PARTY_UI_TM_YES_NO) {
+                UIImage *glyph=peripheralButton.configuration.image;
+                if (glyph.size.width!=48 || glyph.size.height!=32 || ![self checkPrivatePixels:glyph]) { finish(@"native_original_yes_no_glyph_missing"); return; }
+            }
+        }
+        if (capture) {
+            if (![self checkPrivateCapture:capture kind:@"UIKit-summary-candy" image:nil]) { finish(@"capture_failed"); return; }
+            [capturedNames addObject:capture];
+        }
+        if (peripheralButton) {
+            uint32_t role=peripheralBag ? (peripheralKind==HG_BAG_UI_TOUCH_ACTION ? bag->actions[peripheralIndex].actionId : 0)
+                : peripheralKind==HG_PARTY_UI_TOUCH_ACTION ? party->actions[peripheralIndex].textId : 0;
+            NSMutableArray *words=[NSMutableArray new];for (NSUInteger i=0;i<sizeof(*q)/4;i++) [words addObject:@(((const uint32_t *)q)[i])];
+            [events addObject:@{@"event":@"native-peripheral-button-sent",@"stage":@(originStage),@"nextStage":@(stage),@"owner":@(q->owner),@"generation":@(q->generation),
+                @"observerRevision":@(q->revision),@"nativeRevision":@(peripheralBag ? bag->revision : party->revision),@"phase":@(q->phase),
+                @"kind":@(peripheralKind),@"index":@(peripheralIndex),@"role":@(role),@"ready":@(peripheralBag ? bag->ready : party->ready),
+                @"padReads":@(reads),@"hit":@[@(touchX),@(touchY)],@"qaWords":words}];
+            [peripheralButton sendActionsForControlEvents:UIControlEventTouchUpInside];
+            if (peripheralBag) { bagClicks++;bagKinds|=1u<<peripheralKind;if (role>=HG_BAG_UI_ACTION_TM_ACK && role<=HG_BAG_UI_ACTION_TM_NO) bagRoles|=1u<<(role-HG_BAG_UI_ACTION_TM_ACK); }
+            else { partyClicks++;partyKinds|=1u<<peripheralKind;if (role>=HG_PARTY_UI_TEXT_CANDY_ACK && role<=HG_PARTY_UI_TEXT_CANDY_NO) partyRoles|=1u<<(role-HG_PARTY_UI_TEXT_CANDY_ACK); }
+            typedRelease=YES;releaseStarted=NO;
+        }
+        if (action) {
+            BOOL typed=summaryReady && (stage==C_FIFTH_CONFIRM || stage==C_STOP_NO || stage==C_HM_RESULT
+                || stage==C_CONFIRM_BACK || stage==C_OLD_AGAIN || stage==C_CONFIRM_REPLACE || stage==C_RETURN_BAG);
+            action(); if (typed) { summaryClicks++; typedRelease=YES; releaseStarted=NO; }
+        }
+        if (stage==99) {finish(@"completed");return;}
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step);
+    }; step();
+}
 #endif
 - (void)checkControls {
     NSString *privateCase=NSProcessInfo.processInfo.environment[@"HEARTGOLD_CHECK_CASE"];
 #ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
     if ([privateCase isEqual:@"summary-tm"]) { [self checkSummaryTMCase]; return; }
+    if ([privateCase isEqual:@"summary-candy"]) { [self checkSummaryCandyCase]; return; }
 #endif
     if ([privateCase isEqual:@"field-potion"] || [privateCase isEqual:@"forced-switch"] || [privateCase isEqual:@"learn-moves"]) { [self checkPrivateNativeCase:privateCase]; return; }
     NSMutableDictionary *report = [NSMutableDictionary new];

@@ -8,6 +8,9 @@
 #include "constants/pokemon.h"
 #include <nitro/os/native_reset.h>
 #include <setjmp.h>
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+#define HG_SUMMARY_TM_LEARN_CHECK
+#endif
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
 #include "native_bag_ui.h"
 #include "constants/items.h"
@@ -258,6 +261,9 @@ typedef struct TMRequest {
     Choice choice;
     HGSummaryLearnQAState owner;
     u32 producer,sequence,stage,advance;
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+    u32 role;
+#endif
 } TMRequest;
 static TMRequest tmPending,tmLeaseRequest;
 static u32 tmSequence,tmTypedAccepted,tmTypedRejected,tmTypedReleased,tmTypedSettled,tmPartyReturnAcks;
@@ -282,8 +288,36 @@ static BOOL tmPromptReady(const HGSummaryLearnQAState *qa,u32 row) {
 static BOOL tmPrinterReady(const HGSummaryLearnQAState *qa) {
     return qa->printerId<8 && qa->printerActive && qa->printerMatches && qa->printerState==2 && qa->printerWaiting;
 }
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+static void candyStatsEvidence(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativePartyUIState *party);
+static BOOL candyPeripheralReady(const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,
+    const HGNativePartyUIState *party,u32 producer,u32 kind,u32 index) {
+    if (qa->execState!=2 || !qa->graphicsReady || !qa->fadeFinished) return FALSE;
+    if (producer==OWNER_BAG) return qa->owner==HG_SUMMARY_LEARN_BAG && bag->active && bag->ready
+        && qa->phase==bag->phase && (HGNativeBagUIIsList(bag) || bag->phase==HG_BAG_UI_ITEM_MENU);
+    BOOL owner=(qa->context==5 && qa->itemId==ITEM_RARE_CANDY)
+        || (qa->context==8 && qa->itemId==ITEM_NONE && qa->moveId==MOVE_RAZOR_LEAF);
+    if (producer!=OWNER_PARTY || qa->owner!=HG_SUMMARY_LEARN_PARTY || !owner || qa->partyBusy
+        || !party->active || !party->ready || qa->phase!=party->phase || qa->context!=party->context
+        || !HGNativePartyUIIsRareCandy(party)) return FALSE;
+    if (party->phase==HG_PARTY_UI_ITEM_TARGET) return qa->context==5 && !qa->partySlot
+        && ((kind==HG_PARTY_UI_TOUCH_MON && !index) || (kind==HG_PARTY_UI_TOUCH_CANCEL && !index));
+    if (kind!=HG_PARTY_UI_TOUCH_ACTION || index>=party->actionCount) return FALSE;
+    if (party->phase==HG_PARTY_UI_TM_YES_NO) return qa->moveId==MOVE_RAZOR_LEAF && tmPromptReady(qa,index);
+    if (index || party->actionCount!=1) return FALSE;
+    u32 role=party->actions[0].textId;
+    if (party->phase==HG_PARTY_UI_ITEM_USE && qa->context==5
+        && ((qa->taskState==1 && role==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF)
+            || (qa->taskState==2 && role==HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL))) return TRUE;
+    return role==HG_PARTY_UI_TEXT_CANDY_ACK && tmPrinterReady(qa)
+        && (party->phase==HG_PARTY_UI_TM_MESSAGE || (party->phase==HG_PARTY_UI_ITEM_USE && (qa->taskState==0 || qa->taskState==4)));
+}
+#endif
 static BOOL tmPeripheralReady(const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,
     const HGNativePartyUIState *party,u32 producer,u32 kind,u32 index) {
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+    return candyPeripheralReady(qa,bag,party,producer,kind,index);
+#else
     if (qa->execState!=2 || !qa->graphicsReady || !qa->fadeFinished) return FALSE;
     if (producer==OWNER_BAG) {
         if (qa->owner!=HG_SUMMARY_LEARN_BAG || !bag->active || !bag->ready || qa->phase!=bag->phase) return FALSE;
@@ -303,15 +337,30 @@ static BOOL tmPeripheralReady(const HGSummaryLearnQAState *qa,const HGNativeBagU
     if (kind!=HG_PARTY_UI_TOUCH_ACTION) return FALSE;
     if (party->phase==HG_PARTY_UI_TM_MESSAGE) return !index && tmPrinterReady(qa);
     return party->phase==HG_PARTY_UI_TM_YES_NO && tmPromptReady(qa,index);
+#endif
 }
 static void tmTypedEvidence(Capture *capture,const TMRequest *request,const char *event,u32 reads,BOOL changed,u32 x,u32 y) {
     const HGSummaryLearnQAState *qa=&request->owner;
-    printf("Summary TM typed evidence: {\"event\":\"%s\",\"sequence\":%u,\"stage\":%u,\"advance\":%u,\"producer\":%u,\"revision\":%u,\"phase\":%u,\"kind\":%u,\"index\":%u,\"owner\":%u,\"generation\":%u,\"qaRevision\":%u,\"manager\":%u,\"data\":%u,\"execState\":%u,\"context\":%u,\"itemId\":%u,\"moveId\":%u,\"partySlot\":%u,\"selectedMoveSlot\":%u,\"taskState\":%u,\"taskMatches\":%u,\"printerId\":%u,\"printerActive\":%u,\"printerMatches\":%u,\"printerState\":%u,\"printerWaiting\":%u,\"yesNoActive\":%u,\"yesNoReady\":%u,\"yesNoResult\":%u,\"yesNoTimer\":%u,\"yesNoX\":%u,\"yesNoY\":%u,\"yesNoWidth\":%u,\"yesNoHeight\":%u,\"yesHitX\":[%u,%u],\"yesHitY\":[%u,%u],\"partyBusy\":%u,\"graphicsReady\":%u,\"fadeFinished\":%u,\"padReads\":%u,\"invalidated\":%u,\"keys\":0,\"touch\":[%u,%u,%u]}\n",
+    printf(
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+        "Summary Candy typed evidence: "
+#else
+        "Summary TM typed evidence: "
+#endif
+        "{\"event\":\"%s\",\"sequence\":%u,\"stage\":%u,\"advance\":%u,\"producer\":%u,\"revision\":%u,\"phase\":%u,\"kind\":%u,\"index\":%u,\"owner\":%u,\"generation\":%u,\"qaRevision\":%u,\"manager\":%u,\"data\":%u,\"execState\":%u,\"context\":%u,\"itemId\":%u,\"moveId\":%u,\"partySlot\":%u,\"selectedMoveSlot\":%u,\"taskState\":%u,\"taskMatches\":%u,\"printerId\":%u,\"printerActive\":%u,\"printerMatches\":%u,\"printerState\":%u,\"printerWaiting\":%u,\"yesNoActive\":%u,\"yesNoReady\":%u,\"yesNoResult\":%u,\"yesNoTimer\":%u,\"yesNoX\":%u,\"yesNoY\":%u,\"yesNoWidth\":%u,\"yesNoHeight\":%u,\"yesHitX\":[%u,%u],\"yesHitY\":[%u,%u],\"partyBusy\":%u,\"graphicsReady\":%u,\"fadeFinished\":%u,\"padReads\":%u,\"invalidated\":%u,\"keys\":0,\"touch\":[%u,%u,%u]"
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+        ",\"role\":%u"
+#endif
+        "}\n",
         event,request->sequence,request->stage,request->advance,request->producer,request->choice.revision,request->choice.phase,request->choice.kind,request->choice.index,
         qa->owner,qa->generation,qa->revision,qa->manager,qa->data,qa->execState,qa->context,qa->itemId,qa->moveId,qa->partySlot,qa->selectedMoveSlot,qa->taskState,qa->tmTaskMatches,qa->printerId,
         qa->printerActive,qa->printerMatches,qa->printerState,qa->printerWaiting,qa->yesNoActive,qa->yesNoReady,qa->yesNoResult,qa->yesNoTimer,
         qa->yesNoX,qa->yesNoY,qa->yesNoWidth,qa->yesNoHeight,qa->yesHitX[0],qa->yesHitX[1],qa->yesHitY[0],qa->yesHitY[1],
-        qa->partyBusy,qa->graphicsReady,qa->fadeFinished,reads,changed,!strcmp(event,"accepted"),x,y);
+        qa->partyBusy,qa->graphicsReady,qa->fadeFinished,reads,changed,!strcmp(event,"accepted"),x,y
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+        ,request->role
+#endif
+        );
     (void)capture;
 }
 static void tmPeripheralLeaseEvent(Capture *capture,const char *event,u32 reads,BOOL changed) {
@@ -328,6 +377,10 @@ static void tmQueue(Capture *capture,const HGSummaryLearnQAState *qa,const HGNat
     QA_CHECK(producer==OWNER_BAG ? HGNativeBagUIResolveTouch(bag,choice.revision,choice.phase,kind,index,&x,&y)
         : HGNativePartyUIResolveTouch(party,choice.revision,choice.phase,kind,index,&x,&y));
     tmPending=(TMRequest){.choice=choice,.owner=*qa,.producer=producer,.sequence=++tmSequence,.stage=stage,.advance=advance};
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+    tmPending.role=producer==OWNER_PARTY ? party->actions[kind==HG_PARTY_UI_TOUCH_ACTION ? index : 0].textId
+        : kind==HG_BAG_UI_TOUCH_ACTION ? bag->actions[index].actionId : 0;
+#endif
     tmTypedEvidence(capture,&tmPending,"queued",HGNativeInputPadReads(capture->env),FALSE,0,0);
 }
 static BOOL tmTakeChoice(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,const HGNativePartyUIState *party) {
@@ -342,12 +395,21 @@ static BOOL tmTakeChoice(Capture *capture,const HGSummaryLearnQAState *qa,const 
     if (!resolved) {
         tmTypedEvidence(capture,&request,"rejected",HGNativeInputPadReads(capture->env),TRUE,0,0); ++tmTypedRejected; return TRUE;
     }
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+    if (request.producer==OWNER_PARTY && (request.role==HG_PARTY_UI_TEXT_CANDY_STATS_DIFF || request.role==HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL))
+        candyStatsEvidence(capture,qa,party);
+#endif
     tmLeaseRequest=request; tmLeaseQARevision=qa->revision;
     pulse(capture,request.producer,request.choice.revision,request.choice.phase,(HGNativeSummaryUIInput){.touchPressed=1,.touchX=x,.touchY=y});
     tmTypedEvidence(capture,&request,"accepted",leaseReads,FALSE,x,y); ++tmTypedAccepted;
     if (request.producer==OWNER_BAG && bag->phase==HG_BAG_UI_TM_MESSAGE && qa->taskState==3 && !request.choice.index)
         tmBagYesChoice=request.choice;
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+    if (request.producer==OWNER_PARTY && stage>=TM_STOP_NO
+        && (party->phase==HG_PARTY_UI_TM_MESSAGE || (party->phase==HG_PARTY_UI_ITEM_USE && qa->taskState==4))) ++tmPartyReturnAcks;
+#else
     if (request.producer==OWNER_PARTY && party->phase==HG_PARTY_UI_TM_MESSAGE && stage>=TM_STOP_NO) ++tmPartyReturnAcks;
+#endif
     if (request.advance) nextStage();
     return TRUE;
 }
@@ -620,10 +682,322 @@ static void TMLearnPresent(Capture *capture) {
         QA_CHECK(snapshot(capture,summary)); tmFinish(capture,"passed_original_summary_tm_learning",TRUE);
     }
 }
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+static u32 candyInitialStats[6],candyExpectedStats[6],candyInitialExp,candyStatsMask,candyDiffRevision,candyStatsStale,candyWrongContext,candyBusyRejected,candyCancelKeptUpgrade;
+static u32 candyOriginal[MON_ATTRIBUTES],candyFinalLevel,candyFinalExperience,candyFinalStats[6],candyIV[6],candyEV[6],candyFinalSpecies;
+static const u32 candyStatAttrs[6]={MON_DATA_MAX_HP,MON_DATA_ATK,MON_DATA_DEF,MON_DATA_SP_ATK,MON_DATA_SP_DEF,MON_DATA_SPEED};
+static void candyPrepareStats(Capture *capture,u32 mon) {
+    // Chikorita's original personal.json base data; same integer formula as CalcMonStats.
+    const u32 base[6]={45,49,65,49,65,45};
+    const u32 iv[6]={MON_DATA_HP_IV,MON_DATA_ATK_IV,MON_DATA_DEF_IV,MON_DATA_SPATK_IV,MON_DATA_SPDEF_IV,MON_DATA_SPEED_IV};
+    const u32 ev[6]={MON_DATA_HP_EV,MON_DATA_ATK_EV,MON_DATA_DEF_EV,MON_DATA_SPATK_EV,MON_DATA_SPDEF_EV,MON_DATA_SPEED_EV};
+    const u32 natureIndex[6]={0,0,1,3,4,2}; u32 nature=originalMonData[0][0]%25;
+    memcpy(candyOriginal,originalMonData[0],sizeof(candyOriginal));
+    candyInitialExp=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0);
+    QA_CHECK(candyInitialExp>=135 && candyInitialExp<179);
+    for (u32 i=0;i<6;++i) for (u32 level=5;level<=6;++level) {
+        u32 value=(2*base[i]+w2c_hgengine_GetMonData(capture->game,mon,iv[i],0)
+            +w2c_hgengine_GetMonData(capture->game,mon,ev[i],0)/4)*level/100+(i ? 5 : level+10);
+        if (i && nature/5!=nature%5) {
+            if (natureIndex[i]==nature/5) value=(u16)(value*110)/100;
+            else if (natureIndex[i]==nature%5) value=(u16)(value*90)/100;
+        }
+        if (level==5) { candyIV[i]=w2c_hgengine_GetMonData(capture->game,mon,iv[i],0);candyEV[i]=w2c_hgengine_GetMonData(capture->game,mon,ev[i],0);
+            QA_CHECK(candyIV[i]<=31 && candyEV[i]<=255);candyInitialStats[i]=w2c_hgengine_GetMonData(capture->game,mon,candyStatAttrs[i],0); QA_CHECK(value==candyInitialStats[i]); }
+        else candyExpectedStats[i]=value;
+    }
+    printf("Summary Candy expected stats evidence: {\"initialExperience\":%u,\"expectedExperience\":179,\"initial\":[",candyInitialExp);
+    for (u32 i=0;i<6;++i) printf("%s%u",i ? "," : "",candyInitialStats[i]);
+    fputs("],\"expected\":[",stdout);for (u32 i=0;i<6;++i) printf("%s%u",i ? "," : "",candyExpectedStats[i]);puts("]}");
+}
+static void candySemantics(Capture *capture,BOOL upgraded,BOOL learned) {
+    QA_CHECK(tmFixturePrepared && (!learned || upgraded) && w2c_hgengine_Party_GetCount(capture->game,partyAddress)==1);
+    u32 mon=w2c_hgengine_Party_GetMonByIndex(capture->game,partyAddress,0);
+    for (u32 j=0;j<MON_ATTRIBUTES;++j) {
+        u32 value=candyOriginal[j];
+        if (upgraded) { if (j==6 || j==7) value=candyExpectedStats[0]; else if (j==8) value=6; }
+        if (learned) { if (j==10) value=MOVE_RAZOR_LEAF; else if (j==14 || j==22) value=w2c_hgengine_GetMoveMaxPP(capture->game,MOVE_RAZOR_LEAF,0); else if (j==18) value=0; }
+        QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,monAttributes[j],0)==value);
+    }
+    const u32 order[6]={0,1,2,4,5,3};
+    for (u32 i=0;i<6;++i) {
+        QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,candyStatAttrs[i],0)==(upgraded ? candyExpectedStats[i] : candyInitialStats[i]));
+        QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HP_IV+order[i],0)==candyIV[i]
+            && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HP_EV+order[i],0)==candyEV[i]);
+    }
+    QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0)==(upgraded ? 179u : candyInitialExp));
+    QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_FRIENDSHIP,0)==(upgraded ? 75u : 70u)
+        && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOOD,0)==(upgraded ? 40u : 0u));
+    QA_CHECK(!memcmp(tmOriginalFlags,guest(capture,flagsAddress,tmFlagsSize),tmFlagsSize)
+        && w2c_hgengine_CheckGotStarter(capture->game,flagsAddress)==starter && w2c_hgengine_CheckGotPokedex(capture->game,flagsAddress)==gotDex
+        && w2c_hgengine_Pokedex_IsEnabled(capture->game,dexAddress)==dexEnabled
+        && w2c_hgengine_Pokedex_CountNationalDexSeen(capture->game,dexAddress)==dexSeen
+        && w2c_hgengine_Pokedex_CountNationalDexOwned(capture->game,dexAddress)==dexCaught
+        && w2c_hgengine_PlayerProfile_GetMoney(capture->game,profileAddress)==money);
+    u8 *expected=malloc(bagSize);QA_CHECK(expected);memcpy(expected,originalBag,bagSize);
+    if (upgraded) { u16 quantity=1;memcpy(expected+tmSlotOffset+2,&quantity,2); }
+    QA_CHECK(!memcmp(expected,guest(capture,bagAddress,bagSize),bagSize));free(expected);
+    QA_CHECK(w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,ITEM_RARE_CANDY,HEAP_ID_FIELD2)==(upgraded ? 1u : 2u));
+    if (upgraded) { originalMonData[0][6]=originalMonData[0][7]=candyExpectedStats[0];originalMonData[0][8]=6; }
+    printf("Summary Candy semantic boundary evidence: {\"stage\":%u,\"upgraded\":%u,\"learned\":%u,\"level\":%u,\"experience\":%u,\"quantity\":%u,\"friendship\":%u,\"mood\":%u,\"personality\":%u,\"otId\":%u}\n",
+        stage,upgraded,learned,w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_LEVEL,0),w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0),
+        w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,ITEM_RARE_CANDY,HEAP_ID_FIELD2),
+        w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_FRIENDSHIP,0),w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOOD,0),
+        w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_PERSONALITY,0),w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_OT_ID,0));
+}
+static void candyFinish(Capture *capture,const char *status,BOOL passed) {
+    QA_CHECK(HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE));
+    if (passed) candySemantics(capture,TRUE,TRUE);
+    else if (tmFixturePrepared) saveBytes(capture,"candy-failure-bag.bin",guest(capture,bagAddress,bagSize),bagSize);
+    caseStatus=status;casePassed=passed;resetExpected=TRUE;w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0);QA_CHECK(FALSE);
+}
+static void candyStatsEvidence(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativePartyUIState *party) {
+    u32 expected=stage==6 ? HG_PARTY_UI_TEXT_CANDY_STATS_DIFF : HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL,x,y;
+    QA_CHECK((stage==6 || stage==7) && qa->owner==HG_SUMMARY_LEARN_PARTY && qa->context==5 && qa->itemId==ITEM_RARE_CANDY
+        && qa->taskState==stage-5 && qa->phase==HG_PARTY_UI_ITEM_USE && qa->graphicsReady && qa->fadeFinished
+        && party->ready && party->actions[0].textId==expected);
+    candySemantics(capture,TRUE,FALSE);
+    u32 displayAddress=w2c_hgengine_HGNativePartyUIGetStats(capture->game,party->revision);
+    QA_CHECK(displayAddress);const u16 *display=(const u16 *)guest(capture,displayAddress,6*sizeof(u16));
+    u16 displayValues[6];memcpy(displayValues,display,sizeof(displayValues));
+    for (u32 i=0;i<6;++i) QA_CHECK(displayValues[i]==(stage==6 ? candyExpectedStats[i]-candyInitialStats[i] : candyExpectedStats[i]));
+    if (stage==6) { QA_CHECK(!candyStatsMask);candyDiffRevision=party->revision; }
+    else { QA_CHECK(candyStatsMask==1 && !w2c_hgengine_HGNativePartyUIGetStats(capture->game,candyDiffRevision)
+        && !HGNativePartyUIResolveTouch(party,candyDiffRevision,party->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));++staleRejected;++candyStatsStale; }
+    HGNativePartyUIState busy=*party;busy.actions[0].textId=HG_PARTY_UI_TEXT_CANDY_BUSY;busy.ready=1;busy.actionEnabledMask=1;busy.actions[0].enabled=1;
+    QA_CHECK(!HGNativePartyUIResolveTouch(&busy,busy.revision,busy.phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));++candyBusyRejected;
+    QA_CHECK(w2c_hgengine_HGNativeRender2D(capture->game,0,capture->buffer,256*192*4));
+    const u8 *frame=guest(capture,capture->buffer,256*192*4);u8 pixels[128*112*4];
+    for (u32 y=0;y<112;++y) memcpy(pixels+y*128*4,frame+y*256*4,128*4);
+    const char *name=stage==6 ? "candy-stats-diff.rgba" : "candy-stats-total.rgba";saveBytes(capture,name,pixels,sizeof(pixels));
+    candyStatsMask|=1u<<(stage-6);
+    printf("Summary Candy stats evidence: {\"stage\":%u,\"role\":%u,\"revision\":%u,\"qaRevision\":%u,\"generation\":%u,\"owner\":%u,\"context\":%u,\"itemId\":%u,\"phase\":%u,\"taskState\":%u,\"ready\":%u,\"graphicsReady\":%u,\"fadeFinished\":%u,\"file\":\"%s\",\"crop\":[0,0,128,112],\"bytes\":%zu,\"staleDiffRejected\":%u,\"displayValues\":[%u,%u,%u,%u,%u,%u]}\n",
+        stage,expected,party->revision,qa->revision,qa->generation,qa->owner,qa->context,qa->itemId,qa->phase,qa->taskState,party->ready,qa->graphicsReady,qa->fadeFinished,name,sizeof(pixels),candyStatsStale,
+        displayValues[0],displayValues[1],displayValues[2],displayValues[3],displayValues[4],displayValues[5]);
+}
+static void candyPrepare(Capture *capture) {
+    saveAddress=w2c_hgengine_SaveData_Get(capture->game);
+    flagsAddress=w2c_hgengine_Save_VarsFlags_Get(capture->game,saveAddress);
+    partyAddress=w2c_hgengine_SaveArray_Party_Get(capture->game,saveAddress);
+    dexAddress=w2c_hgengine_Save_Pokedex_Get(capture->game,saveAddress);
+    bagAddress=w2c_hgengine_Save_Bag_Get(capture->game,saveAddress);
+    profileAddress=w2c_hgengine_Save_PlayerData_GetProfile(capture->game,saveAddress);
+    QA_CHECK(w2c_hgengine_CheckGotStarter(capture->game,flagsAddress) && w2c_hgengine_Party_GetCount(capture->game,partyAddress)==1);
+    u32 mon=w2c_hgengine_Party_GetMonByIndex(capture->game,partyAddress,0); guest(capture,mon,1);
+    QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_SPECIES,0)==152
+        && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_LEVEL,0)==5
+        && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HP,0)==20
+        && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MAX_HP,0)==20
+        && !w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HELD_ITEM,0)
+        && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_OT_ID,0)==w2c_hgengine_PlayerProfile_GetTrainerID(capture->game,profileAddress)
+        && !w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,ITEM_RARE_CANDY,HEAP_ID_FIELD2));
+    tmMapSection=readLearn(capture).mapSection; QA_CHECK(tmMapSection);
+    u32 originalPersonality=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_PERSONALITY,0);
+    u32 originalOtId=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_OT_ID,0);
+    u16 profileName[PLAYER_NAME_LENGTH+1],otName[PLAYER_NAME_LENGTH+1]; u32 nameLength=0;
+    memcpy(profileName,guest(capture,profileAddress+offsetof(PlayerProfile,name),sizeof(profileName)),sizeof(profileName));
+    while (nameLength<PLAYER_NAME_LENGTH+1 && profileName[nameLength]!=EOS) ++nameLength;
+    QA_CHECK(nameLength && nameLength<=PLAYER_NAME_LENGTH);
+    guest(capture,capture->buffer,sizeof(otName));
+    w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_OT_NAME,capture->buffer);
+    memcpy(otName,guest(capture,capture->buffer,sizeof(otName)),sizeof(otName));
+    QA_CHECK(!memcmp(otName,profileName,(nameLength+1)*sizeof(*otName)));
+    const u16 moves[4]={MOVE_TACKLE,MOVE_GROWL,MOVE_REFLECT,MOVE_CUT};
+    for (u32 i=0;i<4;++i) w2c_hgengine_MonSetMoveInSlot_ResetPpUp(capture->game,mon,moves[i],i);
+    QA_CHECK(w2c_hgengine_Bag_AddItem(capture->game,bagAddress,ITEM_RARE_CANDY,2,HEAP_ID_FIELD2));
+    semanticEvidence(capture,TRUE); selectedSlot=0;
+    QA_CHECK(originalMonData[0][0]==originalPersonality && originalMonData[0][1]==originalOtId);
+    tmInitialFriendship=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_FRIENDSHIP,0);
+    tmInitialMood=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOOD,0);
+    // Original item50 adds5 friendship/40mood here; ctx8/item0 does not add a TM event.
+    QA_CHECK(tmInitialFriendship==70 && !tmInitialMood && tmMapSection
+        && !w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HELD_ITEM,0)
+        && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_DP_POKEBALL,0)!=BALL_LUXURY
+        && !w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EGG_LOCATION,0));
+    tmFlagsSize=w2c_hgengine_Save_VarsFlags_sizeof(capture->game); QA_CHECK(tmFlagsSize && tmFlagsSize<65536);
+    tmOriginalFlags=malloc(tmFlagsSize); QA_CHECK(tmOriginalFlags); memcpy(tmOriginalFlags,guest(capture,flagsAddress,tmFlagsSize),tmFlagsSize);
+    tmSlotOffset=bagSize;
+    for (u32 i=0;i<NUM_BAG_MEDICINE;++i) {
+        u32 slot=w2c_hgengine_Bag_GetPocketSlotN(capture->game,bagAddress,POCKET_MEDICINE,i); u16 values[2];
+        memcpy(values,guest(capture,slot,sizeof(values)),sizeof(values));
+        if (values[0]==ITEM_RARE_CANDY) { QA_CHECK(values[1]==2 && slot>=bagAddress && slot-bagAddress<=bagSize-4); tmSlotOffset=slot-bagAddress; break; }
+    }
+    QA_CHECK(tmSlotOffset<bagSize); tmInitialQuantity=2; tmFixturePrepared=1;
+    candyPrepareStats(capture,mon);candySemantics(capture,FALSE,FALSE);
+    printf("Summary Candy fixture evidence: {\"preparedBeforeFirstFieldAction\":true,\"species\":152,\"partyCount\":1,\"moves\":[33,45,115,15],\"item\":50,\"quantity\":2,\"tmSlotOffset\":%u,\"flagsBytes\":%u,\"initialFriendship\":%u,\"initialMood\":%u,\"mapSection\":%u,\"eggLocation\":0,\"otNameProfileMatched\":true,\"otNameLength\":%u,\"fixtureUsesExistingStarter\":true,\"originalPersonality\":%u,\"originalOtId\":%u,\"privateSaveMemoryOnly\":true}\n",tmSlotOffset,tmFlagsSize,tmInitialFriendship,tmInitialMood,tmMapSection,nameLength,originalPersonality,originalOtId);
+}
+static BOOL candyContinuePrinter(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,const HGNativePartyUIState *party) {
+    if (qa->owner!=HG_SUMMARY_LEARN_PARTY || !tmPrinterReady(qa)
+        || !candyPeripheralReady(qa,bag,party,OWNER_PARTY,HG_PARTY_UI_TOUCH_ACTION,0)) return FALSE;
+    if (party->phase!=HG_PARTY_UI_TM_MESSAGE && (party->phase!=HG_PARTY_UI_ITEM_USE
+        || (qa->taskState!=0 && qa->taskState!=4) || party->actions[0].textId!=HG_PARTY_UI_TEXT_CANDY_ACK)) return FALSE;
+    tmQueue(capture,qa,bag,party,OWNER_PARTY,HG_PARTY_UI_TOUCH_ACTION,0,FALSE);return TRUE;
+}
+static void CandyLearnPresent(Capture *capture) {
+    u32 frame=OS_GetVBlankCount();
+    if (!stage) {
+        static BOOL started,logged;
+        static u32 startFrame,lastFrame,lastMap,lastRevision,lastInputStep,lastInputFrame;
+        if (!started) {
+            QA_CHECK(tmBootReady(33,TRUE,0,3,0) && !tmBootReady(0,TRUE,0,3,0)
+                && !tmBootReady(33,FALSE,0,3,0) && !tmBootReady(33,TRUE,1,3,0)
+                && !tmBootReady(33,TRUE,0,2,0) && !tmBootReady(33,TRUE,0,3,1320));
+            started=TRUE; startFrame=frame;
+        }
+        present(capture);
+        u32 map=w2c_hgengine_HGNativeFieldMap(capture->game);
+        HGSummaryLearnQAState qa;
+        // The original field owner publishes this map only after the private observation hook.
+        if (map) qa=readLearn(capture);
+        if (!logged || map!=lastMap || (map && qa.revision!=lastRevision)
+            || capture->inputStep!=lastInputStep || capture->inputFrame!=lastInputFrame || frame-lastFrame>=300) {
+            printf("Summary Candy boot evidence: {\"hostFrame\":%u,\"elapsedFrames\":%u,\"map\":%u,\"inputStep\":%u,\"inputFrame\":%u,\"qaObserved\":%s",
+                frame,frame-startFrame,map,capture->inputStep,capture->inputFrame,map ? "true" : "false");
+            if (map) printf(",\"qaVersion\":%u,\"qaBytes\":%u,\"qaFrame\":%u,\"revision\":%u,\"generation\":%u,\"fieldReady\":%u,\"owner\":%u,\"manager\":%u,\"execState\":%u,\"phase\":%u,\"fadeFinished\":%u,\"mapSection\":%u",
+                qa.version,qa.byteSize,qa.frame,qa.revision,qa.generation,qa.fieldReady,qa.owner,qa.manager,qa.execState,qa.phase,qa.fadeFinished,qa.mapSection);
+            puts("}");
+            logged=TRUE; lastFrame=frame; lastMap=map; lastInputStep=capture->inputStep; lastInputFrame=capture->inputFrame;
+            if (map) lastRevision=qa.revision;
+        }
+        if (frame-startFrame>=3600) { candyFinish(capture,"candy_boot_prerequisite_timeout",FALSE); return; }
+        if (!map || !tmBootReady(map,qa.fieldReady,qa.owner,capture->inputStep,capture->inputFrame)) return;
+        if (!renderBoth(capture,FALSE,FALSE)) return;
+        capture->noInput=TRUE; QA_CHECK(HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE));
+        candyPrepare(capture); nextStage(); return;
+    }
+    QA_CHECK(HGNativeSoundRealtime(capture->env,TRUE));
+    HGSummaryLearnQAState qa=readLearn(capture);
+    static u32 loggedRevision;
+    if (qa.revision!=loggedRevision) {
+        printf("Summary Candy state evidence: {\"stage\":%u,\"frame\":%u,\"revision\":%u,\"owner\":%u,\"generation\":%u,\"execState\":%u,\"phase\":%u,\"context\":%u,\"itemId\":%u,\"moveId\":%u,\"partySlot\":%u,\"taskState\":%u,\"taskMatches\":%u,\"printerId\":%u,\"printerActive\":%u,\"printerMatches\":%u,\"printerState\":%u,\"printerWaiting\":%u,\"afterTextState\":%u,\"yesNoActive\":%u,\"yesNoResult\":%u,\"yesNoTimer\":%u,\"yesNoReady\":%u,\"selectedAction\":%u,\"selectedMoveSlot\":%u,\"hmCalls\":%u,\"graphicsReady\":%u,\"fadeFinished\":%u,\"partyBusy\":%u}\n",
+            stage,qa.frame,qa.revision,qa.owner,qa.generation,qa.execState,qa.phase,qa.context,qa.itemId,qa.moveId,qa.partySlot,qa.taskState,qa.tmTaskMatches,
+            qa.printerId,qa.printerActive,qa.printerMatches,qa.printerState,qa.printerWaiting,qa.afterTextState,
+            qa.yesNoActive,qa.yesNoResult,qa.yesNoTimer,qa.yesNoReady,qa.selectedAction,qa.selectedMoveSlot,qa.hmCalls,qa.graphicsReady,qa.fadeFinished,qa.partyBusy);
+        loggedRevision=qa.revision;
+    }
+    if (frame-stageFrame>3600) { candyFinish(capture,"candy_scene_or_input_handshake_timeout",FALSE); return; }
+    HGNativePartyUIState party=readParty(capture); HGNativeSummaryUIState summary=readSummary(capture);
+    HGNativeBagUIState bag=readTmBag(capture);
+    if (!settleInput(capture,&party,&summary)) return;
+    if (tmTakeChoice(capture,&qa,&bag,&party)) return;
+    if (candyContinuePrinter(capture,&qa,&bag,&party)) return;
+    HGNativeSummaryUIInput ignored;
+    if (stage==TM_OPEN_BAG) {
+        if (!qa.fieldReady || w2c_hgengine_HGNativeFieldMap(capture->game)!=33) return;
+        u32 icons=w2c_hgengine_HGNativeFieldMenuIcons(capture->game);
+        for (u32 i=0;i<7;++i) if (((icons>>(i*4))&15)==2) {
+            pulse(capture,OWNER_FIELD,0,0,(HGNativeSummaryUIInput){.touchPressed=1,.touchX=iconCenters[i][0],.touchY=iconCenters[i][1]}); nextStage(); return;
+        }
+    } else if (stage==TM_POCKET && bag.active && bag.ready && HGNativeBagUIIsList(&bag)) {
+        u32 pocket=HG_BAG_UI_POCKETS;
+        for (u32 i=0;i<HG_BAG_UI_POCKETS;++i) if (bag.pockets[i].enabled && bag.pockets[i].pocketId==POCKET_MEDICINE) pocket=i;
+        QA_CHECK(pocket<HG_BAG_UI_POCKETS); tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_POCKET,pocket,TRUE);
+    } else if (stage==TM_ITEM && bag.active && bag.ready && HGNativeBagUIIsList(&bag) && bag.pocketId==POCKET_MEDICINE) {
+        u32 row=HG_BAG_UI_ITEMS;
+        for (u32 i=0;i<bag.visibleCount;++i) if (bag.items[i].enabled && bag.items[i].itemId==ITEM_RARE_CANDY) row=i;
+        QA_CHECK(row<HG_BAG_UI_ITEMS && bag.items[row].quantity==2); tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_ITEM,row,TRUE);
+    } else if (stage==TM_USE && bag.active && bag.ready && bag.phase==HG_BAG_UI_ITEM_MENU) {
+        u32 row=HG_BAG_UI_ACTIONS;
+        for (u32 i=0;i<bag.actionCount;++i) if (bag.actions[i].enabled && bag.actions[i].actionId==0) row=i;
+        QA_CHECK(row<HG_BAG_UI_ACTIONS && bag.selectedItemId==ITEM_RARE_CANDY); tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_ACTION,row,TRUE);
+    } else if (stage==5 && qa.owner==HG_SUMMARY_LEARN_PARTY && qa.context==5 && qa.itemId==ITEM_RARE_CANDY
+        && qa.phase==HG_PARTY_UI_ITEM_TARGET && party.active && party.ready && !qa.partyBusy && !qa.partySlot
+        && HGNativePartyUIIsRareCandy(&party)) {
+        candySemantics(capture,FALSE,FALSE);
+        tmChooseParty(capture,&qa,&bag,&party,HG_PARTY_UI_TOUCH_MON,0,TRUE);
+    } else if ((stage==6 || stage==7) && party.active && party.ready && HGNativePartyUIIsRareCandy(&party)
+        && qa.owner==HG_SUMMARY_LEARN_PARTY && qa.context==5 && qa.itemId==ITEM_RARE_CANDY
+        && qa.phase==HG_PARTY_UI_ITEM_USE && qa.taskState==stage-5 && qa.graphicsReady && qa.fadeFinished
+        && party.actions[0].textId==(stage==6 ? HG_PARTY_UI_TEXT_CANDY_STATS_DIFF : HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL)) {
+        tmChooseParty(capture,&qa,&bag,&party,HG_PARTY_UI_TOUCH_ACTION,0,TRUE);
+    } else if ((stage==TM_FORGET_YES || stage==TM_STOP_NO || stage==TM_RETRY_YES) && qa.owner==HG_SUMMARY_LEARN_PARTY
+        && qa.phase==27 && qa.execState==2 && qa.yesNoReady && qa.graphicsReady && qa.fadeFinished
+        && party.active && party.ready && HGNativePartyUIIsRareCandy(&party)) {
+        QA_CHECK(qa.context==(stage==TM_FORGET_YES ? 5u : 8u) && qa.itemId==(stage==TM_FORGET_YES ? ITEM_RARE_CANDY : ITEM_NONE) && qa.moveId==MOVE_RAZOR_LEAF);
+        if (stage==TM_STOP_NO) {
+            QA_CHECK(qa.selectedMoveSlot==4);candySemantics(capture,TRUE,FALSE);tmFifthCancelled=1;candyCancelKeptUpgrade=1;
+            if (!candyWrongContext) {
+                HGSummaryLearnQAState wrong=qa;wrong.itemId=ITEM_RARE_CANDY;
+                QA_CHECK(!candyPeripheralReady(&wrong,&bag,&party,OWNER_PARTY,HG_PARTY_UI_TOUCH_ACTION,1));candyWrongContext=1;
+            }
+        }
+        tmChooseParty(capture,&qa,&bag,&party,HG_PARTY_UI_TOUCH_ACTION,stage==TM_STOP_NO ? 1 : 0,TRUE);
+    } else if ((stage==TM_FIRST_SUMMARY || stage==TM_SECOND_SUMMARY) && summary.active && summary.ready
+        && summary.phase==HG_SUMMARY_UI_FORGET_MOVE && qa.owner==HG_SUMMARY_LEARN_SUMMARY && qa.execState==2) {
+        QA_CHECK(HGNativeSummaryUIIsLearning(&summary) && summary.monDataType==1 && summary.partySlot==0
+            && summary.partyCount==1 && summary.moveToLearn==MOVE_RAZOR_LEAF && summary.moveMask==31);
+        candySemantics(capture,TRUE,FALSE); QA_CHECK(snapshot(capture,summary)); ++summaryLifetimes;
+        if (stage==TM_FIRST_SUMMARY) {
+            tmFirstGeneration=qa.generation; tmFirstChoice=(Choice){summary.revision,summary.phase,HG_SUMMARY_UI_INPUT_MOVE,4};
+            QA_CHECK(!HGNativeSummaryUIResolveInput(&summary,summary.revision,summary.phase,HG_SUMMARY_UI_INPUT_MOVE,5,&ignored)); ++staleRejected;
+            chooseSummary(capture,&summary,HG_SUMMARY_UI_INPUT_MOVE,4);
+        } else {
+            QA_CHECK(qa.generation>tmFirstGeneration && tmFifthCancelled && summaryLifetimes==2);
+            QA_CHECK(!HGNativeSummaryUIResolveInput(&summary,tmFirstChoice.revision,tmFirstChoice.phase,tmFirstChoice.kind,tmFirstChoice.index,&ignored)); ++staleRejected;
+            tmContinuedTrying=1; tmHmCallsBefore=qa.hmCalls; chooseSummary(capture,&summary,HG_SUMMARY_UI_INPUT_MOVE,3);
+        }
+        nextStage();
+    } else if (stage==TM_FIFTH_CONFIRM && summary.active && summary.ready && summary.phase==HG_SUMMARY_UI_FORGET_MOVE && summary.moveSlot==4) {
+        QA_CHECK(!HGNativeSummaryUIResolveInput(&summary,tmFirstChoice.revision,tmFirstChoice.phase,tmFirstChoice.kind,tmFirstChoice.index,&ignored)); ++staleRejected;
+        QA_CHECK(snapshot(capture,summary)); chooseSummary(capture,&summary,HG_SUMMARY_UI_INPUT_CONFIRM,0); nextStage();
+    } else if (stage==TM_HM_RESULT && summary.active && summary.ready && summary.phase==HG_SUMMARY_UI_FORGET_MOVE
+        && summary.moveSlot==3 && qa.hmCalls==tmHmCallsBefore+1) {
+        QA_CHECK(qa.hmOwner==qa.data && qa.hmMoveSlot==3 && summary.moves[3].moveId==MOVE_CUT && qa.hmWarning.pixelBuffer);
+        candySemantics(capture,TRUE,FALSE); windowEvidence(capture,summary.phase,"original-hm-warning",0,&qa.hmWarning);
+        QA_CHECK(snapshot(capture,summary)); tmHmRejected=1; nextStage();
+    } else if ((stage==TM_OLD_MOVE || stage==TM_OLD_AGAIN) && summary.active && summary.ready && summary.phase==HG_SUMMARY_UI_FORGET_MOVE) {
+        if (stage==TM_OLD_AGAIN) tmConfirmationBack=1;
+        tmOldChoice=(Choice){summary.revision,summary.phase,HG_SUMMARY_UI_INPUT_MOVE,0};
+        chooseSummary(capture,&summary,HG_SUMMARY_UI_INPUT_MOVE,0); nextStage();
+    } else if ((stage==TM_CONFIRM_BACK || stage==TM_CONFIRM_REPLACE) && summary.active && summary.ready && summary.phase==HG_SUMMARY_UI_FORGET_CONFIRM) {
+        QA_CHECK(summary.moveSlot==0 && !HGNativeSummaryUIResolveInput(&summary,tmOldChoice.revision,tmOldChoice.phase,tmOldChoice.kind,tmOldChoice.index,&ignored)); ++staleRejected;
+        candySemantics(capture,TRUE,FALSE); QA_CHECK(snapshot(capture,summary));
+        chooseSummary(capture,&summary,stage==TM_CONFIRM_BACK ? HG_SUMMARY_UI_INPUT_BACK : HG_SUMMARY_UI_INPUT_CONFIRM,0); nextStage();
+    } else if (stage==TM_RETURN_BAG && bag.active && bag.ready && HGNativeBagUIIsList(&bag)) {
+        QA_CHECK(!summary.active && !party.active && tmHmRejected);
+        tmReplacement=1; candySemantics(capture,TRUE,TRUE);
+        u32 mon=w2c_hgengine_Party_GetMonByIndex(capture->game,partyAddress,0);
+        tmFinalMove=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOVE1,0);
+        tmFinalPpUps=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOVE1_PP_UPS,0);
+        tmFinalPp=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOVE1_PP,0);
+        tmFinalMaxPp=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOVE1_MAX_PP,0);
+        tmFinalFriendship=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_FRIENDSHIP,0);
+        tmFinalMood=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOOD,0);
+        tmFinalQuantity=w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,ITEM_RARE_CANDY,HEAP_ID_FIELD2);
+        candyFinalSpecies=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_SPECIES,0);
+        candyFinalLevel=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_LEVEL,0);
+        candyFinalExperience=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0);
+        for (u32 i=0;i<6;++i) candyFinalStats[i]=w2c_hgengine_GetMonData(capture->game,mon,candyStatAttrs[i],0);
+        QA_CHECK(snapshot(capture,summary)); nextStage();
+    } else if (stage==TM_CLOSE_BAG && bag.active && bag.ready && HGNativeBagUIIsList(&bag)) {
+        tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_CANCEL,0,TRUE);
+    } else if (stage==TM_FIELD && qa.fieldReady && !bag.active && !party.active && !summary.active) {
+        QA_CHECK(tmFixturePrepared && tmFifthCancelled && tmContinuedTrying && tmHmRejected && tmConfirmationBack && tmReplacement
+            && summaryLifetimes==2 && staleRejected>=4 && seenPhases==((1u<<8)|(1u<<9))
+            && !tmPending.sequence && !tmLeaseQARevision && tmTypedAccepted && tmTypedAccepted==tmTypedReleased
+            && tmTypedAccepted==tmTypedSettled && tmPartyReturnAcks && candyStatsMask==3 && candyStatsStale==1
+            && candyBusyRejected==2 && candyWrongContext==1 && candyCancelKeptUpgrade);
+        QA_CHECK(snapshot(capture,summary)); candyFinish(capture,"passed_original_summary_candy_learning",TRUE);
+    }
+}
+static void candyPrintEvidence(void) {
+    const char *truth=casePassed ? "true" : "false";
+    printf("Summary Candy learning evidence: {\"status\":\"%s\",\"fixturePrepared\":%u,\"summaryLifetimes\":%u,\"fifthCancelled\":%u,\"continuedTrying\":%u,\"hmRejected\":%u,\"confirmationBack\":%u,\"replacement\":%u,\"cancelKeptUpgrade\":%u,\"statsMask\":%u,\"statsStaleRejected\":%u,\"busyForgedRejected\":%u,\"wrongContinuationRejected\":%u,\"species\":%u,\"level\":%u,\"experience\":%u,\"finalMove\":%u,\"finalPpUps\":%u,\"finalPp\":%u,\"finalMaxPp\":%u,\"initialCandyQuantity\":%u,\"finalCandyQuantity\":%u,\"friendship\":%u,\"mood\":%u,\"staleRejected\":%u,\"typedAccepted\":%u,\"typedRejected\":%u,\"typedReleased\":%u,\"typedSettled\":%u,\"partyReturnAcks\":%u,\"originalIdentityPreserved\":%s,\"otherBagBytesPreserved\":%s,\"flagsMoneyDexPreserved\":%s,\"resetFinished\":true,\"peripheralUiNative\":true,\"stats\":[",
+        caseStatus,tmFixturePrepared,summaryLifetimes,tmFifthCancelled,tmContinuedTrying,tmHmRejected,tmConfirmationBack,tmReplacement,
+        candyCancelKeptUpgrade,candyStatsMask,candyStatsStale,candyBusyRejected,candyWrongContext,candyFinalSpecies,candyFinalLevel,candyFinalExperience,
+        tmFinalMove,tmFinalPpUps,tmFinalPp,tmFinalMaxPp,tmInitialQuantity,tmFinalQuantity,tmFinalFriendship,tmFinalMood,staleRejected,
+        tmTypedAccepted,tmTypedRejected,tmTypedReleased,tmTypedSettled,tmPartyReturnAcks,truth,truth,truth);
+    for (u32 i=0;i<6;++i) printf("%s%u",i ? "," : "",candyFinalStats[i]);
+    fputs("],\"initialStats\":[",stdout);for (u32 i=0;i<6;++i) printf("%s%u",i ? "," : "",candyInitialStats[i]);
+    fputs("],\"expectedStats\":[",stdout);for (u32 i=0;i<6;++i) printf("%s%u",i ? "," : "",candyExpectedStats[i]);puts("]}");
+}
+#endif
 #endif
 static void SummaryPresent(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
-#ifdef HG_SUMMARY_TM_LEARN_CHECK
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+    CandyLearnPresent(capture);return;
+#elif defined(HG_SUMMARY_TM_LEARN_CHECK)
     TMLearnPresent(capture); return;
 #endif
     if (!stage) {
@@ -748,25 +1122,38 @@ int main(int argc,char **argv) {
     if (casePassed) QA_CHECK(!final.active && !final.ready && !finalParty.active);
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
     if (casePassed) QA_CHECK(seenPhases==((1u<<8)|(1u<<9)));
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+    candyPrintEvidence();
+#else
     const char *preserved=casePassed ? "true" : "false";
     printf("Summary TM learning evidence: {\"status\":\"%s\",\"fixturePrepared\":%u,\"summaryLifetimes\":%u,\"fifthCancelled\":%u,\"continuedTrying\":%u,\"hmRejected\":%u,\"confirmationBack\":%u,\"replacement\":%u,\"finalMove\":%u,\"finalPpUps\":%u,\"finalPp\":%u,\"finalMaxPp\":%u,\"initialTmQuantity\":%u,\"finalTmQuantity\":%u,\"staleRejected\":%u,\"initialFriendship\":%u,\"finalFriendship\":%u,\"initialMood\":%u,\"finalMood\":%u,\"partyFieldsPreserved\":%s,\"otherBagBytesPreserved\":%s,\"flagsMoneyDexPreserved\":%s,\"friendshipMoodPreservedBeforeLearning\":%s,\"resetFinished\":true,\"peripheralUiNative\":true,\"typedAccepted\":%u,\"typedRejected\":%u,\"typedReleased\":%u,\"typedSettled\":%u,\"partyReturnAcks\":%u,\"exitFadeSeen\":%u,\"exitFadeRejected\":%u}\n",
         caseStatus,tmFixturePrepared,summaryLifetimes,tmFifthCancelled,tmContinuedTrying,tmHmRejected,tmConfirmationBack,tmReplacement,
         tmFinalMove,tmFinalPpUps,tmFinalPp,tmFinalMaxPp,tmInitialQuantity,tmFinalQuantity,staleRejected,
         tmInitialFriendship,tmFinalFriendship,tmInitialMood,tmFinalMood,preserved,preserved,preserved,preserved,
         tmTypedAccepted,tmTypedRejected,tmTypedReleased,tmTypedSettled,tmPartyReturnAcks,tmExitFadeSeen,tmExitFadeRejected);
+#endif
 #else
     if (casePassed) QA_CHECK(seenPhases==((1u<<2)|(1u<<5)));
 #endif
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+    printf("Summary menu evidence: {\"status\":\"%s\",\"seenPhases\":%u,\"summaryLifetimes\":%u,\"staleRejected\":%u,\"snapshotStages\":%u,\"activeAfterReturn\":%u,\"resetFinished\":true,\"pendingDMA\":0,\"partyItemsMoneyFlagsUnchanged\":false,\"expectedPrivateCandyMutation\":true}\n",
+        caseStatus,seenPhases,summaryLifetimes,staleRejected,snapshotStages,final.active);
+#else
     printf("Summary menu evidence: {\"status\":\"%s\",\"seenPhases\":%u,\"summaryLifetimes\":%u,\"staleRejected\":%u,\"snapshotStages\":%u,\"activeAfterReturn\":%u,\"resetFinished\":true,\"pendingDMA\":0,\"partyItemsMoneyFlagsUnchanged\":false,\"expectedPrivateTmMutation\":true}\n",
         caseStatus,seenPhases,summaryLifetimes,staleRejected,snapshotStages,final.active);
+#endif
 #else
     printf("Summary menu evidence: {\"status\":\"%s\",\"flag0x6A\":%u,\"partyCount\":%u,\"flag0x6B\":%u,\"dexEnabled\":%u,\"selectedSlot\":%u,\"seenPages\":%u,\"seenPhases\":%u,\"viewedMoves\":%u,\"summaryLifetimes\":%u,\"partyLifetimes\":%u,\"staleRejected\":%u,\"snapshotStages\":%u,\"activeAfterReturn\":%u,\"resetFinished\":true,\"pendingDMA\":0,\"partyItemsMoneyFlagsUnchanged\":true}\n",caseStatus,starter,partyCount,gotDex,dexEnabled,selectedSlot,seenPages,seenPhases,viewedMoves,summaryLifetimes,partyLifetimes,staleRejected,snapshotStages,final.active);
 #endif
     wasm2c_hgengine_free(game); for (u32 i=0;i<3;i++) close(wasi->fds[i]); free(originalBag); free(game); free(env); free(wasi); free(capture); summaryEnv=NULL; wasm_rt_free();
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
     free(tmOriginalFlags);
+#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+    if (casePassed) puts("PASS: original Rare Candy route and native Summary learning, two original stats views, cancel keeps upgrade, HM refusal/back/replacement and no double consumption.");
+#else
     if (casePassed) puts("PASS: original TM route and native Summary learning, original HM refusal/cancel/replace, original item/PP result and reset; Bag/Party used revision-bound native typed queues.");
+#endif
 #else
     if (casePassed) puts("PASS: original Summary pages and move details, original Party returns, unchanged party/items/money/flags, stale owners, original frames and reset.");
 #endif

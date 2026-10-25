@@ -670,7 +670,7 @@ static void PartyMenu_VBlankCB(void *cbData) {
     SpriteSystem_TransferOam();
 #ifdef HEARTGOLD_NATIVE
     const HGNativePartyUIState *native = HGNativePartyUIGetState();
-    if (HGNativePartyUIIsPotionUse(native)) NativePartyUIPublish(partyMenu, native->phase, _02110128[0]);
+    if (HGNativePartyUIIsPotionUse(native) || HGNativePartyUIIsRareCandy(native)) NativePartyUIPublish(partyMenu, native->phase, _02110128[0]);
 #endif
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }

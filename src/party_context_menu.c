@@ -29,6 +29,8 @@ static void NativePartyUIContextClosed(PartyMenu *partyMenu);
 static void NativePartyUISetMessage(PartyMenu *partyMenu, Window *window);
 static void NativePartyUIPrinterUpdated(TextPrinterTemplate *template, u16 glyphId);
 static void NativePartyUITopTextIds(PartyMenu *partyMenu, const u8 *items, u32 count);
+static void NativePartyUICacheStats(PartyMenu *partyMenu, u32 role, const u16 *stats);
+static void NativePartyUIInvalidateStats(PartyMenu *partyMenu);
 #endif
 
 static void PartyMenu_StartContextMenuButtonPressAnim_FromCursorObj(PartyMenu *partyMenu, PartyMenuContextMenuCursor *cursor, int followUpState);
@@ -935,6 +937,9 @@ void PartyMenu_LevelUpPrintStatsChange(PartyMenu *partyMenu) {
     stats[3] = GetMonData(mon, MON_DATA_SP_ATK, NULL);
     stats[4] = GetMonData(mon, MON_DATA_SP_DEF, NULL);
     stats[5] = GetMonData(mon, MON_DATA_SPEED, NULL);
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUICacheStats(partyMenu, HG_PARTY_UI_TEXT_CANDY_STATS_DIFF, stats);
+#endif
     AddWindowParameterized(partyMenu->bgConfig, &partyMenu->levelUpStatsWindow[0], GF_BG_LYR_MAIN_0, 1, 1, 14, 12, 0, 0x260);
     DrawFrameAndWindow1(&partyMenu->levelUpStatsWindow[0], TRUE, 1, 14);
     FillWindowPixelBuffer(&partyMenu->levelUpStatsWindow[0], 15);
@@ -962,6 +967,9 @@ void PartyMenu_LevelUpPrintNewStats(PartyMenu *partyMenu) {
     String *numberMsg;
     u32 i;
 
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUICacheStats(partyMenu, HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL, partyMenu->levelUpStatsTmp);
+#endif
     FillWindowPixelRect(&partyMenu->levelUpStatsWindow[0], 15, 80, 0, 32, 112);
     numberMsg = NewString_ReadMsgData(partyMenu->msgData, msg_0300_00176);
     for (i = 0; i < NUM_STATS; ++i) {
@@ -974,6 +982,9 @@ void PartyMenu_LevelUpPrintNewStats(PartyMenu *partyMenu) {
 }
 
 void PartyMenu_LevelUpCloseStatsWindow(PartyMenu *partyMenu) {
+#ifdef HEARTGOLD_NATIVE
+    NativePartyUIInvalidateStats(partyMenu);
+#endif
     EraseFrameAndWindow1(&partyMenu->levelUpStatsWindow[0], FALSE);
     RemoveWindow(&partyMenu->levelUpStatsWindow[0]);
 }
@@ -1341,6 +1352,9 @@ static PartyMenuContextMenuCursor *sNativePartyCursor;
 static Window *sNativePartyMessage;
 static BOOL sNativePartyMessageWaiting;
 static u32 sNativePartyTextIds[HG_PARTY_UI_ACTIONS];
+static u16 sNativePartyStats[NUM_STATS];
+static u32 sNativePartyStatsRole;
+_Static_assert(sizeof(sNativePartyStats) == 12, "Displayed Party stat values");
 
 static void NativePartyUIInvalidateContext(void) {
     ++sNativePartyUI.revision;
@@ -1401,13 +1415,20 @@ static BOOL NativePartyUIPotionUse(const PartyMenu *partyMenu) {
         && partyMenu->args->itemId == ITEM_POTION;
 }
 
+static BOOL NativePartyUIRareCandy(const PartyMenu *partyMenu) {
+    const PartyMenuArgs *args = partyMenu->args;
+    return !args->panelLayout && ((args->context == PARTY_MENU_CONTEXT_USE_ITEM && args->itemId == ITEM_RARE_CANDY)
+        || (args->context == PARTY_MENU_CONTEXT_REPLACE_MOVE_LEVELUP && args->itemId == ITEM_NONE
+            && args->moveId > MOVE_NONE && args->moveId <= NUM_MOVES));
+}
+
 static BOOL NativePartyUITMHM(const PartyMenu *partyMenu) {
     const PartyMenuArgs *args = partyMenu->args;
     return !args->panelLayout && (args->context == PARTY_MENU_CONTEXT_TM_HM || args->context == PARTY_MENU_CONTEXT_REPLACE_MOVE_TMHM)
         && args->itemId >= ITEM_TM01 && args->itemId <= ITEM_HM08 && args->moveId != MOVE_NONE && args->moveId == TMHMGetMove(args->itemId);
 }
 
-static BOOL NativePartyUITMYesNo(const PartyMenu *partyMenu) {
+static BOOL NativePartyUIYesNo(const PartyMenu *partyMenu) {
     const YesNoPrompt *prompt = partyMenu->yesNoPrompt;
     if (prompt == NULL || prompt->bgConfig != partyMenu->bgConfig || prompt->bgId != GF_BG_LYR_MAIN_0
         || prompt->x != 25 || prompt->y != 10 || prompt->width != 6 || prompt->height != 4 || prompt->buttonsAreInit != 1
@@ -1420,6 +1441,31 @@ static BOOL NativePartyUITMYesNo(const PartyMenu *partyMenu) {
     return TRUE;
 }
 
+static BOOL NativePartyUIStatsWindow(const PartyMenu *partyMenu) {
+    const Window *window = &partyMenu->levelUpStatsWindow[0];
+    return window->bgConfig == partyMenu->bgConfig && window->bgConfig != NULL && window->bgId == GF_BG_LYR_MAIN_0
+        && window->colorMode == GF_BG_CLR_4BPP && window->bgConfig->bgs[GF_BG_LYR_MAIN_0].colorMode == GX_BG_COLORMODE_16
+        && window->tilemapLeft == 1 && window->tilemapTop == 1 && window->width == 14 && window->height == 12
+        && window->paletteNum == 0 && window->baseTile == 0x260 && window->pixelBuffer != NULL
+        && (uintptr_t)window->pixelBuffer <= UINT32_MAX - 14 * 12 * TILE_SIZE_4BPP;
+}
+
+static void NativePartyUIInvalidateStats(PartyMenu *partyMenu) {
+    if (partyMenu != sNativePartyMenu) return;
+    sNativePartyStatsRole = 0;
+    MI_CpuClear8(sNativePartyStats, sizeof(sNativePartyStats));
+}
+
+static void NativePartyUICacheStats(PartyMenu *partyMenu, u32 role, const u16 *stats) {
+    if (partyMenu == NULL || partyMenu != sNativePartyMenu || stats == NULL
+        || partyMenu->args->context != PARTY_MENU_CONTEXT_USE_ITEM || partyMenu->args->panelLayout || partyMenu->args->itemId != ITEM_RARE_CANDY
+        || (role != HG_PARTY_UI_TEXT_CANDY_STATS_DIFF && role != HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL)) return;
+    sNativePartyStatsRole = 0;
+    for (u32 i = 0; i < NUM_STATS; ++i)
+        sNativePartyStats[i] = role == HG_PARTY_UI_TEXT_CANDY_STATS_DIFF ? stats[i] - partyMenu->levelUpStatsTmp[i] : stats[i];
+    sNativePartyStatsRole = role;
+}
+
 void NativePartyUIBind(PartyMenu *partyMenu) {
     if (partyMenu == sNativePartyMenu) return;
     u32 revision = sNativePartyUI.revision + 1;
@@ -1430,18 +1476,20 @@ void NativePartyUIBind(PartyMenu *partyMenu) {
     sNativePartyCursor = NULL;
     sNativePartyMessage = NULL;
     sNativePartyMessageWaiting = FALSE;
+    NativePartyUIInvalidateStats(partyMenu);
     MI_CpuClear8(sNativePartyTextIds, sizeof(sNativePartyTextIds));
     if (partyMenu != NULL) {
         sNativePartyUI.context = partyMenu->args->context;
         sNativePartyUI.panelLayout = partyMenu->args->panelLayout;
         sNativePartyUI.selected = partyMenu->partyMonIndex;
         if (partyMenu->args->context == PARTY_MENU_CONTEXT_0 || NativePartyUIPotionUse(partyMenu)
-            || (NativePartyUITMHM(partyMenu) && partyMenu->args->context == PARTY_MENU_CONTEXT_TM_HM)) {
+            || (NativePartyUITMHM(partyMenu) && partyMenu->args->context == PARTY_MENU_CONTEXT_TM_HM)
+            || (NativePartyUIRareCandy(partyMenu) && partyMenu->args->context == PARTY_MENU_CONTEXT_USE_ITEM)) {
             sNativePartyMessage = &partyMenu->windows[PARTY_MENU_WINDOW_ID_32];
         }
-        if (NativePartyUITMHM(partyMenu)) {
+        if (NativePartyUITMHM(partyMenu) || NativePartyUIRareCandy(partyMenu)) {
             sNativePartyUI.actionCount = 1;
-            sNativePartyUI.actions[0].textId = HG_PARTY_UI_TEXT_TM_ACK;
+            sNativePartyUI.actions[0].textId = NativePartyUIRareCandy(partyMenu) ? HG_PARTY_UI_TEXT_CANDY_BUSY : HG_PARTY_UI_TEXT_TM_ACK;
         }
     }
 }
@@ -1526,8 +1574,8 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
         && ((next.context == PARTY_MENU_CONTEXT_0 && (phase == HG_PARTY_UI_ITEM_RESULT || phase == HG_PARTY_UI_TAKE_RESULT))
             || (next.context == HG_PARTY_UI_GIVE_CONTEXT && (phase == HG_PARTY_UI_GIVE_ITEM || phase == HG_PARTY_UI_ITEM_RESULT)));
     itemProgress = itemProgress || (potion && phase == HG_PARTY_UI_ITEM_USE);
-    BOOL tm = NativePartyUITMHM(partyMenu);
-    BOOL supported = (next.context == PARTY_MENU_CONTEXT_0 && next.panelLayout == 0) || itemProgress || potion || tm;
+    BOOL tm = NativePartyUITMHM(partyMenu), candy = NativePartyUIRareCandy(partyMenu);
+    BOOL supported = (next.context == PARTY_MENU_CONTEXT_0 && next.panelLayout == 0) || itemProgress || potion || tm || candy;
     BOOL ready = supported && ((next.context == PARTY_MENU_CONTEXT_0 && (phase == HG_PARTY_UI_ROSTER || phase == HG_PARTY_UI_CONTEXT || phase == HG_PARTY_UI_SUBCONTEXT))
         || (potion && phase == HG_PARTY_UI_ITEM_TARGET))
         && !partyMenu->contextMenuButtonAnim.active && !partyMenu->swapMonsData.active && IsPaletteFadeFinished();
@@ -1595,15 +1643,16 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
             next.cancelX = 124; next.cancelY = 168;
         }
     }
-    if (tm) {
+    if (tm || candy) {
         next.cancelEnabled = FALSE; next.cancelX = next.cancelY = 0;
         next.actionCount = phase == HG_PARTY_UI_TM_YES_NO ? 2 : 1;
         next.actionSelected = next.actionEnabledMask = 0;
         MI_CpuClear8(next.actions, sizeof(next.actions));
         BOOL idle = valid && graphicsReady && IsPaletteFadeFinished() && !partyMenu->contextMenuButtonAnim.active && !partyMenu->swapMonsData.active;
         ready = FALSE;
-        if (phase == HG_PARTY_UI_TM_TARGET && next.context == PARTY_MENU_CONTEXT_TM_HM) {
-            next.actions[0].textId = HG_PARTY_UI_TEXT_TM_TARGET;
+        if ((tm && phase == HG_PARTY_UI_TM_TARGET && next.context == PARTY_MENU_CONTEXT_TM_HM)
+            || (candy && phase == HG_PARTY_UI_ITEM_TARGET && next.context == PARTY_MENU_CONTEXT_USE_ITEM)) {
+            next.actions[0].textId = candy ? HG_PARTY_UI_TEXT_CANDY_TARGET : HG_PARTY_UI_TEXT_TM_TARGET;
             next.cancelEnabled = !partyMenu->cancelDisabled;
             NativePartyUIHitCenter(&hitboxes[6], &next.cancelX, &next.cancelY);
             ready = idle && sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_32]
@@ -1611,21 +1660,39 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
                 && sNativePartyMessage->tilemapLeft == 2 && sNativePartyMessage->tilemapTop == 21
                 && (next.selected < HG_PARTY_UI_SLOTS ? next.mons[next.selected].active : next.selected == HG_PARTY_UI_SLOTS);
         } else {
+            BOOL selected = next.selected < HG_PARTY_UI_SLOTS && next.mons[next.selected].active;
+            BOOL noEffect = candy && phase == HG_PARTY_UI_ITEM_USE && next.context == PARTY_MENU_CONTEXT_USE_ITEM && next.selected == HG_PARTY_UI_CONFIRM;
+            u32 role = HG_PARTY_UI_TEXT_TM_ACK;
+            if (candy) {
+                role = HG_PARTY_UI_TEXT_CANDY_BUSY;
+                if (phase == HG_PARTY_UI_TM_MESSAGE) role = HG_PARTY_UI_TEXT_CANDY_ACK;
+                else if (phase == HG_PARTY_UI_ITEM_USE) {
+                    u32 loop = partyMenu->levelUpLearnMovesLoopState;
+                    if (selected && next.context == PARTY_MENU_CONTEXT_USE_ITEM && (loop == 1 || loop == 2))
+                        role = loop == 1 ? HG_PARTY_UI_TEXT_CANDY_STATS_DIFF : HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL;
+                    else if (sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_34]
+                        && (noEffect || (selected && (loop == 4 || (next.context == PARTY_MENU_CONTEXT_USE_ITEM && loop == 0)))))
+                        role = HG_PARTY_UI_TEXT_CANDY_ACK;
+                }
+            }
             for (u32 i = 0; i < next.actionCount; ++i) {
                 HGNativePartyUIAction *action = &next.actions[i];
-                action->textId = phase == HG_PARTY_UI_TM_YES_NO ? HG_PARTY_UI_TEXT_TM_YES + i : HG_PARTY_UI_TEXT_TM_ACK;
+                action->textId = phase == HG_PARTY_UI_TM_YES_NO ? (candy ? HG_PARTY_UI_TEXT_CANDY_YES : HG_PARTY_UI_TEXT_TM_YES) + i : role;
                 action->hitX = phase == HG_PARTY_UI_TM_YES_NO ? 224 : 124; action->hitY = phase == HG_PARTY_UI_TM_YES_NO ? 96 + 32 * i : 168;
             }
             BOOL message = sNativePartyMessage == &partyMenu->windows[PARTY_MENU_WINDOW_ID_34]
                 && next.message.pixelBuffer && next.message.tileWidth == 27 && next.message.tileHeight == 4
                 && sNativePartyMessage->tilemapLeft == 2 && sNativePartyMessage->tilemapTop == 19;
-            if (phase == HG_PARTY_UI_TM_MESSAGE) ready = idle && message && TextPrinterIsWaitingForInput(partyMenu->textPrinterId, sNativePartyMessage);
-            else if (phase == HG_PARTY_UI_TM_YES_NO) ready = idle && message && NativePartyUITMYesNo(partyMenu);
+            if (phase == HG_PARTY_UI_TM_MESSAGE || (candy && phase == HG_PARTY_UI_ITEM_USE && role == HG_PARTY_UI_TEXT_CANDY_ACK))
+                ready = idle && message && (!candy || selected || noEffect) && TextPrinterIsWaitingForInput(partyMenu->textPrinterId, sNativePartyMessage);
+            else if (phase == HG_PARTY_UI_TM_YES_NO) ready = idle && message && (!candy || selected) && NativePartyUIYesNo(partyMenu);
+            else if (candy && phase == HG_PARTY_UI_ITEM_USE && (role == HG_PARTY_UI_TEXT_CANDY_STATS_DIFF || role == HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL))
+                ready = idle && message && selected && NativePartyUIStatsWindow(partyMenu);
             for (u32 i = 0; i < next.actionCount; ++i) {
                 next.actions[i].enabled = ready;
                 if (ready) next.actionEnabledMask |= 1u << i;
             }
-            // Yes/No text lives on the original BG; no synthetic Window descriptor is published.
+            // Stats (128x112 including frame) and Yes/No use original BG crops, never oversized or synthetic Window descriptors.
         }
     }
     next.ready = ready && graphicsReady && valid && next.count != 0;
@@ -1642,4 +1709,20 @@ void NativePartyUIPublish(PartyMenu *partyMenu, u32 phase, const TouchscreenHitb
 }
 
 const HGNativePartyUIState *HGNativePartyUIGetState(void) { return &sNativePartyUI; }
+
+const u16 *HGNativePartyUIGetStats(u32 revision) {
+    const HGNativePartyUIState *state = &sNativePartyUI;
+    const PartyMenu *owner = sNativePartyMenu;
+    u32 role = state->actions[0].textId;
+    if (owner == NULL || owner->args == NULL || !state->ready || state->revision != revision || !HGNativePartyUIIsRareCandy(state)
+        || state->context != HG_PARTY_UI_USE_CONTEXT || state->phase != HG_PARTY_UI_ITEM_USE
+        || state->actionCount != 1 || state->actionEnabledMask != 1 || !state->actions[0].enabled
+        || (role != HG_PARTY_UI_TEXT_CANDY_STATS_DIFF && role != HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL) || sNativePartyStatsRole != role
+        || owner->args->context != PARTY_MENU_CONTEXT_USE_ITEM || owner->args->panelLayout || owner->args->itemId != ITEM_RARE_CANDY
+        || owner->partyMonIndex != state->selected || state->selected >= HG_PARTY_UI_SLOTS || !state->mons[state->selected].active
+        || owner->levelUpLearnMovesLoopState != (role == HG_PARTY_UI_TEXT_CANDY_STATS_DIFF ? 1 : 2)
+        || owner->bgConfig == NULL || ((owner->bgConfig->bufferTransferScheduled | owner->bgConfig->scrollScheduled) & 0xFF)
+        || !IsPaletteFadeFinished() || !NativePartyUIStatsWindow(owner)) return NULL;
+    return sNativePartyStats;
+}
 #endif

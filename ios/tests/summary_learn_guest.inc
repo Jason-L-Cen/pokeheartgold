@@ -38,6 +38,8 @@ BOOL SummaryLearnBagTaskMatches(const BagApp *app) { return app->task == BagApp_
 
 #ifdef HG_SUMMARY_LEARN_FIELD_OBSERVER
 #include "global.h"
+#include "constants/items.h"
+#include "constants/moves.h"
 #include "application/bag/bag_app.h"
 #include "field_system.h"
 #include "map_header.h"
@@ -133,7 +135,11 @@ static void SummaryLearnObserve(FieldSystem *field) {
                 next.partySlot = menu->partyMonIndex; next.selectedAction = menu->args->selectedAction;
                 next.selectedMoveSlot = menu->args->selectedMoveIdx; next.afterTextState = menu->afterTextPrinterState;
                 next.partyBusy = menu->contextMenuButtonAnim.active || menu->swapMonsData.active;
-                if (next.phase == PARTY_MENU_STATE_WAIT_TEXT_PRINTER)
+                BOOL candy = !menu->args->panelLayout && ((next.context == PARTY_MENU_CONTEXT_USE_ITEM && next.itemId == ITEM_RARE_CANDY)
+                    || (next.context == PARTY_MENU_CONTEXT_REPLACE_MOVE_LEVELUP && next.itemId == ITEM_NONE && next.moveId > MOVE_NONE && next.moveId <= NUM_MOVES));
+                if (candy) next.taskState = menu->levelUpLearnMovesLoopState;
+                if (next.phase == PARTY_MENU_STATE_WAIT_TEXT_PRINTER
+                    || (candy && next.phase == PARTY_MENU_STATE_ITEM_USE_CB && (next.taskState == 0 || next.taskState == 4)))
                     SummaryLearnReadPrinter(menu->textPrinterId, &menu->windows[PARTY_MENU_WINDOW_ID_34], &next);
                 if (next.phase == PARTY_MENU_STATE_YES_NO_HANDLE_INPUT) SummaryLearnPrompt(menu->yesNoPrompt, &next);
             } else {
