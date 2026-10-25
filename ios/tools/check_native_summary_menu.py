@@ -15,7 +15,7 @@ from check_abi32 import ROOT, BUILD, SDK, WABT, native_build_settings
 from check_native_bag_menu import field_hitboxes, hashes, sha
 from check_native_engine import generate_engine
 from check_native_rainy_field import INCLUDES
-from import_original_content import read_boot_header
+from import_original_content import read_boot_header, narc
 from prepare_native_content import verify
 from prepare_overlay_state import IDENT, getter_name, instrument_ir
 
@@ -549,6 +549,218 @@ def candy_evidence_self_check():
         assert not candy_evidence_passed(bad),kind
     return dict(syntheticPositive=1,targetedNegatives=19,gameplayEvidence=False)
 
+
+def evolution_evidence_passed(report):
+    """Pure native Evolution evidence predicate; no build, file read or UIKit/particle claim."""
+    if not isinstance(report,dict) or report.get('evolution') is not True or type(report.get('evolutionCancel')) is not bool:return False
+    cancel=report['evolutionCancel'];status='passed_original_evolution_'+('cancel' if cancel else 'success')
+    names=('evolutionEvidence','evolutionFixtureEvidence','evolutionSemanticEvidence','evolutionExpectedStatsEvidence','evolutionStateEvidence','evolutionFrameEvidence','evolutionTypedEvidence','candyTypedEvidence','candyStatsEvidence','candyBootEvidence','inputEvidence','semanticEvidence','evidence')
+    if any(not isinstance(report.get(name),list) or any(not isinstance(row,dict) for row in report[name]) for name in names):return False
+    if any(len(report[name])!=count for name,count in (('evolutionEvidence',1),('evolutionFixtureEvidence',1),('evolutionSemanticEvidence',2),('evolutionExpectedStatsEvidence',1),('candyStatsEvidence',2),('semanticEvidence',1),('evidence',1))):return False
+    def exact(row,values):return all(type(row.get(k)) is type(v) and row[k]==v for k,v in values.items())
+    def uint(value):return type(value) is int and 0<=value<2**32
+    boot=report['candyBootEvidence']
+    if not boot or not any(exact(row,dict(map=33,inputStep=3,inputFrame=0,qaObserved=True,qaVersion=1,qaBytes=232,fieldReady=1,owner=0,fadeFinished=1)) for row in boot):return False
+    final=report['evolutionEvidence'][0];fixture=report['evolutionFixtureEvidence'][0];model=report['evolutionExpectedStatsEvidence'][0]
+    if not exact(final,dict(status=status,cancelCase=cancel,fixturePrepared=1,initialLevel=15,initialExperience=2035,level=16,experience=2535,
+        species=152 if cancel else 153,quantity=1,cancelAccepted=int(cancel),ackAccepted=1,rejected=0,initialFieldViewWidth=384,fieldViewWidth=384,statsMask=3,
+        outerTypedRejected=0,summaryLifetimes=0,choiceMenus=0,particleContributionSeparated=False,resetFinished=True,privateSaveWrites=False)):return False
+    for key in ('queued','accepted','released','settled','geometryFrames','oscillateFrames','firstGeometrySerial','lastGeometrySerial','outerTypedAccepted','outerTypedReleased','outerTypedSettled','personality','otId'):
+        if not uint(final.get(key)):return False
+    if not final['queued']==final['accepted']==final['released']==final['settled']==1+int(cancel) or final['oscillateFrames']!=2 or final['geometryFrames']<2 \
+        or not final['firstGeometrySerial'] or final['firstGeometrySerial']==final['lastGeometrySerial'] \
+        or not final['outerTypedAccepted']==final['outerTypedReleased']==final['outerTypedSettled']>=7:return False
+    if not exact(fixture,dict(preparedBeforeFirstFieldAction=True,species=152,partyCount=1,initialLevel=15,initialExperience=2035,item=50,quantity=2,
+        initialFriendship=70,initialMood=0,eggLocation=0,fixtureUsesExistingStarter=True,otNameProfileMatched=True,privateSaveMemoryOnly=True)) \
+        or fixture.get('moves')!=[33,45,0,0] or not uint(fixture.get('otNameLength')) or not 1<=fixture['otNameLength']<=7 \
+        or not uint(fixture.get('mapSection')) or not fixture['mapSection'] \
+        or not uint(fixture.get('originalPersonality')) or not uint(fixture.get('originalOtId')) \
+        or [fixture.get('originalPersonality'),fixture.get('originalOtId')]!=[final['personality'],final['otId']]:return False
+    baseline=report['semanticEvidence'][0]
+    if baseline.get('step')!='before' or not isinstance(baseline.get('mons'),list) or len(baseline['mons'])!=1:return False
+    mon=baseline['mons'][0]
+    if not isinstance(mon,list) or len(mon)!=26 or any(not uint(v) for v in mon) or mon[:3]!=[final['personality'],final['otId'],152] \
+        or mon[6]!=mon[7] or mon[8]!=15 or mon[10:14]!=[33,45,0,0]:return False
+    if not exact(model,dict(initialExperience=2035,expectedExperience=2535)) \
+        or any(not isinstance(model.get(key),list) or len(model[key])!=6 or any(not uint(v) or not v for v in model[key]) for key in ('initial','expected')) \
+        or model['initial'][0]!=mon[7]:return False
+    for checkpoint,semantic in enumerate(report['evolutionSemanticEvidence']):
+        if not exact(semantic,dict(species=152 if cancel else 153,level=16,experience=2535,quantity=1,friendship=75,
+            mood=40 if not checkpoint or cancel else 0,fieldReturned=bool(checkpoint),
+            personality=final['personality'],otId=final['otId'],bayleefSeen=int(not cancel),bayleefCaught=int(not cancel),
+            dexSeenDelta=int(not cancel),dexCaughtDelta=int(not cancel),otherBagBytesPreserved=True,flagsMoneyPreserved=True,ivEvPreserved=True)) \
+            or not isinstance(semantic.get('stats'),list) or len(semantic['stats'])!=6 or any(not uint(v) or not v for v in semantic['stats']) \
+            or semantic.get('hp')!=semantic['stats'][0] or semantic.get('maxHp')!=semantic['stats'][0]:return False
+    stable=lambda row:{k:v for k,v in row.items() if k not in ('mood','fieldReturned')}
+    if stable(report['evolutionSemanticEvidence'][0])!=stable(report['evolutionSemanticEvidence'][1]):return False
+    if not exact(report['evidence'][0],dict(status=status,seenPhases=0,summaryLifetimes=0,activeAfterReturn=0,resetFinished=True,pendingDMA=0,
+        partyItemsMoneyFlagsUnchanged=False,expectedPrivateEvolutionMutation=True)):return False
+    states=report['evolutionStateEvidence']
+    if not states or any(any(not uint(row.get(k)) for k in ('frame','revision','phase','active','ready','summaryActive','flags','species','newSpecies','moveToLearn','actionMask')) \
+        or row['active']!=1 or row['ready'] not in (0,1) or row['summaryActive'] or row['species']!=152 or row['newSpecies']!=153 or row['moveToLearn'] \
+        or not row['revision'] or row['phase']>45 or row['flags']&~7 or not row['flags']&1 or row['actionMask']&~15 for row in states):return False
+    if 8 not in {row['phase'] for row in states} or not (any(41<=row['phase']<=45 for row in states) if cancel else any(row['phase']==12 for row in states)):return False
+    if [r['revision'] for r in states]!=sorted(r['revision'] for r in states):return False
+    files=report.get('capturedFiles')
+    if not isinstance(files,dict) or any(not isinstance(k,str) or not isinstance(v,str) or len(v)!=64 for k,v in files.items()):return False
+    def captured(name):
+        hits=[v for k,v in files.items() if k.rsplit('/',1)[-1]==name]
+        return hits[0] if len(hits)==1 else None
+    frames=report['evolutionFrameEvidence'];osc=[row for row in frames if row.get('phase')==8]
+    if len(frames)!=final['geometryFrames'] or len(osc)!=2 or osc[0].get('geometrySerial')==osc[1].get('geometrySerial'):return False
+    if any(not exact(row,dict(width=256,height=192,bytes=256*192*4,nonuniform=True)) \
+        or any(not uint(row.get(k)) or not row[k] for k in ('revision','frame','vertices','polygons','geometrySerial','geometrySerialAfter')) \
+        or row['geometrySerial']!=row['geometrySerialAfter'] or not isinstance(row.get('file'),str) or not captured(row['file']) for row in frames):return False
+    if captured(osc[0]['file'])==captured(osc[1]['file']) or not captured('evolution-field-before.rgba') or not captured('evolution-field-return.rgba'):return False
+    for i,row in enumerate(report['candyStatsEvidence']):
+        if not exact(row,dict(stage=6+i,role=39+i,owner=2,context=5,itemId=50,phase=5,taskState=1+i,ready=1,graphicsReady=1,fadeFinished=1,bytes=128*112*4,staleDiffRejected=i)) \
+            or row.get('displayValues')!=([b-a for a,b in zip(model['initial'],model['expected'])] if not i else model['expected']) \
+            or not captured(row.get('file')):return False
+    evolution=report['evolutionTypedEvidence'];expected_kinds=[1,0] if cancel else [0]
+    if len(evolution)!=4*len(expected_kinds):return False
+    evo_press=[];evo_release=[]
+    for i,kind in enumerate(expected_kinds):
+        q,a,r,s=evolution[i*4:i*4+4]
+        if [row.get('event') for row in (q,a,r,s)]!=['queued','accepted','released','settled'] \
+            or any(not exact(row,dict(sequence=i+1,kind=kind,index=0,phase=8 if kind else 44 if cancel else 12)) for row in (q,a,r,s)) \
+            or any(not uint(row.get(k)) for row in (q,a,r,s) for k in ('revision','padReads')) \
+            or len({row['revision'] for row in (q,a,r,s)})!=1 or not q['revision'] \
+            or not q['padReads']<=a['padReads']<=r['padReads'] or s['padReads']-r['padReads']<2 \
+            or not uint(r.get('ownerChanged')) or r['ownerChanged'] not in (0,1) or (not r['ownerChanged'] and r['padReads']-a['padReads']<4) \
+            or not exact(a,dict(keys=2 if kind else 1,actionMask=2 if kind else 1)) or not uint(a.get('flags')) or not a['flags']&1 \
+            or a.get('touch')!=[0,0,0] or q.get('keys')!=a['keys'] or q.get('touch')!=a['touch']:return False
+        evo_press.append((4,a['revision'],a['phase'],a['padReads'],a['keys'],tuple(a['touch'])))
+        evo_release.append((4,r['revision'],r['phase'],r['padReads']))
+    outer=report['candyTypedEvidence'];count=final['outerTypedAccepted']
+    if len(outer)!=count*4:return False
+    outer_press=[];outer_release=[];seen_roles=set();seen_kinds={1:set(),3:set()}
+    for i in range(count):
+        q,a,r,s=outer[i*4:i*4+4]
+        if [row.get('event') for row in (q,a,r,s)]!=['queued','accepted','released','settled'] or any(not uint(row.get('sequence')) or row['sequence']!=i+1 or not uint(row.get('invalidated')) or row['invalidated'] not in (0,1) for row in (q,a,r,s)):return False
+        variable={'event','touch','padReads','invalidated'}
+        if any({k:v for k,v in row.items() if k not in variable}!={k:v for k,v in q.items() if k not in variable} for row in (a,r,s)):return False
+        fields=('stage','advance','producer','revision','phase','kind','index','role','owner','generation','qaRevision','manager','data','execState','context','itemId','taskState','partySlot','partyBusy','graphicsReady','fadeFinished','keys')
+        if any(not uint(q.get(k)) for k in fields) or q['keys'] or q['producer'] not in (1,3) or q['owner']!=(2 if q['producer']==1 else 1) \
+            or not q['revision'] or not q['qaRevision'] or not q['generation'] or not q['manager'] or not q['data'] \
+            or q['execState']!=2 or q['graphicsReady']!=1 or q['fadeFinished']!=1:return False
+        if q['producer']==3:
+            if q['role'] or not ((q['phase']==1 and q['kind'] in (0,1,5)) or (q['phase']==4 and q['kind']==2)):return False
+        else:
+            if q['context']!=5 or q['itemId']!=50 or q['partyBusy'] or q['partySlot'] or q['index']:return False
+            if q['kind']==0:
+                if q['phase']!=4 or q['role']!=37:return False
+            elif q['kind']==1:
+                if q['phase']!=5 or q['role'] not in (38,39,40):return False
+                if q['role']==38:
+                    if q['taskState']!=0 or any(q.get(k)!=1 for k in ('printerActive','printerMatches','printerWaiting')) or q.get('printerState')!=2:return False
+                elif q['taskState']!=q['role']-38:return False
+                seen_roles.add(q['role'])
+            else:return False
+        if not all(uint(row.get('padReads')) for row in (q,a,r,s)) or not q['padReads']<=a['padReads']<=r['padReads'] or s['padReads']-r['padReads']<2 \
+            or r.get('invalidated') not in (0,1) or (not r['invalidated'] and r['padReads']-a['padReads']<4) \
+            or not isinstance(a.get('touch'),list) or len(a['touch'])!=3 or any(not uint(v) for v in a['touch']) \
+            or a['touch'][0]!=1 or a['touch'][1]>=256 or a['touch'][2]>=192:return False
+        seen_kinds[q['producer']].add(q['kind'])
+        outer_press.append((q['producer'],q['revision'],q['phase'],a['padReads'],0,tuple(a['touch'])))
+        outer_release.append((q['producer'],q['revision'],q['phase'],r['padReads']))
+    if seen_roles!={38,39,40} or seen_kinds!={1:{0,1},3:{0,1,2,5}}:return False
+    inputs=report['inputEvidence'];press=[r for r in inputs if r.get('event')=='press'];release=[r for r in inputs if r.get('event')=='release']
+    if any(r.get('event') not in ('press','release') for r in inputs) or len(press)!=count+len(expected_kinds)+1 or len(release)!=len(press):return False
+    if any(any(not uint(r.get(k)) for k in ('stage','owner','revision','phase','padReads','keys')) or not isinstance(r.get('touch'),list) or len(r['touch'])!=3 or any(not uint(v) for v in r['touch']) for r in press) \
+        or any(any(not uint(r.get(k)) for k in ('stage','owner','revision','phase','padReads','ownerChanged')) for r in release):return False
+    field=[r for r in press if r.get('owner')==0]
+    if len(field)!=1 or field[0].get('keys')!=0 or field[0].get('touch',[0])[0]!=1:return False
+    def press_key(r):return (r.get('owner'),r.get('revision'),r.get('phase'),r.get('padReads'),r.get('keys'),tuple(r.get('touch',[])))
+    def release_key(r):return (r.get('owner'),r.get('revision'),r.get('phase'),r.get('padReads'))
+    if sorted(press_key(r) for r in press if r.get('owner')!=0)!=sorted(evo_press+outer_press) \
+        or sorted(release_key(r) for r in release if r.get('owner')!=0)!=sorted(evo_release+outer_release):return False
+    return True
+
+
+def evolution_validator_self_check():
+    from copy import deepcopy
+    def model(cancel):
+        status='passed_original_evolution_'+('cancel' if cancel else 'success')
+        initial=[40,23,28,23,28,20];expected=[42,24,30,24,30,22];finalstats=expected if cancel else [47,28,35,29,35,26]
+        fixture=dict(preparedBeforeFirstFieldAction=True,species=152,partyCount=1,moves=[33,45,0,0],initialLevel=15,initialExperience=2035,item=50,quantity=2,
+            initialFriendship=70,initialMood=0,eggLocation=0,fixtureUsesExistingStarter=True,otNameProfileMatched=True,otNameLength=5,privateSaveMemoryOnly=True,mapSection=177,originalPersonality=123,originalOtId=456)
+        mon=[123,456,152,0,0,0,40,40,15,0,33,45,0,0,35,40,0,0,0,0,0,0,35,40,0,0]
+        final=dict(status=status,cancelCase=cancel,fixturePrepared=1,initialLevel=15,initialExperience=2035,level=16,experience=2535,species=152 if cancel else 153,quantity=1,
+            personality=123,otId=456,cancelAccepted=int(cancel),ackAccepted=1,queued=1+int(cancel),accepted=1+int(cancel),rejected=0,released=1+int(cancel),settled=1+int(cancel),
+            geometryFrames=3,oscillateFrames=2,firstGeometrySerial=10,lastGeometrySerial=12,initialFieldViewWidth=384,fieldViewWidth=384,outerTypedAccepted=8,outerTypedReleased=8,outerTypedSettled=8,
+            outerTypedRejected=0,statsMask=3,summaryLifetimes=0,choiceMenus=0,particleContributionSeparated=False,resetFinished=True,privateSaveWrites=False)
+        semantic=dict(species=final['species'],level=16,experience=2535,quantity=1,friendship=75,mood=40,fieldReturned=False,personality=123,otId=456,hp=finalstats[0],maxHp=finalstats[0],
+            bayleefSeen=int(not cancel),bayleefCaught=int(not cancel),dexSeenDelta=int(not cancel),dexCaughtDelta=int(not cancel),otherBagBytesPreserved=True,flagsMoneyPreserved=True,ivEvPreserved=True,stats=finalstats)
+        states=[dict(frame=1+i,revision=1+i,phase=phase,active=1,ready=1,summaryActive=0,flags=1,species=152,newSpecies=153,moveToLearn=0,actionMask=2 if phase==8 else 1) for i,phase in enumerate((8,44 if cancel else 12))]
+        frames=[dict(file='evolution-%02u.rgba'%i,width=256,height=192,bytes=256*192*4,phase=8 if i<2 else 44 if cancel else 12,revision=i+1,frame=i+1,
+            vertices=4,polygons=1,geometrySerial=10+i,geometrySerialAfter=10+i,nonuniform=True) for i in range(3)]
+        files={'/frames/'+row['file']:str(i+1)*64 for i,row in enumerate(frames)}
+        files.update({'/frames/evolution-field-before.rgba':'a'*64,'/frames/evolution-field-return.rgba':'b'*64,'/frames/candy-stats-diff.rgba':'c'*64,'/frames/candy-stats-total.rgba':'d'*64})
+        stats=[dict(stage=6+i,role=39+i,owner=2,context=5,itemId=50,phase=5,taskState=1+i,ready=1,graphicsReady=1,fadeFinished=1,bytes=128*112*4,staleDiffRejected=i,
+            displayValues=[b-a for a,b in zip(initial,expected)] if not i else expected,file='candy-stats-'+('diff' if not i else 'total')+'.rgba') for i in range(2)]
+        outer=[];inputs=[dict(stage=1,event='press',owner=0,revision=0,phase=0,padReads=1,keys=0,touch=[1,100,100]),dict(stage=1,event='release',owner=0,revision=0,phase=0,padReads=5,ownerChanged=0)]
+        plans=[(3,1,2,0,0),(3,1,3,1,0),(3,4,4,2,0),(1,4,5,0,37),(1,5,6,1,38),(1,5,6,1,39),(1,5,7,1,40),(3,1,9,5,0)]
+        for i,(producer,phase,stage,kind,role) in enumerate(plans,1):
+            reads=400 if i==8 else i*12
+            q=dict(event='queued',sequence=i,stage=stage,advance=int(role!=38),producer=producer,revision=i,phase=phase,kind=kind,index=0,role=role,
+                owner=2 if producer==1 else 1,generation=i,qaRevision=i,manager=100,data=200,execState=2,context=5 if producer==1 else 0,
+                itemId=50 if producer==1 else 0,taskState=role-38 if role>=38 else 0,partySlot=0,partyBusy=0,graphicsReady=1,fadeFinished=1,keys=0,padReads=reads,
+                invalidated=0,touch=[0,0,0],printerActive=1,printerMatches=1,printerWaiting=1,printerState=2)
+            a={**q,'event':'accepted','padReads':reads+1,'touch':[1,64,24]};r={**q,'event':'released','padReads':reads+5};s={**q,'event':'settled','padReads':reads+7};outer.extend((q,a,r,s))
+            inputs.extend((dict(stage=stage,event='press',owner=producer,revision=i,phase=phase,padReads=reads+1,keys=0,touch=a['touch']),
+                dict(stage=stage,event='release',owner=producer,revision=i,phase=phase,padReads=reads+5,ownerChanged=0)))
+        evo=[]
+        for i,kind in enumerate(([1,0] if cancel else [0]),1):
+            phase=8 if kind else 44 if cancel else 12;reads=200+i*12;keys=2 if kind else 1
+            q=dict(event='queued',sequence=i,revision=100+i,phase=phase,kind=kind,index=0,padReads=reads,keys=keys,touch=[0,0,0])
+            a={**q,'event':'accepted','padReads':reads+1,'actionMask':keys,'flags':1}
+            r=dict(event='released',sequence=i,revision=100+i,phase=phase,kind=kind,index=0,padReads=reads+5,ownerChanged=0)
+            s={**r,'event':'settled','padReads':reads+7};evo.extend((q,a,r,s))
+            inputs.extend((dict(stage=8,event='press',owner=4,revision=100+i,phase=phase,padReads=reads+1,keys=keys,touch=[0,0,0]),
+                dict(stage=8,event='release',owner=4,revision=100+i,phase=phase,padReads=reads+5,ownerChanged=0)))
+        inputs.sort(key=lambda r:r['padReads'])
+        returned={**deepcopy(semantic),'mood':40 if cancel else 0,'fieldReturned':True}
+        return dict(evolution=True,evolutionCancel=cancel,evolutionEvidence=[final],evolutionFixtureEvidence=[fixture],evolutionSemanticEvidence=[semantic,returned],
+            evolutionExpectedStatsEvidence=[dict(initialExperience=2035,expectedExperience=2535,initial=initial,expected=expected)],evolutionStateEvidence=states,evolutionFrameEvidence=frames,
+            evolutionTypedEvidence=evo,candyTypedEvidence=outer,candyStatsEvidence=stats,candyBootEvidence=[dict(map=33,inputStep=3,inputFrame=0,qaObserved=True,qaVersion=1,qaBytes=232,fieldReady=1,owner=0,fadeFinished=1)],inputEvidence=inputs,capturedFiles=files,semanticEvidence=[dict(step='before',mons=[mon])],
+            evidence=[dict(status=status,seenPhases=0,summaryLifetimes=0,activeAfterReturn=0,resetFinished=True,pendingDMA=0,partyItemsMoneyFlagsUnchanged=False,expectedPrivateEvolutionMutation=True)])
+    assert evolution_evidence_passed(model(False)) and evolution_evidence_passed(model(True))
+    cases=('wrong-status','wrong-species','exp','dex','identity','outer-owner','busy-role','raw-key','missing-release','missing-outer-release','bad-mask','bad-b-flag','bad-b-phase','short-release',
+        'no-geometry','serial','same-pixels','field-file','stats-value','field-mood','cancel-field-mood','bag-mood','missing-checkpoint','swapped-checkpoint','field-stats','float-counter')
+    for name in cases:
+        bad=model(name in ('bad-b-flag','bad-b-phase','cancel-field-mood'));final=bad['evolutionEvidence'][0]
+        if name=='wrong-status':final['status']='passed_original_summary_menu'
+        elif name=='wrong-species':bad['evolutionSemanticEvidence'][0]['species']=152
+        elif name=='exp':final['experience']=179
+        elif name=='dex':bad['evolutionSemanticEvidence'][0]['dexCaughtDelta']=0
+        elif name=='identity':bad['evolutionFixtureEvidence'][0]['originalPersonality']=999
+        elif name=='outer-owner':bad['candyTypedEvidence'][0]['owner']=2
+        elif name=='busy-role':bad['candyTypedEvidence'][5*4]['role']=43
+        elif name=='raw-key':bad['inputEvidence'][0]['keys']=1
+        elif name=='missing-release':del bad['evolutionTypedEvidence'][2]
+        elif name=='missing-outer-release':del bad['candyTypedEvidence'][2]
+        elif name=='bad-mask':bad['evolutionTypedEvidence'][1]['actionMask']=2
+        elif name=='bad-b-flag':bad['evolutionTypedEvidence'][1]['flags']=0
+        elif name=='bad-b-phase':bad['evolutionTypedEvidence'][1]['phase']=7
+        elif name=='short-release':bad['evolutionTypedEvidence'][3]['padReads']=bad['evolutionTypedEvidence'][2]['padReads']+1
+        elif name=='no-geometry':bad['evolutionFrameEvidence'][0]['polygons']=0
+        elif name=='serial':bad['evolutionFrameEvidence'][0]['geometrySerialAfter']=99
+        elif name=='same-pixels':bad['capturedFiles']['/frames/evolution-01.rgba']=bad['capturedFiles']['/frames/evolution-00.rgba']
+        elif name=='field-file':del bad['capturedFiles']['/frames/evolution-field-return.rgba']
+        elif name=='stats-value':bad['candyStatsEvidence'][1]['displayValues'][0]+=1
+        elif name=='field-mood':bad['evolutionSemanticEvidence'][1]['mood']=40
+        elif name=='cancel-field-mood':bad['evolutionSemanticEvidence'][1]['mood']=0
+        elif name=='bag-mood':bad['evolutionSemanticEvidence'][0]['mood']=0
+        elif name=='missing-checkpoint':del bad['evolutionSemanticEvidence'][1]['fieldReturned']
+        elif name=='swapped-checkpoint':bad['evolutionSemanticEvidence'].reverse()
+        elif name=='field-stats':
+            bad['evolutionSemanticEvidence'][1]['stats'][0]+=1
+            bad['evolutionSemanticEvidence'][1]['hp']=bad['evolutionSemanticEvidence'][1]['maxHp']=bad['evolutionSemanticEvidence'][1]['stats'][0]
+        else:final['accepted']=1.0
+        assert not evolution_evidence_passed(bad),name
+    return dict(syntheticPositive=2,targetedNegatives=len(cases),gameplayEvidence=False)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--save', required=True, help='Designated private Route29 fixture; only new copies are opened')
@@ -556,10 +768,15 @@ def main():
     learning=parser.add_mutually_exclusive_group()
     learning.add_argument('--tm-learn', action='store_true', help='Private original TM route; native typed Bag/Party and Summary controls')
     learning.add_argument('--rare-candy', action='store_true', help='Private original Candy upgrade/stats/level-up learning route')
+    learning.add_argument('--evolution', action='store_true', help='Private original Chikorita15-to16 Candy evolution success route')
+    learning.add_argument('--cancel-evolution', action='store_true', help='Private original state8 B-cancel route, preserving the Candy upgrade')
     args = parser.parse_args()
+    evolution=args.evolution or args.cancel_evolution
+    if evolution and args.output_name=='native-summary-menu-pass':
+        args.output_name='native-summary-menu-evolution-'+('cancel' if args.cancel_evolution else 'success')
     if args.rare_candy and args.output_name == 'native-summary-menu-pass':
         args.output_name='native-summary-menu-rare-candy-pass'
-    private_learning=args.tm_learn or args.rare_candy
+    private_learning=args.tm_learn or args.rare_candy or evolution
     if args.tm_learn and args.output_name == 'native-summary-menu-pass':
         args.output_name = 'native-summary-menu-tm-learn-pass'
     if not re.fullmatch(r'native-summary-menu-[a-z0-9]+(?:-[a-z0-9]+)*', args.output_name):
@@ -597,10 +814,13 @@ def main():
             audited_sources.append(path)
     consumers = ['src/party_menu.c', 'src/party_context_menu.c', 'src/party_menu_list_items.c',
                  'src/party_menu_items.c', 'src/party_menu_sprites.c', 'src/overlay_94.c', 'src/pokemon_summary.c']
+    if evolution: consumers.append('src/evolution_scene.c')
     for name in consumers:
         if name not in units or units[name]['exitCode']:
             raise RuntimeError('Party/Summary consumer was not freshly audited: ' + name)
     command = link['command'].copy()
+    if evolution and '-Wl,--export=HGNativeEvolutionUIGetState' not in command:
+        raise RuntimeError('Require the fresh formal Evolution public getter; no private fallback export')
     original_rsp = next(value for value in command if value.startswith('@'))
     objects = shlex.split(Path(original_rsp[1:]).read_text())
     for name in consumers:
@@ -616,6 +836,9 @@ def main():
              ROOT / 'ios/Original/tests/summary_ui_check.c']
     if private_learning:
         owned.append(ROOT / 'ios/tests/summary_learn_guest.inc')
+    if evolution:
+        owned += [ROOT / 'include/native_evolution_ui.h', ROOT / 'files/poketool/personal/personal.json',
+                  ROOT / 'files/poketool/personal/evo.json', ROOT / 'files/poketool/personal/growtbl.csv']
     tracked = [*audited_sources, *headers, *host_headers, *runtime, *owned, ROOT / 'ios/Original/abi32/engine_check.c',
                ROOT / 'ios/OriginalApp/main.m', ROOT / 'ios/tests/check_original_app.inc',
                ROOT / 'asm/touchscreen_menu_data.s', *sorted((ROOT / 'ios/tools').glob('*.py'))]
@@ -657,6 +880,19 @@ def main():
         report.update(scope='Private valid-starter Candy50x2, originalLv5to6/stats/learnset and typed native Bag/Party/Summary; cancel retainsupgrade, HM/back/retry/replacement; no whole-game/UIKit/device/save-writing claim',
                       rareCandyLearn=True,peripheralInput='revision-bound native typed Bag/Party queues through original resolvers',productionApiAdded=True,
                       productionApiScope='One revision-guarded read-only six displayed stats getter; Party1480/QA232 unchanged')
+    if evolution:
+        learnset=pack/'files/a/0/3/3';members=narc(learnset);level16={}
+        for species in (152,153):
+            data=members[species]
+            if len(data)%2: raise RuntimeError('Malformed original level-up learnset')
+            words=[int.from_bytes(data[i:i+2],'little') for i in range(0,len(data),2)]
+            level16[str(species)]=[word&511 for word in words if word!=65535 and word>>9==16 and word&511]
+        if any(level16.values()): raise RuntimeError('This private fixture expects no natural Lv16 Summary/menu; do not force one')
+        report.update(evolution=True,evolutionCancel=args.cancel_evolution,privateObserverBytes=232,evolutionPacketBytes=196,
+            productionApiAdded=True,productionApiScope='One read-only revision-bound public Evolution196 state getter; existing Summary232 observer',
+            evolutionLearnsetPrerequisite=dict(narcSha256=sha(learnset),level16Moves=level16,summaryAndChoiceMenusExercised=False),
+            fixturePolicy='Original starter/PID/OT/two moves preserved; pre-flow EXP2035 with original SetMonData/CalcMonLevelAndStats plus Candy50x2 only',
+            particleContributionSeparated=False,scope='Original field Candy Lv15to16 evolution success or legal state8 B cancel, canonical MAIN geometry/pixels, original ACK and Bag/field/reset. No separate SPL-pixel attribution, learning-menu/Summary, UIKit/device/audio/full-game claim.')
     report_file = destination / 'report.json'
     report_file.write_text(json.dumps(report, indent=2) + '\n')
     (destination / 'preparation.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -696,11 +932,22 @@ def main():
                 flag = '-Wl,--export=' + name
                 if flag not in command:
                     command.insert(command.index('-o'), flag)
+            if evolution:
+                extra_exports=tuple(name for name in extra_exports if name!='CreateMon')+('SetMonData','CalcMonLevelAndStats','Pokedex_CheckMonSeenFlag','Pokedex_CheckMonCaughtFlag')
+                # These two setters are fixture-only before any field action; none is a shipping export or gameplay bypass.
+                for name in ('SetMonData','CalcMonLevelAndStats','Pokedex_CheckMonSeenFlag','Pokedex_CheckMonCaughtFlag'):
+                    flag='-Wl,--export='+name
+                    if flag not in command: command.insert(command.index('-o'),flag)
+                old='-Wl,--export=CreateMon'
+                if old in command: command.remove(old)
             report['privateAdditionalExports'] = list(extra_exports)
         run(command, 'strict-link.log')
         generated, writes, restores = generate_engine(destination, module, run)
         host_flags += ['-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all']
-        if args.tm_learn:
+        if evolution:
+            host_flags += ['-DHG_EVOLUTION_CHECK']
+            if args.cancel_evolution: host_flags += ['-DHG_EVOLUTION_CANCEL_CHECK']
+        elif args.tm_learn:
             host_flags += ['-DHG_SUMMARY_TM_LEARN_CHECK']
         elif args.rare_candy:
             host_flags += ['-DHG_SUMMARY_RARE_CANDY_CHECK']
@@ -739,7 +986,7 @@ def main():
                       artifactHashes=artifact_hashes, checkedStackWrites=writes, exceptionDepthRestores=restores)
         report_file.write_text(json.dumps(report, indent=2) + '\n')
         try:
-            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=240 if private_learning else 180)
+            result = subprocess.run(argv, cwd=ROOT, env={**os.environ, 'HEARTGOLD_TEST_MUTE': '1'}, capture_output=True, text=True, timeout=360 if evolution else 240 if private_learning else 180)
             exit_code, output = result.returncode, result.stdout + result.stderr
         except subprocess.TimeoutExpired as error:
             exit_code, output = None, (error.stdout or b'').decode() + (error.stderr or b'').decode()
@@ -771,10 +1018,29 @@ def main():
                 report[key]=[json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
             report['complete']=exit_code==0 and len(evidence)==1 and evidence[0]['status']=='passed_original_summary_candy_learning'
             report['passed']=report['complete'] and 'PASS: original Rare Candy route' in output
+        if evolution:
+            for key,label in (('evolutionEvidence','result'),('evolutionFixtureEvidence','fixture'),('evolutionSemanticEvidence','semantic'),
+                              ('evolutionExpectedStatsEvidence','expected stats'),('evolutionStateEvidence','state'),('evolutionFrameEvidence','frame'),('evolutionTypedEvidence','typed')):
+                prefix='Evolution '+label+' evidence: '
+                report[key]=[json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
+            for key,label in (('candyTypedEvidence','typed'),('candyStatsEvidence','stats'),('candyBootEvidence','boot')):
+                prefix='Summary Candy '+label+' evidence: '
+                report[key]=[json.loads(line[len(prefix):]) for line in output.splitlines() if line.startswith(prefix)]
+            expected_status='passed_original_evolution_'+('cancel' if args.cancel_evolution else 'success')
+            report['complete']=exit_code==0 and len(evidence)==1 and evidence[0]['status']==expected_status
+            report['passed']=report['complete'] and 'PASS: original field Rare Candy evolution route' in output
         report['generatedArtifactsUnchanged'] = hashes(artifacts) == artifact_hashes
         report['capturedFiles'] = hashes(path for path in (destination / 'frames').iterdir() if path.is_file())
         if args.rare_candy:
             report['passed'] &= candy_evidence_passed(report)
+        if evolution:
+            for row in report['evolutionFrameEvidence']:
+                name=row['file'];path=destination/'frames'/name
+                if Path(name).name!=name or path.stat().st_size!=row['bytes']:
+                    raise RuntimeError('Evolution canonical frame size/path mismatch')
+            for name in ('evolution-field-before.rgba','evolution-field-return.rgba'):
+                if (destination/'frames'/name).stat().st_size!=384*192*4: raise RuntimeError('Evolution field frame size mismatch')
+            report['passed'] &= evolution_evidence_passed(report)
         report['privateSaveHashesAfter'] = hashes(private_inputs)
         report['privateSaveUnchanged'] = report['privateSaveHashesBefore'] == report['privateSaveHashesAfter']
         report['passed'] &= report['generatedArtifactsUnchanged'] and report['privateSaveUnchanged']

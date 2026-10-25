@@ -2,6 +2,18 @@
 
 This target runs the compiled original C/C++ engine in UIKit. The earlier Swift/Metal target in `App/`, its JSON save and screenshots are retained prototype work; they do not describe the current original-engine target. The executable contains native arm64 code generated at build time; it does not load a DS CPU interpreter, JIT or WebAssembly module at runtime.
 
+## Original Evolution checkpoint (2026-10-25)
+
+Evolution now presents the original scene, sprite animation, effects and text in the landscape single-screen UI. A 196-byte read-only packet exposes the original owner, revision, waiting windows and available actions. Native input leases follow that lifetime; B cancels only in the original phase 8 with `CAN_CANCEL`. Original game code still performs leveling, Evolution, item use and Pokédex registration.
+
+The strict audit passed 94 checks with 1,600 unit records: 1,592 compiled target units, 8 explicit exclusions and 136 data proofs. Five native cases passed: Evolution success/cancel and the Rare Candy, TM and ordinary Summary regressions. The two Evolution cases reuse the valid original starter, privately prepare Lv.15, and use the original Candy flow to reach Lv.16/EXP2535 with Candy 2→1. Success produces Bayleef; cancel retains Chikorita. PID/OT and other Bag bytes stay intact. Mood is 40 on returning to Bag; the original follower species-change path resets it to 0 on successful field return, while cancel keeps 40.
+
+Both private UIKit cases passed 21 checks and 9 captures each; all 18 current images were directly reviewed. Default UIKit passed 240 checks/32 captures with 17 scoped image reviews and five muted audio epochs showing no shortages or drops in that run. The production iPhoneOS ARM64 build passed static inspection: 16 generated native C units, 10,344 stack guards, 39 exception-depth restores and no private QA exports. Production and CHECK builds remain separate.
+
+Audit/native/default results bind tested bank `f58f0357…`; current bank `8600e5e7…` differs only in two CHECK-only `CGDataProviderCopyData` calls corrected to use `CGImageGetDataProvider`. The exact correction certificate verifies all other 18,834 inputs unchanged and that the include is excluded from production/default CHECK compilation. Evidence therefore records `freshEntireBankCurrent=false` and `testedProductionInputsCurrent=true`; it does not claim another full-bank audit. Both dedicated Evolution UIKit builds include the corrected calls.
+
+This is a scoped development checkpoint, not full-game or DS frame parity. Physical-device play, audible audio stability and independent SPL particle contribution remain unverified. Mixed original English/native Chinese text, cinematic black regions and the existing cropped Bag trainer preview remain. Lv.16 does not exercise Evolution move-learning menus or their nested Summary; that is the next integration step.
+
 Build after the strict ABI32 audit and native content preparation:
 
 ```sh

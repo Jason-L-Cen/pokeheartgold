@@ -84,7 +84,7 @@ def link_engine(link,listing,destination,native_content=None):
              '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D',
              '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth','-Wl,--export=HGNativeGeometryFrame',
              '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativePartyUIGetState','-Wl,--export=HGNativePartyUIGetStats',
-             '-Wl,--export=HGNativeBagUIGetState','-Wl,--export=HGNativeSummaryUIGetState',
+             '-Wl,--export=HGNativeBagUIGetState','-Wl,--export=HGNativeSummaryUIGetState','-Wl,--export=HGNativeEvolutionUIGetState',
              '-Wl,--export=HGNativeBattleBagUIGetState','-Wl,--export=HGNativeBattlePartyUIGetState',
              '-Wl,--export=HGNativeFieldMap','-Wl,--export=HGNativeFieldMenuIcons','-Wl,--error-limit=0',
              '@'+str(listing),'-o',str(target)]
@@ -564,6 +564,7 @@ def main():
     sources.append('src/battle/battle_setup.c')
     sources.append('src/party.c')
     sources.append('ios/Original/tests/summary_ui_check.c')
+    sources.append('ios/Original/tests/evolution_ui_check.c')
     sources += ['src/mail.c', 'src/seal_case.c', 'src/move.c', 'src/msgdata.c', 'src/pm_string.c', 'src/item.c']
     sources.append('ios/Original/tests/ball_pocket_check.c')
     sources.append('ios/Original/tests/item_reply_check.c')
@@ -986,6 +987,7 @@ def main():
     exports += ['CheckOriginalBattleBagUI', 'CheckOriginalBattlePartyUI']
     exports.append('CheckOriginalBagPacketUI')
     exports.append('CheckOriginalSummaryUI')
+    exports.append('CheckOriginalEvolutionUI')
     exports.append('CheckOriginalBallPocket')
     exports.append('CheckOriginalItemReply')
     exports.append('HGSoundMusicAction')

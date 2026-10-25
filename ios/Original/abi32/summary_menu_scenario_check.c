@@ -8,6 +8,14 @@
 #include "constants/pokemon.h"
 #include <nitro/os/native_reset.h>
 #include <setjmp.h>
+#ifdef HG_EVOLUTION_CHECK
+#define HG_SUMMARY_RARE_CANDY_CHECK
+#include "native_evolution_ui.h"
+enum { OWNER_EVOLUTION=4 };
+_Static_assert(sizeof(HGNativeEvolutionUIState)==196,"Evolution native scenario ABI");
+static HGNativeEvolutionUIState readEvolution(Capture *capture);
+static void evolutionLeaseEvent(const char *event,u32 reads,BOOL changed);
+#endif
 #ifdef HG_SUMMARY_RARE_CANDY_CHECK
 #define HG_SUMMARY_TM_LEARN_CHECK
 #endif
@@ -86,7 +94,9 @@ static HGNativeSummaryUIState readSummary(Capture *capture) {
 }
 static void pulse(Capture *capture,u32 owner,u32 revision,u32 phase,HGNativeSummaryUIInput input) {
     QA_CHECK(!leaseActive && input.touchX<256 && input.touchY<192);
-#ifdef HG_SUMMARY_TM_LEARN_CHECK
+#ifdef HG_EVOLUTION_CHECK
+    QA_CHECK(!(input.keys&1) || owner==OWNER_SUMMARY || owner==OWNER_EVOLUTION);
+#elif defined(HG_SUMMARY_TM_LEARN_CHECK)
     QA_CHECK(!(input.keys&1) || owner==OWNER_SUMMARY);
 #else
     QA_CHECK(!(input.keys&1));
@@ -110,11 +120,20 @@ static BOOL settleInput(Capture *capture,const HGNativePartyUIState *party,const
     if (tmLeaseQARevision && (leaseOwner==OWNER_BAG || leaseOwner==OWNER_PARTY))
         changed=changed || readLearn(capture).revision!=tmLeaseQARevision;
 #endif
+#ifdef HG_EVOLUTION_CHECK
+    if (leaseOwner==OWNER_EVOLUTION) {
+        HGNativeEvolutionUIState evolution=readEvolution(capture);
+        changed=!evolution.active || evolution.summaryActive || evolution.revision!=leaseRevision || evolution.phase!=leasePhase;
+    }
+#endif
     if (!leaseReleased && (changed || reads-leaseReads>=4)) {
         QA_CHECK(HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE)); leaseReleased=TRUE; leaseReleaseReads=reads;
         printf("Summary input evidence: {\"stage\":%u,\"event\":\"release\",\"owner\":%u,\"revision\":%u,\"phase\":%u,\"padReads\":%u,\"ownerChanged\":%u}\n",stage,leaseOwner,leaseRevision,leasePhase,reads,changed);
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
         if (tmLeaseQARevision) tmPeripheralLeaseEvent(capture,"released",reads,changed);
+#ifdef HG_EVOLUTION_CHECK
+        if (leaseOwner==OWNER_EVOLUTION) evolutionLeaseEvent("released",reads,changed);
+#endif
 #endif
     }
     if (!leaseReleased || reads-leaseReleaseReads<2) return FALSE;
@@ -123,6 +142,9 @@ static BOOL settleInput(Capture *capture,const HGNativePartyUIState *party,const
         tmPeripheralLeaseEvent(capture,"settled",reads,FALSE);
         tmLeaseQARevision=0;
     }
+#endif
+#ifdef HG_EVOLUTION_CHECK
+    if (leaseOwner==OWNER_EVOLUTION) evolutionLeaseEvent("settled",reads,FALSE);
 #endif
     leaseActive=FALSE; return TRUE;
 }
@@ -683,6 +705,15 @@ static void TMLearnPresent(Capture *capture) {
     }
 }
 #ifdef HG_SUMMARY_RARE_CANDY_CHECK
+#ifdef HG_EVOLUTION_CHECK
+#define CANDY_START_LEVEL 15
+#define CANDY_END_LEVEL 16
+#define CANDY_END_EXP 2535u
+#else
+#define CANDY_START_LEVEL 5
+#define CANDY_END_LEVEL 6
+#define CANDY_END_EXP 179u
+#endif
 static u32 candyInitialStats[6],candyExpectedStats[6],candyInitialExp,candyStatsMask,candyDiffRevision,candyStatsStale,candyWrongContext,candyBusyRejected,candyCancelKeptUpgrade;
 static u32 candyOriginal[MON_ATTRIBUTES],candyFinalLevel,candyFinalExperience,candyFinalStats[6],candyIV[6],candyEV[6],candyFinalSpecies;
 static const u32 candyStatAttrs[6]={MON_DATA_MAX_HP,MON_DATA_ATK,MON_DATA_DEF,MON_DATA_SP_ATK,MON_DATA_SP_DEF,MON_DATA_SPEED};
@@ -694,19 +725,27 @@ static void candyPrepareStats(Capture *capture,u32 mon) {
     const u32 natureIndex[6]={0,0,1,3,4,2}; u32 nature=originalMonData[0][0]%25;
     memcpy(candyOriginal,originalMonData[0],sizeof(candyOriginal));
     candyInitialExp=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0);
+#ifdef HG_EVOLUTION_CHECK
+    QA_CHECK(candyInitialExp==2035);
+#else
     QA_CHECK(candyInitialExp>=135 && candyInitialExp<179);
-    for (u32 i=0;i<6;++i) for (u32 level=5;level<=6;++level) {
+#endif
+    for (u32 i=0;i<6;++i) for (u32 level=CANDY_START_LEVEL;level<=CANDY_END_LEVEL;++level) {
         u32 value=(2*base[i]+w2c_hgengine_GetMonData(capture->game,mon,iv[i],0)
             +w2c_hgengine_GetMonData(capture->game,mon,ev[i],0)/4)*level/100+(i ? 5 : level+10);
         if (i && nature/5!=nature%5) {
             if (natureIndex[i]==nature/5) value=(u16)(value*110)/100;
             else if (natureIndex[i]==nature%5) value=(u16)(value*90)/100;
         }
-        if (level==5) { candyIV[i]=w2c_hgengine_GetMonData(capture->game,mon,iv[i],0);candyEV[i]=w2c_hgengine_GetMonData(capture->game,mon,ev[i],0);
+        if (level==CANDY_START_LEVEL) { candyIV[i]=w2c_hgengine_GetMonData(capture->game,mon,iv[i],0);candyEV[i]=w2c_hgengine_GetMonData(capture->game,mon,ev[i],0);
             QA_CHECK(candyIV[i]<=31 && candyEV[i]<=255);candyInitialStats[i]=w2c_hgengine_GetMonData(capture->game,mon,candyStatAttrs[i],0); QA_CHECK(value==candyInitialStats[i]); }
         else candyExpectedStats[i]=value;
     }
+#ifdef HG_EVOLUTION_CHECK
+    printf("Evolution expected stats evidence: {\"initialExperience\":%u,\"expectedExperience\":2535,\"initial\":[",candyInitialExp);
+#else
     printf("Summary Candy expected stats evidence: {\"initialExperience\":%u,\"expectedExperience\":179,\"initial\":[",candyInitialExp);
+#endif
     for (u32 i=0;i<6;++i) printf("%s%u",i ? "," : "",candyInitialStats[i]);
     fputs("],\"expected\":[",stdout);for (u32 i=0;i<6;++i) printf("%s%u",i ? "," : "",candyExpectedStats[i]);puts("]}");
 }
@@ -715,7 +754,7 @@ static void candySemantics(Capture *capture,BOOL upgraded,BOOL learned) {
     u32 mon=w2c_hgengine_Party_GetMonByIndex(capture->game,partyAddress,0);
     for (u32 j=0;j<MON_ATTRIBUTES;++j) {
         u32 value=candyOriginal[j];
-        if (upgraded) { if (j==6 || j==7) value=candyExpectedStats[0]; else if (j==8) value=6; }
+        if (upgraded) { if (j==6 || j==7) value=candyExpectedStats[0]; else if (j==8) value=CANDY_END_LEVEL; }
         if (learned) { if (j==10) value=MOVE_RAZOR_LEAF; else if (j==14 || j==22) value=w2c_hgengine_GetMoveMaxPP(capture->game,MOVE_RAZOR_LEAF,0); else if (j==18) value=0; }
         QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,monAttributes[j],0)==value);
     }
@@ -725,7 +764,7 @@ static void candySemantics(Capture *capture,BOOL upgraded,BOOL learned) {
         QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HP_IV+order[i],0)==candyIV[i]
             && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HP_EV+order[i],0)==candyEV[i]);
     }
-    QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0)==(upgraded ? 179u : candyInitialExp));
+    QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0)==(upgraded ? CANDY_END_EXP : candyInitialExp));
     QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_FRIENDSHIP,0)==(upgraded ? 75u : 70u)
         && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOOD,0)==(upgraded ? 40u : 0u));
     QA_CHECK(!memcmp(tmOriginalFlags,guest(capture,flagsAddress,tmFlagsSize),tmFlagsSize)
@@ -738,7 +777,7 @@ static void candySemantics(Capture *capture,BOOL upgraded,BOOL learned) {
     if (upgraded) { u16 quantity=1;memcpy(expected+tmSlotOffset+2,&quantity,2); }
     QA_CHECK(!memcmp(expected,guest(capture,bagAddress,bagSize),bagSize));free(expected);
     QA_CHECK(w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,ITEM_RARE_CANDY,HEAP_ID_FIELD2)==(upgraded ? 1u : 2u));
-    if (upgraded) { originalMonData[0][6]=originalMonData[0][7]=candyExpectedStats[0];originalMonData[0][8]=6; }
+    if (upgraded) { originalMonData[0][6]=originalMonData[0][7]=candyExpectedStats[0];originalMonData[0][8]=CANDY_END_LEVEL; }
     printf("Summary Candy semantic boundary evidence: {\"stage\":%u,\"upgraded\":%u,\"learned\":%u,\"level\":%u,\"experience\":%u,\"quantity\":%u,\"friendship\":%u,\"mood\":%u,\"personality\":%u,\"otId\":%u}\n",
         stage,upgraded,learned,w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_LEVEL,0),w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0),
         w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,ITEM_RARE_CANDY,HEAP_ID_FIELD2),
@@ -802,8 +841,19 @@ static void candyPrepare(Capture *capture) {
     w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_OT_NAME,capture->buffer);
     memcpy(otName,guest(capture,capture->buffer,sizeof(otName)),sizeof(otName));
     QA_CHECK(!memcmp(otName,profileName,(nameLength+1)*sizeof(*otName)));
+#ifdef HG_EVOLUTION_CHECK
+    QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOVE1,0)==MOVE_TACKLE
+        && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOVE2,0)==MOVE_GROWL
+        && !w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOVE3,0) && !w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOVE4,0));
+    u32 experience=2035;memcpy((void *)guest(capture,capture->buffer,sizeof(experience)),&experience,sizeof(experience));
+    w2c_hgengine_SetMonData(capture->game,mon,MON_DATA_EXPERIENCE,capture->buffer);
+    w2c_hgengine_CalcMonLevelAndStats(capture->game,mon);
+    QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_LEVEL,0)==15
+        && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HP,0)==w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MAX_HP,0));
+#else
     const u16 moves[4]={MOVE_TACKLE,MOVE_GROWL,MOVE_REFLECT,MOVE_CUT};
     for (u32 i=0;i<4;++i) w2c_hgengine_MonSetMoveInSlot_ResetPpUp(capture->game,mon,moves[i],i);
+#endif
     QA_CHECK(w2c_hgengine_Bag_AddItem(capture->game,bagAddress,ITEM_RARE_CANDY,2,HEAP_ID_FIELD2));
     semanticEvidence(capture,TRUE); selectedSlot=0;
     QA_CHECK(originalMonData[0][0]==originalPersonality && originalMonData[0][1]==originalOtId);
@@ -824,7 +874,11 @@ static void candyPrepare(Capture *capture) {
     }
     QA_CHECK(tmSlotOffset<bagSize); tmInitialQuantity=2; tmFixturePrepared=1;
     candyPrepareStats(capture,mon);candySemantics(capture,FALSE,FALSE);
+#ifdef HG_EVOLUTION_CHECK
+    printf("Evolution fixture evidence: {\"preparedBeforeFirstFieldAction\":true,\"species\":152,\"partyCount\":1,\"moves\":[33,45,0,0],\"initialLevel\":15,\"initialExperience\":2035,\"item\":50,\"quantity\":2,\"tmSlotOffset\":%u,\"flagsBytes\":%u,\"initialFriendship\":%u,\"initialMood\":%u,\"mapSection\":%u,\"eggLocation\":0,\"otNameProfileMatched\":true,\"otNameLength\":%u,\"fixtureUsesExistingStarter\":true,\"originalPersonality\":%u,\"originalOtId\":%u,\"privateSaveMemoryOnly\":true}\n",tmSlotOffset,tmFlagsSize,tmInitialFriendship,tmInitialMood,tmMapSection,nameLength,originalPersonality,originalOtId);
+#else
     printf("Summary Candy fixture evidence: {\"preparedBeforeFirstFieldAction\":true,\"species\":152,\"partyCount\":1,\"moves\":[33,45,115,15],\"item\":50,\"quantity\":2,\"tmSlotOffset\":%u,\"flagsBytes\":%u,\"initialFriendship\":%u,\"initialMood\":%u,\"mapSection\":%u,\"eggLocation\":0,\"otNameProfileMatched\":true,\"otNameLength\":%u,\"fixtureUsesExistingStarter\":true,\"originalPersonality\":%u,\"originalOtId\":%u,\"privateSaveMemoryOnly\":true}\n",tmSlotOffset,tmFlagsSize,tmInitialFriendship,tmInitialMood,tmMapSection,nameLength,originalPersonality,originalOtId);
+#endif
 }
 static BOOL candyContinuePrinter(Capture *capture,const HGSummaryLearnQAState *qa,const HGNativeBagUIState *bag,const HGNativePartyUIState *party) {
     if (qa->owner!=HG_SUMMARY_LEARN_PARTY || !tmPrinterReady(qa)
@@ -993,9 +1047,257 @@ static void candyPrintEvidence(void) {
 }
 #endif
 #endif
+
+#ifdef HG_EVOLUTION_CHECK
+static u32 evoSeen,evoCancelAccepted,evoAckAccepted,evoQueued,evoAccepted,evoRejected,evoReleased,evoSettled;
+static u32 evoPendingSequence,evoLeaseSequence,evoSequence,evoFrameCount,evoGeometryFrames,evoOscFrames,evoFirstSerial,evoLastSerial,evoFieldWidth,evoInitialFieldWidth;
+static u32 evoSeenBefore,evoCaughtBefore,evoFinalSpecies,evoFinalStats[6],evoFixturePersonality,evoFixtureOtId,evoFinalLevel,evoFinalExperience,evoFinalQuantity;
+static u64 evoPhaseMask;
+static u8 evoFirstOscPixels[256*192*4];
+static Choice evoPendingChoice,evoLeaseChoice;
+static HGNativeEvolutionUIState readEvolution(Capture *capture) {
+    static u32 previous;
+    u32 address=w2c_hgengine_HGNativeEvolutionUIGetState(capture->game);HGNativeEvolutionUIState state;
+    memcpy(&state,guest(capture,address,sizeof(state)),sizeof(state));
+    QA_CHECK(state.revision>=previous && state.phase<=HG_EVOLUTION_UI_CANCEL_FINISH && !(state.actionMask&~15u));
+    QA_CHECK(w2c_hgengine_HGNativeEvolutionUIGetState(capture->game)==address && !memcmp(&state,guest(capture,address,sizeof(state)),sizeof(state)));
+    previous=state.revision;return state;
+}
+static void evolutionLeaseEvent(const char *event,u32 reads,BOOL changed) {
+    printf("Evolution typed evidence: {\"event\":\"%s\",\"sequence\":%u,\"revision\":%u,\"phase\":%u,\"kind\":%u,\"index\":%u,\"padReads\":%u,\"ownerChanged\":%u}\n",
+        event,evoLeaseSequence,evoLeaseChoice.revision,evoLeaseChoice.phase,evoLeaseChoice.kind,evoLeaseChoice.index,reads,changed);
+    if (!strcmp(event,"released")) ++evoReleased;
+    else { QA_CHECK(!strcmp(event,"settled"));++evoSettled;evoLeaseSequence=0; }
+}
+static void evolutionChoose(Capture *capture,const HGNativeEvolutionUIState *state,u32 kind,u32 index) {
+    u32 keys,x,y;QA_CHECK(!evoPendingSequence && !leaseActive && HGNativeEvolutionUIResolveInput(state,state->revision,state->phase,kind,index,&keys,&x,&y));
+    evoPendingChoice=(Choice){state->revision,state->phase,kind,index};evoPendingSequence=++evoSequence;++evoQueued;
+    printf("Evolution typed evidence: {\"event\":\"queued\",\"sequence\":%u,\"revision\":%u,\"phase\":%u,\"kind\":%u,\"index\":%u,\"padReads\":%u,\"keys\":%u,\"touch\":[%u,%u,%u]}\n",
+        evoPendingSequence,state->revision,state->phase,kind,index,HGNativeInputPadReads(capture->env),keys,kind==HG_EVOLUTION_UI_INPUT_CHOICE,x,y);
+}
+static BOOL evolutionTakeChoice(Capture *capture,const HGNativeEvolutionUIState *state) {
+    if (!evoPendingSequence) return FALSE;
+    if (!state->active || state->summaryActive || state->revision!=evoPendingChoice.revision || state->phase!=evoPendingChoice.phase) {
+        printf("Evolution typed evidence: {\"event\":\"rejected\",\"sequence\":%u}\n",evoPendingSequence);++evoRejected;evoPendingSequence=0;return TRUE;
+    }
+    if (!state->ready) return TRUE; // Begin temporarily retires borrowed Window leases.
+    u32 keys,x,y;QA_CHECK(HGNativeEvolutionUIResolveInput(state,evoPendingChoice.revision,evoPendingChoice.phase,evoPendingChoice.kind,evoPendingChoice.index,&keys,&x,&y));
+    evoLeaseChoice=evoPendingChoice;evoLeaseSequence=evoPendingSequence;evoPendingSequence=0;
+    pulse(capture,OWNER_EVOLUTION,state->revision,state->phase,(HGNativeSummaryUIInput){.keys=keys,.touchPressed=evoLeaseChoice.kind==HG_EVOLUTION_UI_INPUT_CHOICE,.touchX=x,.touchY=y});
+    printf("Evolution typed evidence: {\"event\":\"accepted\",\"sequence\":%u,\"revision\":%u,\"phase\":%u,\"kind\":%u,\"index\":%u,\"padReads\":%u,\"keys\":%u,\"touch\":[%u,%u,%u],\"actionMask\":%u,\"flags\":%u}\n",
+        evoLeaseSequence,state->revision,state->phase,evoLeaseChoice.kind,evoLeaseChoice.index,leaseReads,keys,evoLeaseChoice.kind==HG_EVOLUTION_UI_INPUT_CHOICE,x,y,state->actionMask,state->flags);
+    ++evoAccepted;
+    if (evoLeaseChoice.kind==HG_EVOLUTION_UI_INPUT_CANCEL) ++evoCancelAccepted;
+    if (evoLeaseChoice.kind==HG_EVOLUTION_UI_INPUT_ACK) ++evoAckAccepted;
+    return TRUE;
+}
+static u32 evolutionRegister(Capture *capture,u32 registerAddress) {
+    u32 address=w2c_hgengine_HGNativeRegisterAddress(capture->game,registerAddress,2);u16 value;
+    memcpy(&value,guest(capture,address,2),2);return value;
+}
+static BOOL evolutionFrame(Capture *capture,const HGNativeEvolutionUIState *state) {
+    u32 geometry[8],after[8];if (!w2c_hgengine_HGNativeGeometryFrame(capture->game,1,capture->buffer)) return FALSE;
+    memcpy(geometry,guest(capture,capture->buffer,sizeof(geometry)),sizeof(geometry));
+    if (!geometry[0] || !geometry[1] || !geometry[2] || !w2c_hgengine_HGNativeRender2D(capture->game,0,capture->buffer,256*192*4)) return FALSE;
+    const u8 *pixels=guest(capture,capture->buffer,256*192*4);BOOL varied=FALSE;
+    for (u32 i=1;i<256*192;++i) if (memcmp(pixels,pixels+i*4,4)) { varied=TRUE;break; }
+    if (!varied) return FALSE;
+    if (state->phase==HG_EVOLUTION_UI_OSCILLATE) {
+        if (evoOscFrames && (geometry[2]==evoLastSerial || !memcmp(evoFirstOscPixels,pixels,sizeof(evoFirstOscPixels)))) return FALSE;
+        if (!evoOscFrames) memcpy(evoFirstOscPixels,pixels,sizeof(evoFirstOscPixels));
+    }
+    char name[96];QA_CHECK(snprintf(name,sizeof(name),"evolution-%02u-phase-%u.rgba",evoFrameCount,state->phase)<sizeof(name));
+    saveBytes(capture,name,pixels,256*192*4);
+    QA_CHECK(w2c_hgengine_HGNativeGeometryFrame(capture->game,1,capture->buffer));memcpy(after,guest(capture,capture->buffer,sizeof(after)),sizeof(after));
+    QA_CHECK(geometry[2]==after[2]);++evoFrameCount;++evoGeometryFrames;
+    if (!evoFirstSerial) evoFirstSerial=geometry[2];evoLastSerial=geometry[2];
+    if (state->phase==HG_EVOLUTION_UI_OSCILLATE) ++evoOscFrames;
+    windowEvidence(capture,state->phase,"evolution-message",evoFrameCount,&state->message);
+    printf("Evolution frame evidence: {\"file\":\"%s\",\"width\":256,\"height\":192,\"bytes\":%u,\"phase\":%u,\"revision\":%u,\"frame\":%u,\"vertices\":%u,\"polygons\":%u,\"geometrySerial\":%u,\"geometrySerialAfter\":%u,\"nonuniform\":true,\"blendControl\":%u,\"bg0Control\":%u}\n",
+        name,256*192*4,state->phase,state->revision,OS_GetVBlankCount(),geometry[0],geometry[1],geometry[2],after[2],
+        evolutionRegister(capture,0x04000050),evolutionRegister(capture,0x04000008));
+    return TRUE;
+}
+static void evolutionStats(Capture *capture,u32 mon,u32 species,u32 level,u32 *out) {
+    const u32 bases[2][6]={{45,49,65,49,65,45},{60,62,80,63,80,60}},natureIndex[6]={0,0,1,3,4,2};
+    QA_CHECK(species==152 || species==153);u32 nature=candyOriginal[0]%25;
+    for (u32 i=0;i<6;++i) {
+        u32 value=(2*bases[species-152][i]+candyIV[i]+candyEV[i]/4)*level/100+(i ? 5 : level+10);
+        if (i && nature/5!=nature%5) {
+            if (natureIndex[i]==nature/5) value=(u16)(value*110)/100;
+            else if (natureIndex[i]==nature%5) value=(u16)(value*90)/100;
+        }
+        QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,candyStatAttrs[i],0)==value);out[i]=value;
+    }
+}
+static void evolutionSemantics(Capture *capture,BOOL fieldReturned) {
+    u32 mon=w2c_hgengine_Party_GetMonByIndex(capture->game,partyAddress,0);
+#ifdef HG_EVOLUTION_CANCEL_CHECK
+    u32 species=152;
+#else
+    u32 species=153;
+#endif
+    u32 experience=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0);
+    u32 friendship=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_FRIENDSHIP,0),mood=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_MOOD,0);
+    // Original FollowMonMood_SetMon resets mood when the evolved species resumes following.
+    u32 expectedMood=fieldReturned && species==153 ? 0 : 40;
+    printf("Evolution outcome observation: {\"fieldReturned\":%s,\"experience\":%u,\"friendship\":%u,\"mood\":%u,\"expectedMood\":%u}\n",fieldReturned ? "true" : "false",experience,friendship,mood,expectedMood);
+    QA_CHECK(w2c_hgengine_Party_GetCount(capture->game,partyAddress)==1);
+    evolutionStats(capture,mon,species,16,evoFinalStats);
+    for (u32 i=0;i<MON_ATTRIBUTES;++i) {
+        u32 expected=i==2 ? species : i==6 || i==7 ? evoFinalStats[0] : i==8 ? 16 : candyOriginal[i];
+        QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,monAttributes[i],0)==expected);
+    }
+    const u32 order[6]={0,1,2,4,5,3};
+    for (u32 i=0;i<6;++i) QA_CHECK(w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HP_IV+order[i],0)==candyIV[i]
+        && w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_HP_EV+order[i],0)==candyEV[i]);
+    QA_CHECK(experience==2535 && friendship==75 && mood==expectedMood);
+    QA_CHECK(!memcmp(tmOriginalFlags,guest(capture,flagsAddress,tmFlagsSize),tmFlagsSize)
+        && w2c_hgengine_PlayerProfile_GetMoney(capture->game,profileAddress)==money && w2c_hgengine_Pokedex_IsEnabled(capture->game,dexAddress)==dexEnabled);
+    u8 *expected=malloc(bagSize);QA_CHECK(expected);memcpy(expected,originalBag,bagSize);u16 one=1;memcpy(expected+tmSlotOffset+2,&one,2);
+    QA_CHECK(!memcmp(expected,guest(capture,bagAddress,bagSize),bagSize));free(expected);
+    QA_CHECK(w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,ITEM_RARE_CANDY,HEAP_ID_FIELD2)==1);
+    u32 seen=w2c_hgengine_Pokedex_CheckMonSeenFlag(capture->game,dexAddress,153),caught=w2c_hgengine_Pokedex_CheckMonCaughtFlag(capture->game,dexAddress,153);
+    QA_CHECK(seen==(species==153) && caught==(species==153)
+        && w2c_hgengine_Pokedex_CountNationalDexSeen(capture->game,dexAddress)==dexSeen+(species==153)
+        && w2c_hgengine_Pokedex_CountNationalDexOwned(capture->game,dexAddress)==dexCaught+(species==153));
+    evoFinalSpecies=species;
+    printf("Evolution semantic evidence: {\"species\":%u,\"level\":16,\"experience\":2535,\"quantity\":1,\"friendship\":75,\"mood\":%u,\"fieldReturned\":%s,\"personality\":%u,\"otId\":%u,\"hp\":%u,\"maxHp\":%u,\"bayleefSeen\":%u,\"bayleefCaught\":%u,\"dexSeenDelta\":%u,\"dexCaughtDelta\":%u,\"otherBagBytesPreserved\":true,\"flagsMoneyPreserved\":true,\"ivEvPreserved\":true,\"stats\":[%u,%u,%u,%u,%u,%u]}\n",
+        species,mood,fieldReturned ? "true" : "false",w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_PERSONALITY,0),w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_OT_ID,0),evoFinalStats[0],evoFinalStats[0],
+        seen,caught,species==153,species==153,evoFinalStats[0],evoFinalStats[1],evoFinalStats[2],evoFinalStats[3],evoFinalStats[4],evoFinalStats[5]);
+}
+static void evolutionFinish(Capture *capture,const char *status,BOOL passed) {
+    QA_CHECK(HGNativeSetInput(capture->env,0,FALSE,0,0,FALSE));
+    if (passed) evolutionSemantics(capture,TRUE);
+    if (tmFixturePrepared) {
+        u32 mon=w2c_hgengine_Party_GetMonByIndex(capture->game,partyAddress,0);
+        evoFinalSpecies=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_SPECIES,0);
+        evoFinalLevel=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_LEVEL,0);
+        evoFinalExperience=w2c_hgengine_GetMonData(capture->game,mon,MON_DATA_EXPERIENCE,0);
+        evoFinalQuantity=w2c_hgengine_Bag_GetQuantity(capture->game,bagAddress,ITEM_RARE_CANDY,HEAP_ID_FIELD2);
+    }
+    caseStatus=status;casePassed=passed;resetExpected=TRUE;w2c_env_HGNativeResetControl(capture->env,HG_RESET_REQUEST,0);QA_CHECK(FALSE);
+}
+static void EvolutionPresent(Capture *capture) {
+    if (!stage) {
+        CandyLearnPresent(capture);
+        if (stage==1) {
+            evoFixturePersonality=candyOriginal[0];evoFixtureOtId=candyOriginal[1];
+            evoSeenBefore=w2c_hgengine_Pokedex_CheckMonSeenFlag(capture->game,dexAddress,153);
+            evoCaughtBefore=w2c_hgengine_Pokedex_CheckMonCaughtFlag(capture->game,dexAddress,153);
+            QA_CHECK(!evoSeenBefore && !evoCaughtBefore && candyOriginal[8]==15 && candyInitialExp==2035
+                && candyOriginal[10]==MOVE_TACKLE && candyOriginal[11]==MOVE_GROWL && !candyOriginal[12] && !candyOriginal[13]);
+        }
+        return;
+    }
+    u32 frame=OS_GetVBlankCount();
+    if (frame-stageFrame>(stage==8 ? 7200u : 3600u)) { evolutionFinish(capture,"evolution_scene_timeout",FALSE);return; }
+    QA_CHECK(HGNativeSoundRealtime(capture->env,TRUE));
+    HGSummaryLearnQAState qa=readLearn(capture);HGNativePartyUIState party=readParty(capture);
+    HGNativeSummaryUIState summary=readSummary(capture);HGNativeBagUIState bag=readTmBag(capture);HGNativeEvolutionUIState evo=readEvolution(capture);
+    BOOL inputIdle=settleInput(capture,&party,&summary);
+    // This original Lv16 learnset has no move. Do not synthesize a Summary/menu branch.
+    QA_CHECK(!summary.active && !evo.summaryActive && !evo.moveToLearn);
+    if (evo.active && (!evo.species || !evo.newSpecies)) { QA_CHECK(!evo.ready && !evo.actionMask);return; }
+    if (evo.active) {
+        static u32 lastRevision,lastPhase=UINT32_MAX;
+        QA_CHECK(evo.species==152 && evo.newSpecies==153 && (evo.flags&HG_EVOLUTION_UI_CAN_CANCEL));
+        evoSeen=1;evoPhaseMask|=(u64)1<<evo.phase;
+        if (evo.revision!=lastRevision || evo.phase!=lastPhase) {
+            printf("Evolution state evidence: {\"frame\":%u,\"revision\":%u,\"phase\":%u,\"active\":%u,\"ready\":%u,\"summaryActive\":%u,\"flags\":%u,\"species\":%u,\"newSpecies\":%u,\"moveToLearn\":%u,\"actionMask\":%u}\n",
+                frame,evo.revision,evo.phase,evo.active,evo.ready,evo.summaryActive,evo.flags,evo.species,evo.newSpecies,evo.moveToLearn,evo.actionMask);
+            lastRevision=evo.revision;lastPhase=evo.phase;
+        }
+        if (evo.phase==HG_EVOLUTION_UI_OSCILLATE && evoOscFrames<2 && (!evoOscFrames || frame-stageFrame>30)) (void)evolutionFrame(capture,&evo);
+        else if ((evo.phase==12 || evo.phase==44) && evoFrameCount<4 && evo.ready) (void)evolutionFrame(capture,&evo);
+    }
+    if (!inputIdle) return;
+    if (evolutionTakeChoice(capture,&evo) || tmTakeChoice(capture,&qa,&bag,&party)) return;
+    if (evo.active) {
+        u32 k,x,y;
+#ifdef HG_EVOLUTION_CANCEL_CHECK
+        if (!evoCancelAccepted && evo.phase==HG_EVOLUTION_UI_OSCILLATE && evoOscFrames==2
+            && HGNativeEvolutionUIResolveInput(&evo,evo.revision,evo.phase,HG_EVOLUTION_UI_INPUT_CANCEL,0,&k,&x,&y)) {
+            QA_CHECK(k==2 && !x && !y);
+            QA_CHECK(!HGNativeEvolutionUIResolveInput(&evo,evo.revision-1,evo.phase,HG_EVOLUTION_UI_INPUT_CANCEL,0,&k,&x,&y));++staleRejected;
+            HGNativeEvolutionUIState forged=evo;forged.flags&=~HG_EVOLUTION_UI_CAN_CANCEL;
+            QA_CHECK(!HGNativeEvolutionUIResolveInput(&forged,forged.revision,forged.phase,HG_EVOLUTION_UI_INPUT_CANCEL,0,&k,&x,&y));
+            evolutionChoose(capture,&evo,HG_EVOLUTION_UI_INPUT_CANCEL,0);return;
+        }
+#endif
+        if (HGNativeEvolutionUIResolveInput(&evo,evo.revision,evo.phase,HG_EVOLUTION_UI_INPUT_ACK,0,&k,&x,&y)) {
+            QA_CHECK(k==1 && !x && !y);evolutionChoose(capture,&evo,HG_EVOLUTION_UI_INPUT_ACK,0);return;
+        }
+        return;
+    }
+    if (candyContinuePrinter(capture,&qa,&bag,&party)) return;
+    if (stage==1 && qa.fieldReady) {
+        if (!evoInitialFieldWidth) {
+            QA_CHECK(w2c_hgengine_HGNativeSetViewWidth(capture->game,384));
+            if (!w2c_hgengine_HGNativeRender2DView(capture->game,0,384,capture->buffer,384*192*4)) return;
+            const u8 *pixels=guest(capture,capture->buffer,384*192*4);BOOL varied=FALSE;
+            for (u32 i=1;i<384*192;++i) if (memcmp(pixels,pixels+i*4,4)) {varied=TRUE;break;}if (!varied) return;
+            saveBytes(capture,"evolution-field-before.rgba",pixels,384*192*4);evoInitialFieldWidth=384;
+        }
+        QA_CHECK(w2c_hgengine_HGNativeSetViewWidth(capture->game,256));
+        u32 icons=w2c_hgengine_HGNativeFieldMenuIcons(capture->game);
+        for (u32 i=0;i<7;++i) if (((icons>>(i*4))&15)==2) {
+            pulse(capture,OWNER_FIELD,0,0,(HGNativeSummaryUIInput){.touchPressed=1,.touchX=iconCenters[i][0],.touchY=iconCenters[i][1]});nextStage();return;
+        }
+    } else if (stage==2 && bag.active && bag.ready && HGNativeBagUIIsList(&bag)) {
+        for (u32 i=0;i<HG_BAG_UI_POCKETS;++i) if (bag.pockets[i].enabled && bag.pockets[i].pocketId==POCKET_MEDICINE) {tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_POCKET,i,TRUE);return;}
+    } else if (stage==3 && bag.active && bag.ready && HGNativeBagUIIsList(&bag) && bag.pocketId==POCKET_MEDICINE) {
+        for (u32 i=0;i<bag.visibleCount;++i) if (bag.items[i].enabled && bag.items[i].itemId==ITEM_RARE_CANDY && bag.items[i].quantity==2) {tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_ITEM,i,TRUE);return;}
+    } else if (stage==4 && bag.active && bag.ready && bag.phase==HG_BAG_UI_ITEM_MENU) {
+        for (u32 i=0;i<bag.actionCount;++i) if (bag.actions[i].enabled && !bag.actions[i].actionId) {tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_ACTION,i,TRUE);return;}
+    } else if (stage==5 && qa.owner==HG_SUMMARY_LEARN_PARTY && qa.context==5 && qa.itemId==ITEM_RARE_CANDY && qa.phase==HG_PARTY_UI_ITEM_TARGET && !qa.partyBusy) {
+        tmChooseParty(capture,&qa,&bag,&party,HG_PARTY_UI_TOUCH_MON,0,TRUE);
+    } else if ((stage==6 || stage==7) && party.active && party.ready && HGNativePartyUIIsRareCandy(&party)
+        && qa.context==5 && qa.phase==HG_PARTY_UI_ITEM_USE && qa.taskState==stage-5
+        && party.actions[0].textId==(stage==6 ? HG_PARTY_UI_TEXT_CANDY_STATS_DIFF : HG_PARTY_UI_TEXT_CANDY_STATS_TOTAL)) {
+        tmChooseParty(capture,&qa,&bag,&party,HG_PARTY_UI_TOUCH_ACTION,0,TRUE);
+    } else if (stage==8 && evoSeen && bag.active && bag.ready && HGNativeBagUIIsList(&bag)) {
+        QA_CHECK(candyStatsMask==3 && evoOscFrames && evoAckAccepted==1 && !evoPendingSequence && !evoLeaseSequence
+            && evoQueued==evoAccepted && evoAccepted==evoReleased && evoAccepted==evoSettled && !evoRejected);
+#ifdef HG_EVOLUTION_CANCEL_CHECK
+        QA_CHECK(evoCancelAccepted==1 && (evoPhaseMask&((u64)31<<41)));
+#else
+        QA_CHECK(!evoCancelAccepted && evoOscFrames==2 && evoFirstSerial!=evoLastSerial && (evoPhaseMask&((u64)1<<12)));
+#endif
+        evolutionSemantics(capture,FALSE);nextStage();
+    } else if (stage==9 && bag.active && bag.ready && HGNativeBagUIIsList(&bag)) {
+        tmChooseBag(capture,&qa,&bag,&party,HG_BAG_UI_TOUCH_CANCEL,0,TRUE);
+    } else if (stage==10 && qa.fieldReady && !qa.owner && !bag.active && !party.active) {
+        QA_CHECK(w2c_hgengine_HGNativeSetViewWidth(capture->game,384));
+        if (!w2c_hgengine_HGNativeRender2DView(capture->game,0,384,capture->buffer,384*192*4)) return;
+        const u8 *pixels=guest(capture,capture->buffer,384*192*4);BOOL varied=FALSE;
+        for (u32 i=1;i<384*192;++i) if (memcmp(pixels,pixels+i*4,4)) {varied=TRUE;break;}if (!varied) return;
+        saveBytes(capture,"evolution-field-return.rgba",pixels,384*192*4);evoFieldWidth=384;QA_CHECK(evoInitialFieldWidth==384);
+        QA_CHECK(!leaseActive && !tmPending.sequence && !tmLeaseQARevision && tmTypedAccepted==tmTypedReleased && tmTypedAccepted==tmTypedSettled && !tmTypedRejected);
+#ifdef HG_EVOLUTION_CANCEL_CHECK
+        evolutionFinish(capture,"passed_original_evolution_cancel",TRUE);
+#else
+        evolutionFinish(capture,"passed_original_evolution_success",TRUE);
+#endif
+    }
+}
+static void evolutionPrintEvidence(void) {
+#ifdef HG_EVOLUTION_CANCEL_CHECK
+    const char *cancel="true";
+#else
+    const char *cancel="false";
+#endif
+    printf("Evolution result evidence: {\"status\":\"%s\",\"cancelCase\":%s,\"fixturePrepared\":%u,\"initialLevel\":%u,\"initialExperience\":%u,\"level\":%u,\"experience\":%u,\"species\":%u,\"quantity\":%u,\"personality\":%u,\"otId\":%u,\"cancelAccepted\":%u,\"ackAccepted\":%u,\"queued\":%u,\"accepted\":%u,\"rejected\":%u,\"released\":%u,\"settled\":%u,\"geometryFrames\":%u,\"oscillateFrames\":%u,\"firstGeometrySerial\":%u,\"lastGeometrySerial\":%u,\"initialFieldViewWidth\":%u,\"fieldViewWidth\":%u,\"outerTypedAccepted\":%u,\"outerTypedReleased\":%u,\"outerTypedSettled\":%u,\"outerTypedRejected\":%u,\"statsMask\":%u,\"summaryLifetimes\":0,\"choiceMenus\":0,\"particleContributionSeparated\":false,\"resetFinished\":true,\"privateSaveWrites\":false}\n",
+        caseStatus,cancel,tmFixturePrepared,candyOriginal[8],candyInitialExp,evoFinalLevel,evoFinalExperience,evoFinalSpecies,evoFinalQuantity,evoFixturePersonality,evoFixtureOtId,evoCancelAccepted,evoAckAccepted,evoQueued,evoAccepted,evoRejected,evoReleased,evoSettled,
+        evoGeometryFrames,evoOscFrames,evoFirstSerial,evoLastSerial,evoInitialFieldWidth,evoFieldWidth,tmTypedAccepted,tmTypedReleased,tmTypedSettled,tmTypedRejected,candyStatsMask);
+}
+#endif
+
 static void SummaryPresent(void *argument) {
     Capture *capture=argument; u32 frame=OS_GetVBlankCount();
-#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+#ifdef HG_EVOLUTION_CHECK
+    EvolutionPresent(capture);return;
+#elif defined(HG_SUMMARY_RARE_CANDY_CHECK)
     CandyLearnPresent(capture);return;
 #elif defined(HG_SUMMARY_TM_LEARN_CHECK)
     TMLearnPresent(capture); return;
@@ -1121,8 +1423,13 @@ int main(int argc,char **argv) {
     HGNativeSummaryUIState final=readSummary(capture); HGNativePartyUIState finalParty=readParty(capture);
     if (casePassed) QA_CHECK(!final.active && !final.ready && !finalParty.active);
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
+#ifndef HG_EVOLUTION_CHECK
     if (casePassed) QA_CHECK(seenPhases==((1u<<8)|(1u<<9)));
-#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+#endif
+#ifdef HG_EVOLUTION_CHECK
+    HGNativeEvolutionUIState finalEvolution=readEvolution(capture);if (casePassed) QA_CHECK(!finalEvolution.active && !finalEvolution.ready);
+    evolutionPrintEvidence();
+#elif defined(HG_SUMMARY_RARE_CANDY_CHECK)
     candyPrintEvidence();
 #else
     const char *preserved=casePassed ? "true" : "false";
@@ -1136,7 +1443,9 @@ int main(int argc,char **argv) {
     if (casePassed) QA_CHECK(seenPhases==((1u<<2)|(1u<<5)));
 #endif
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
-#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+#ifdef HG_EVOLUTION_CHECK
+    printf("Summary menu evidence: {\"status\":\"%s\",\"seenPhases\":0,\"summaryLifetimes\":0,\"staleRejected\":%u,\"snapshotStages\":%u,\"activeAfterReturn\":%u,\"resetFinished\":true,\"pendingDMA\":0,\"partyItemsMoneyFlagsUnchanged\":false,\"expectedPrivateEvolutionMutation\":true}\n",caseStatus,staleRejected,snapshotStages,final.active);
+#elif defined(HG_SUMMARY_RARE_CANDY_CHECK)
     printf("Summary menu evidence: {\"status\":\"%s\",\"seenPhases\":%u,\"summaryLifetimes\":%u,\"staleRejected\":%u,\"snapshotStages\":%u,\"activeAfterReturn\":%u,\"resetFinished\":true,\"pendingDMA\":0,\"partyItemsMoneyFlagsUnchanged\":false,\"expectedPrivateCandyMutation\":true}\n",
         caseStatus,seenPhases,summaryLifetimes,staleRejected,snapshotStages,final.active);
 #else
@@ -1149,7 +1458,9 @@ int main(int argc,char **argv) {
     wasm2c_hgengine_free(game); for (u32 i=0;i<3;i++) close(wasi->fds[i]); free(originalBag); free(game); free(env); free(wasi); free(capture); summaryEnv=NULL; wasm_rt_free();
 #ifdef HG_SUMMARY_TM_LEARN_CHECK
     free(tmOriginalFlags);
-#ifdef HG_SUMMARY_RARE_CANDY_CHECK
+#ifdef HG_EVOLUTION_CHECK
+    if (casePassed) puts("PASS: original field Rare Candy evolution route, canonical main geometry, owner-typed input, original outcome and field/reset.");
+#elif defined(HG_SUMMARY_RARE_CANDY_CHECK)
     if (casePassed) puts("PASS: original Rare Candy route and native Summary learning, two original stats views, cancel keeps upgrade, HM refusal/back/replacement and no double consumption.");
 #else
     if (casePassed) puts("PASS: original TM route and native Summary learning, original HM refusal/cancel/replace, original item/PP result and reset; Bag/Party used revision-bound native typed queues.");

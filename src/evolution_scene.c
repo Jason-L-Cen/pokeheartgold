@@ -1,4 +1,8 @@
 #include "evolution_scene.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_evolution_ui.h"
+#include <nitro/gx/native_geometry.h>
+#endif
 
 #include "global.h"
 
@@ -202,6 +206,20 @@ static void EvolutionScene_VBlankCB(void *cbData);
 static u8 EvolutionScene_PrintMessage(EvolutionTaskData *data, int msgNo);
 static BOOL EvolutionScene_TextCallback(TextPrinterTemplate *template, u16 glyphId);
 static void EvolutionScene_OpenSummary(EvolutionTaskData *data);
+#ifdef HEARTGOLD_NATIVE
+static EvolutionTaskData *sNativeEvolution;
+static HGNativeEvolutionUIState sNativeEvolutionUI;
+static BOOL sNativeEvolutionBgsLive;
+static void NativeEvolutionUIBind(EvolutionTaskData *data);
+static void NativeEvolutionUIBegin(EvolutionTaskData *data);
+static void NativeEvolutionUIBgs(BgConfig *bgConfig, BOOL live);
+static void NativeEvolutionUIPublish(EvolutionTaskData *data);
+_Static_assert(sizeof(HGNativeEvolutionUIState) == 196, "Native Evolution packet ABI");
+_Static_assert(HG_EVOLUTION_UI_OSCILLATE == EVO_STATE_OSCILLATE && HG_EVOLUTION_UI_DELETE_MOVE_MENU == EVO_STATE_DELETE_MOVE_MENU
+    && HG_EVOLUTION_UI_OPEN_SUMMARY == EVO_STATE_OPEN_SUMMARY && HG_EVOLUTION_UI_RUN_SUMMARY == EVO_STATE_RUN_SUMMARY
+    && HG_EVOLUTION_UI_STOP_LEARNING_MENU == EVO_STATE_STOP_LEARNING_MENU && HG_EVOLUTION_UI_CANCEL_FINISH == EVO_STATE_CANCEL_FINISH,
+    "Native Evolution phases follow the original scene");
+#endif
 
 static const s16 sEvolutionMenuCursorPos[][2] = {
     { 128, 72  },
@@ -566,11 +584,17 @@ static int EvolutionScene_RunMenu(EvolutionTaskData *data) {
 EvolutionTaskData *EvolutionScene_New(Party *party, Pokemon *mon, int species, Options *options, u32 a4, Pokedex *dex, Bag *bag, GameStats *stats, u32 evolutionCondition, u32 flags, enum HeapID heapID) {
     EvolutionTaskData *data;
 
+#ifdef HEARTGOLD_NATIVE
+    (void)HGNativeSetViewWidth(256);
+#endif
     gSystem.screensFlipped = FALSE;
     GfGfx_SwapDisplay();
     FontID_Alloc(4, heapID);
     data = Heap_Alloc(heapID, sizeof(EvolutionTaskData));
     MI_CpuClearFast(data, sizeof(EvolutionTaskData));
+#ifdef HEARTGOLD_NATIVE
+    NativeEvolutionUIBind(data);
+#endif
     MI_CpuClear16(GetMainBgPlttAddr(), GetMainBgPlttSize());
     MI_CpuClear16(GetSubBgPlttAddr(), GetSubBgPlttSize());
     data->party = party;
@@ -630,18 +654,27 @@ EvolutionTaskData *EvolutionScene_New(Party *party, Pokemon *mon, int species, O
     TextFlags_SetCanABSpeedUpPrint(TRUE);
     TextFlags_SetCanTouchSpeedUpPrint(TRUE);
     WirelessStatusIcon_Create();
+#ifdef HEARTGOLD_NATIVE
+    NativeEvolutionUIPublish(data);
+#endif
     return data;
 }
 
 static void EvolutionScene_Task(SysTask *task, void *taskData) {
     EvolutionTaskData *data = taskData;
 
+#ifdef HEARTGOLD_NATIVE
+    NativeEvolutionUIBegin(data);
+#endif
     EvolutionScene_Run(data);
     if (data->summaryApp == NULL) {
         PokepicManager_DrawAll(data->pokepicManager);
         ParticleScene_DrawAndSwap();
         RequestSwap3DBuffers(GX_SORTMODE_MANUAL, GX_BUFFERMODE_Z);
     }
+#ifdef HEARTGOLD_NATIVE
+    NativeEvolutionUIPublish(data);
+#endif
     if (data->done) {
         SysTask_Destroy(task);
     }
@@ -655,6 +688,9 @@ BOOL EvolutionScene_IsDone(EvolutionTaskData *data) {
 }
 
 void EvolutionScene_Delete(EvolutionTaskData *data) {
+#ifdef HEARTGOLD_NATIVE
+    if (data == sNativeEvolution) NativeEvolutionUIBind(NULL);
+#endif
     SetMasterBrightnessByColor(PM_LCD_TOP, RGB_BLACK);
     SetMasterBrightnessByColor(PM_LCD_BOTTOM, RGB_BLACK);
     Main_SetVBlankIntrCB(NULL, NULL);
@@ -1264,9 +1300,15 @@ static void EvolutionScene_InitGraphics(EvolutionTaskData *data, BgConfig *bgCon
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
     Main_SetVBlankIntrCB(EvolutionScene_VBlankCB, data);
+#ifdef HEARTGOLD_NATIVE
+    NativeEvolutionUIBgs(bgConfig, TRUE);
+#endif
 }
 
 static void EvolutionScene_FreeBgs(BgConfig *bgConfig) {
+#ifdef HEARTGOLD_NATIVE
+    NativeEvolutionUIBgs(bgConfig, FALSE);
+#endif
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG0, GF_PLANE_TOGGLE_OFF);
     GfGfx_EngineATogglePlanes(GX_PLANEMASK_BG1, GF_PLANE_TOGGLE_OFF);
     FreeBgTilemapBuffer(bgConfig, GF_BG_LYR_MAIN_1);
@@ -1307,10 +1349,16 @@ static void EvolutionScene_VBlankCB(void *cbData) {
     GF_RunVramTransferTasks();
     PaletteData_PushTransparentBuffers(data->paletteData);
     DoScheduledBgGpuUpdates(data->bgConfig);
+#ifdef HEARTGOLD_NATIVE
+    NativeEvolutionUIPublish(data);
+#endif
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 
 static u8 EvolutionScene_PrintMessage(EvolutionTaskData *data, int msgNo) {
+#ifdef HEARTGOLD_NATIVE
+    NativeEvolutionUIBegin(data);
+#endif
     String *string = NewString_ReadMsgData(data->msgData, msgNo);
 
     StringExpandPlaceholders(data->msgFormat, data->string, string);
@@ -1346,3 +1394,79 @@ static BOOL EvolutionScene_TextCallback(TextPrinterTemplate *template, u16 glyph
 static void EvolutionScene_OpenSummary(EvolutionTaskData *data) {
     data->summaryApp = OverlayManager_New(&gOverlayTemplate_PokemonSummary, data->summaryArgs, data->heapId);
 }
+#ifdef HEARTGOLD_NATIVE
+static void NativeEvolutionUIBind(EvolutionTaskData *data) {
+    if (data == sNativeEvolution) return;
+    u32 revision = sNativeEvolutionUI.revision + 1;
+    MI_CpuClear8(&sNativeEvolutionUI, sizeof(sNativeEvolutionUI));
+    sNativeEvolutionUI.revision = revision;
+    sNativeEvolutionUI.active = data != NULL;
+    sNativeEvolution = data;
+    sNativeEvolutionBgsLive = FALSE;
+}
+
+static void NativeEvolutionUIBegin(EvolutionTaskData *data) {
+    if (data != sNativeEvolution) return;
+    sNativeEvolutionUI.ready = FALSE;
+    MI_CpuClear8(&sNativeEvolutionUI.message, sizeof(sNativeEvolutionUI) - offsetof(HGNativeEvolutionUIState, message));
+}
+
+static void NativeEvolutionUIBgs(BgConfig *bgConfig, BOOL live) {
+    if (sNativeEvolution == NULL || sNativeEvolution->bgConfig != bgConfig) return;
+    NativeEvolutionUIBegin(sNativeEvolution);
+    if (sNativeEvolutionBgsLive != live) ++sNativeEvolutionUI.revision;
+    sNativeEvolutionBgsLive = live;
+}
+
+static BOOL NativeEvolutionUIWindow(HGNativePartyUIWindow *out, EvolutionTaskData *data, const Window *window,
+    u32 bgId, u32 left, u32 top, u32 width, u32 height, u32 paletteNum, u32 baseTile, u32 clearColor) {
+    MI_CpuClear8(out, sizeof(*out));
+    if (window == NULL || data->bgConfig == NULL || window->bgConfig != data->bgConfig || window->bgId != bgId
+        || window->colorMode != GF_BG_CLR_4BPP || data->bgConfig->bgs[bgId].colorMode != GX_BG_COLORMODE_16
+        || window->tilemapLeft != left || window->tilemapTop != top || window->width != width || window->height != height
+        || window->paletteNum != paletteNum || window->baseTile != baseTile || window->pixelBuffer == NULL
+        || (uintptr_t)window->pixelBuffer > UINT32_MAX - width * height * TILE_SIZE_4BPP) return FALSE;
+    out->pixelBuffer = (u32)(uintptr_t)window->pixelBuffer;
+    out->tileWidth = width; out->tileHeight = height; out->clearColor = clearColor;
+    out->engine = bgId >= GF_BG_LYR_SUB_0;
+    const u16 *palette = out->engine ? GetSubBgPlttAddr() : GetMainBgPlttAddr();
+    MI_CpuCopy16(palette + paletteNum * 16, out->palette, sizeof(out->palette));
+    return TRUE;
+}
+
+static void NativeEvolutionUIPublish(EvolutionTaskData *data) {
+    if (data == NULL || data != sNativeEvolution) return;
+    HGNativeEvolutionUIState next;
+    MI_CpuClear8(&next, sizeof(next));
+    next.active = TRUE; next.revision = sNativeEvolutionUI.revision;
+    next.phase = data->state; next.summaryActive = data->summaryApp != NULL;
+    next.flags = data->flags; next.species = data->species; next.newSpecies = data->newSpecies; next.moveToLearn = data->newMove;
+    BOOL live = !data->done && !next.summaryActive && sNativeEvolutionBgsLive;
+    BOOL graphics = live && data->bgConfig != NULL && !((data->bgConfig->bufferTransferScheduled | data->bgConfig->scrollScheduled) & 0xFF);
+    BOOL palette = live && data->paletteData != NULL && !PaletteData_GetSelectedBuffersBitmask(data->paletteData) && !data->paletteData->transparentBit;
+    if (live && data->state == EVO_STATE_OSCILLATE && (data->flags & EVO_FLAG_CAN_CANCEL))
+        next.actionMask = HG_EVOLUTION_UI_ACTION_CANCEL;
+    if (graphics && palette) {
+        BOOL message = NativeEvolutionUIWindow(&next.message, data, data->window, GF_BG_LYR_MAIN_1, 2, 19, 27, 4, 11, 31, 15);
+        if (HGNativeEvolutionUIIsMessagePhase(next.phase) && message && TextPrinterIsWaitingForInput(data->printerId, data->window))
+            next.actionMask = HG_EVOLUTION_UI_ACTION_ACK;
+        if ((data->state == EVO_STATE_DELETE_MOVE_MENU || data->state == EVO_STATE_STOP_LEARNING_MENU)
+            && data->menuState == EVO_MENU_STATE_INPUT && data->spritesReady && data->cursorSprite != NULL
+            && (data->menuResult == EVO_MENU_TOP || data->menuResult == EVO_MENU_BOTTOM)
+            && NativeEvolutionUIWindow(&next.choices[0], data, &data->menuWindows[0], GF_BG_LYR_SUB_2, 3, 8, 26, 2, 15, 80, 0)
+            && NativeEvolutionUIWindow(&next.choices[1], data, &data->menuWindows[1], GF_BG_LYR_SUB_2, 3, 14, 26, 2, 15, 132, 0))
+            next.actionMask = HG_EVOLUTION_UI_ACTION_TOP | HG_EVOLUTION_UI_ACTION_BOTTOM;
+        if (next.actionMask != (HG_EVOLUTION_UI_ACTION_TOP | HG_EVOLUTION_UI_ACTION_BOTTOM))
+            MI_CpuClear8(next.choices, sizeof(next.choices));
+    }
+    next.ready = next.actionMask != 0;
+    HGNativeEvolutionUIState previous = sNativeEvolutionUI;
+    previous.ready = next.ready; // Begin clears availability, not the semantic generation.
+    if (memcmp(&previous, &next, offsetof(HGNativeEvolutionUIState, message))) ++next.revision;
+    sNativeEvolutionUI = next;
+}
+
+const HGNativeEvolutionUIState *HGNativeEvolutionUIGetState(void) {
+    return &sNativeEvolutionUI;
+}
+#endif

@@ -1866,6 +1866,9 @@ int main(int argc,char **argv) {
     u32 summaryUI=w2c_hg32_CheckOriginalSummaryUI(&first);
     if (summaryUI) fprintf(stderr,"Original Summary UI check line %u\n",summaryUI);
     CHECK(!summaryUI && !w2c_hg32_CheckOriginalSummaryUI(&second));
+    u32 evolutionUI=w2c_hg32_CheckOriginalEvolutionUI(&first);
+    if (evolutionUI) fprintf(stderr,"Original Evolution UI metadata check line %u\n",evolutionUI);
+    CHECK(!evolutionUI && !w2c_hg32_CheckOriginalEvolutionUI(&second));
     u32 ballPocket=w2c_hg32_CheckOriginalBallPocket(&first);
     if (ballPocket) fprintf(stderr,"Original ball pocket check line %u\n",ballPocket);
     CHECK(!ballPocket && !w2c_hg32_CheckOriginalBallPocket(&second));
