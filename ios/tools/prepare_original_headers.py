@@ -183,8 +183,8 @@ def register_header():
         result += (f'#undef {name}\n#define {name} '
                    f'(*({ctype} *)HGNativeRegisterAddress({address}u, {int(bits) // 8}))\n')
     result += '#endif\n'
-    # SDK vector/projection code takes contiguous operand/result pointers; these are not DMA bus addresses.
-    for address, offset, width in arithmetic:
+    # These constants are contiguous register pointers, not DMA bus addresses.
+    for address, offset, width in [*arithmetic, ('REG_BLDCNT_ADDR', '0x50', 4)]:
         result += (f'#undef {address}\n#define {address} '
                    f'HGNativeRegisterAddress(0x04000000u + {offset}u, {width})\n')
     return result

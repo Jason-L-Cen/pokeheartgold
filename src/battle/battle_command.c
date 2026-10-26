@@ -51,6 +51,10 @@
 #include "palette_blink.h"
 #include "ui_util.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_battle_ui.h"
+#endif
+
 int BattleScriptReadWord(BattleContext *ctx);
 static void BattleScriptIncrementPointer(BattleContext *ctx, int adrs);
 static void BattleScriptJump(BattleContext *ctx, NarcId narcId, int adrs);
@@ -6616,6 +6620,10 @@ enum {
     STATE_GET_POKEMON_DONE_CAUGHT,
 };
 
+#ifdef HEARTGOLD_NATIVE
+_Static_assert(STATE_GET_POKEMON_DISMISS_POKEDEX_ENTRY == HG_CAPTURE_UI_DISMISS_PHASE, "native capture caller phase");
+#endif
+
 enum {
     DATA_GET_POKEMON_PRINTER_ID = 0,
     DATA_GET_POKEMON_FRAME_COUNTER,
@@ -6852,11 +6860,17 @@ static void Task_GetPokemon(SysTask *task, void *inData) {
             unkStruct.natDexEnabled = Pokedex_IsNatDexEnabled(BattleSystem_GetPokedex(data->battleSystem));
             data->tempPointers[POINTER_GET_POKEMON_TASK_MANAGER] = ObjCharTransfer_PopTaskManager();
             data->tempPointers[POINTER_GET_POKEMON_OVERLAY_MANAGER] = PokedexEntryPopup_Create(&unkStruct);
+#ifdef HEARTGOLD_NATIVE
+            NativeCaptureUIBegin(GetMonData(unkStruct.mon, MON_DATA_SPECIES, NULL), GetMonData(unkStruct.mon, MON_DATA_FORM, NULL));
+#endif
             data->state = STATE_GET_POKEMON_DISMISS_POKEDEX_ENTRY;
         }
         break;
     case STATE_GET_POKEMON_DISMISS_POKEDEX_ENTRY:
         if (PokedexEntryPopup_IsDone(data->tempPointers[POINTER_GET_POKEMON_OVERLAY_MANAGER]) == 1) {
+#ifdef HEARTGOLD_NATIVE
+            NativeCaptureUIPublish(data->state, 1);
+#endif
             if (PAD_BUTTON_A & gSystem.newKeys) { // If the A button is pressed...
                 data->state = STATE_GET_POKEMON_MOVE_POKEPIC_TO_CENTER;
             } else if (System_GetTouchNew()) { // If the touch screen is pressed...
@@ -6864,6 +6878,9 @@ static void Task_GetPokemon(SysTask *task, void *inData) {
                 data->state = STATE_GET_POKEMON_MOVE_POKEPIC_TO_CENTER;
             }
             if (data->state == STATE_GET_POKEMON_MOVE_POKEPIC_TO_CENTER) {
+#ifdef HEARTGOLD_NATIVE
+                NativeCaptureUIPublish(data->state, 1);
+#endif
                 if (BattleSystem_GetBattleType(data->battleSystem) & BATTLE_TYPE_BUG_CONTEST) {
                     PaletteData_BeginPaletteFade(paletteData, 15, 0xFFFF, 1, 0, 16, RGB_BLACK);
                     Pokepic_StartPaletteFadeAll(pokepicManager, 0, 16, 0, RGB_BLACK);
@@ -6876,6 +6893,9 @@ static void Task_GetPokemon(SysTask *task, void *inData) {
     case STATE_GET_POKEMON_MOVE_POKEPIC_TO_CENTER:
         if (BattleSystem_GetBattleType(data->battleSystem) & BATTLE_TYPE_BUG_CONTEST) {
             data->state = STATE_GET_POKEMON_STORE_NEW_MON_BUG_CONTEST;
+#ifdef HEARTGOLD_NATIVE
+            NativeCaptureUIPublish(data->state, 1);
+#endif
             break;
         }
         Pokepic *pic = PokedexEntryPopup_GetPokepic(data->tempPointers[POINTER_GET_POKEMON_OVERLAY_MANAGER]);
@@ -6884,9 +6904,15 @@ static void Task_GetPokemon(SysTask *task, void *inData) {
             Pokepic_SetAttr(pic, POKEPIC_X, 128);
             PokedexEntryPopup_HideSprites(data->tempPointers[POINTER_GET_POKEMON_OVERLAY_MANAGER]);
             data->state = STATE_GET_POKEMON_15;
+#ifdef HEARTGOLD_NATIVE
+            NativeCaptureUIPublish(data->state, 1);
+#endif
         }
         break;
     case STATE_GET_POKEMON_15:
+#ifdef HEARTGOLD_NATIVE
+        NativeCaptureUIInvalidate();
+#endif
         PokedexEntryPopup_Delete(data->tempPointers[POINTER_GET_POKEMON_OVERLAY_MANAGER]);
         ObjCharTransfer_PushTaskManager(data->tempPointers[POINTER_GET_POKEMON_TASK_MANAGER]);
         BattleSystem_ReinitMainBgLayers(data->battleSystem);
@@ -6989,6 +7015,9 @@ static void Task_GetPokemon(SysTask *task, void *inData) {
             BattleController_EmitIncrementGameStat(data->battleSystem, BATTLER_PLAYER, 0, GAME_STAT_CAUGHT_MON);
             if (BattleSystem_GetBattleType(data->battleSystem) & BATTLE_TYPE_BUG_CONTEST) {
                 if (data->state == STATE_GET_POKEMON_STORE_NEW_MON_BUG_CONTEST) {
+#ifdef HEARTGOLD_NATIVE
+                    NativeCaptureUIInvalidate();
+#endif
                     PokedexEntryPopup_Delete(data->tempPointers[POINTER_GET_POKEMON_OVERLAY_MANAGER]);                // We have not overwritten our original OverlayManager if we arrive here through this state.
                     ObjCharTransfer_PushTaskManager(data->tempPointers[POINTER_GET_POKEMON_TASK_MANAGER]); // Nor our TaskManager.
                     BattleSystem_ReinitMainBgLayers(data->battleSystem);
@@ -7085,6 +7114,9 @@ static void Task_GetPokemon(SysTask *task, void *inData) {
         if (!TextPrinterCheckActive(data->tempData[DATA_GET_POKEMON_PRINTER_ID])) {
             data->tempData[DATA_GET_POKEMON_FRAME_COUNTER]--;
             if (data->tempData[DATA_GET_POKEMON_FRAME_COUNTER] == 0) { // After 30 frames have passed...
+#ifdef HEARTGOLD_NATIVE
+                NativeCaptureUIInvalidate();
+#endif
                 data->ctx->getterWork = 0;
                 Heap_Free(data);
                 SysTask_Destroy(sysTask);
@@ -7119,6 +7151,9 @@ static void Task_GetPokemon(SysTask *task, void *inData) {
         if (!TextPrinterCheckActive(data->tempData[DATA_GET_POKEMON_PRINTER_ID])) {
             data->tempData[DATA_GET_POKEMON_FRAME_COUNTER]--;
             if (data->tempData[DATA_GET_POKEMON_FRAME_COUNTER] == 0) { // After 30 frames have passed...
+#ifdef HEARTGOLD_NATIVE
+                NativeCaptureUIInvalidate();
+#endif
                 data->ctx->getterWork = 0;
                 Heap_Free(data);
                 SysTask_Destroy(sysTask);
@@ -7132,6 +7167,9 @@ static void Task_GetPokemon(SysTask *task, void *inData) {
                 PokepicManager_DeleteAllPics(pokepicManager);
             }
             data->battleSystem->battleOutcomeFlag = BATTLE_OUTCOME_MON_CAUGHT;
+#ifdef HEARTGOLD_NATIVE
+            NativeCaptureUIInvalidate();
+#endif
             data->ctx->getterWork = 0;
             Heap_Free(data);
             SysTask_Destroy(sysTask);

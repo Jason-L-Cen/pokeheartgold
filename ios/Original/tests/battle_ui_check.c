@@ -13,12 +13,69 @@ void BattleSystem_GetBattlerIdsByType(BattleSystem *system, u8 *ids) {
 u32 BattleSystem_GetBattleType(BattleSystem *system) { return system->battleType; }
 
 u32 CheckOriginalBattleUI(void) {
+    {
+        NativeCaptureUIInvalidate();
+        const HGNativeCaptureUIState *capture = HGNativeCaptureUIGetState();
+        CHECK(sizeof(*capture) == 32 && offsetof(HGNativeCaptureUIState, ready) == 16
+            && offsetof(HGNativeCaptureUIState, form) == 28 && HG_CAPTURE_UI_DISMISS_PHASE == 13);
+        CHECK(!capture->active && !capture->ready && !capture->done && !capture->species);
+        NativeCaptureUIBegin(152, 0);
+        u32 generation = capture->ownerGeneration, revision = capture->revision, keys = 0xA5A5A5A5;
+        CHECK(generation && revision && capture->active == 1 && capture->callerPhase == 13
+            && !capture->ready && !capture->done && capture->species == 152 && !capture->form);
+        CHECK(!HGNativeCaptureUIResolveInput(capture, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        HGNativeCaptureUIState before = *capture;
+        NativeCaptureUIPublish(13, 0);
+        CHECK(!memcmp(capture, &before, sizeof(before)));
+        NativeCaptureUIPublish(13, 1);
+        CHECK(capture->active && capture->ready == 1 && capture->done == 1 && capture->revision != revision);
+        revision = capture->revision; before = *capture;
+        NativeCaptureUIPublish(13, 1);
+        CHECK(HGNativeCaptureUIGetState() == capture && !memcmp(capture, &before, sizeof(before)));
+        CHECK(HGNativeCaptureUIResolveInput(capture, generation, revision, &keys) && keys == 1);
+        CHECK(!memcmp(capture, &before, sizeof(before)));
+        keys = 0xA5A5A5A5;
+        CHECK(!HGNativeCaptureUIResolveInput(NULL, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        CHECK(!HGNativeCaptureUIResolveInput(capture, generation, revision, NULL));
+        CHECK(!HGNativeCaptureUIResolveInput(capture, 0, revision, &keys) && keys == 0xA5A5A5A5);
+        CHECK(!HGNativeCaptureUIResolveInput(capture, generation, 0, &keys) && keys == 0xA5A5A5A5);
+        CHECK(!HGNativeCaptureUIResolveInput(capture, generation + 1, revision, &keys) && keys == 0xA5A5A5A5);
+        CHECK(!HGNativeCaptureUIResolveInput(capture, generation, revision + 1, &keys) && keys == 0xA5A5A5A5);
+        HGNativeCaptureUIState bad = before;
+        bad.active = 0; CHECK(!HGNativeCaptureUIResolveInput(&bad, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        bad = before; bad.active = 2; CHECK(!HGNativeCaptureUIResolveInput(&bad, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        bad = before; bad.ready = 0; CHECK(!HGNativeCaptureUIResolveInput(&bad, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        bad = before; bad.ready = 2; CHECK(!HGNativeCaptureUIResolveInput(&bad, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        bad = before; bad.done = 0; CHECK(!HGNativeCaptureUIResolveInput(&bad, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        bad = before; bad.done = 2; CHECK(!HGNativeCaptureUIResolveInput(&bad, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        bad = before; bad.callerPhase = 14; CHECK(!HGNativeCaptureUIResolveInput(&bad, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        bad = before; bad.species = 0; CHECK(!HGNativeCaptureUIResolveInput(&bad, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        bad = before; bad.species = 494; CHECK(!HGNativeCaptureUIResolveInput(&bad, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        for (u32 i = 0; i < 3; ++i) {
+            NativeCaptureUIPublish(i == 0 ? 14 : i == 1 ? 15 : 23, 1);
+            CHECK(capture->active && !capture->ready && capture->done == 1 && capture->ownerGeneration == generation);
+            CHECK(!HGNativeCaptureUIResolveInput(capture, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        }
+        NativeCaptureUIInvalidate(); before = *capture;
+        CHECK(!capture->active && !capture->ready && !capture->done && !capture->callerPhase && !capture->species && !capture->form);
+        CHECK(capture->ownerGeneration == generation && capture->revision != revision);
+        NativeCaptureUIPublish(13, 1); CHECK(!memcmp(capture, &before, sizeof(before)));
+        NativeCaptureUIBegin(201, 27); CHECK(capture->ownerGeneration != generation && capture->species == 201 && capture->form == 27);
+        CHECK(!HGNativeCaptureUIResolveInput(capture, generation, revision, &keys) && keys == 0xA5A5A5A5);
+        gNativeCaptureUIState.ownerGeneration = gNativeCaptureUIState.revision = UINT32_MAX;
+        NativeCaptureUIBegin(493, 17); CHECK(capture->ownerGeneration == 1 && capture->revision == 1);
+        gNativeCaptureUIState.revision = UINT32_MAX;
+        NativeCaptureUIPublish(13, 1); CHECK(capture->revision == 1 && HGNativeCaptureUIResolveInput(capture, 1, 1, &keys) && keys == 1);
+        gNativeCaptureUIState.revision = UINT32_MAX;
+        NativeCaptureUIInvalidate(); CHECK(!capture->active && capture->revision == 1 && capture->ownerGeneration == 1);
+    }
     BattleInput input = {0}, other = {0};
     BattleSystem system = {0}; input.battleSystem=other.battleSystem=&system;
     NativeBattleUIBind(&input);
     const HGNativeBattleUIState *state = HGNativeBattleUIGetState();
     CHECK(sizeof(*state)==65688 && offsetof(HGNativeBattleUIState,namePixels)==152
-        && HG_BATTLE_UI_NEXT_MON==4 && HG_BATTLE_UI_KEEP_FORGET==5 && HG_BATTLE_UI_GIVE_UP==6);
+        && HG_BATTLE_UI_NONE==0 && HG_BATTLE_UI_COMMAND==1 && HG_BATTLE_UI_MOVES==2 && HG_BATTLE_UI_TARGETS==3
+        && HG_BATTLE_UI_NEXT_MON==4 && HG_BATTLE_UI_KEEP_FORGET==5 && HG_BATTLE_UI_GIVE_UP==6 && HG_BATTLE_UI_YES_NO==7);
     CHECK(state->active && !state->mode && !state->ready);
     input.curMenuId = BATTLE_MENU_3; CHECK(NativeBattleUIMode(&input) == HG_BATTLE_UI_COMMAND);
     input.curMenuId = BATTLE_MENU_4; CHECK(NativeBattleUIMode(&input) == HG_BATTLE_UI_COMMAND);
@@ -125,8 +182,9 @@ u32 CheckOriginalBattleUI(void) {
     CHECK(state->nameWidth[0]==16 && state->namePixels[0][0]==250 && state->namePixels[0][4]==45 && !state->namePixels[0][11]);
     u32 lookups=targetLookups; CHECK(HGNativeBattleUIGetState()==state && targetLookups==lookups);
     BattleInputTargetMenu targetMenu=input.menu.target;
-    const u32 twoOptionMenus[]={BATTLE_MENU_SWITCH_OR_FLEE,BATTLE_MENU_KEEP_FORGET_MOVE,BATTLE_MENU_GIVE_UP_ON_MOVE};
-    const u32 twoOptionModes[]={HG_BATTLE_UI_NEXT_MON,HG_BATTLE_UI_KEEP_FORGET,HG_BATTLE_UI_GIVE_UP};
+    const u32 twoOptionMenus[]={BATTLE_MENU_SWITCH_OR_FLEE,BATTLE_MENU_KEEP_FORGET_MOVE,BATTLE_MENU_GIVE_UP_ON_MOVE,BATTLE_MENU_YES_NO};
+    const u32 twoOptionModes[]={HG_BATTLE_UI_NEXT_MON,HG_BATTLE_UI_KEEP_FORGET,HG_BATTLE_UI_GIVE_UP,HG_BATTLE_UI_YES_NO};
+    CHECK(sTouchArrayTwoOptionsMenu[0]==1 && sTouchArrayTwoOptionsMenu[1]==0xFF);
     for (u32 choiceMenu=0;choiceMenu<NELEMS(twoOptionMenus);choiceMenu++) {
         input.curMenuId=other.curMenuId=twoOptionMenus[choiceMenu]; NativeBattleUITargetReset();
         CHECK(!sNativeTargetUI.nameWidth[0] && !sNativeTargetUI.namePixels[0][3]);
@@ -165,7 +223,7 @@ u32 CheckOriginalBattleUI(void) {
         NativeBattleUIBind(NULL); CHECK(NativeBattleUIMode(&input)==HG_BATTLE_UI_NONE && NativeBattleUIPoll(&input)==-1);
         NativeBattleUIBind(&input);
     }
-    const u32 unsupportedYesNo[]={BATTLE_MENU_YES_NO,BATTLE_MENU_SWITCH_OR_KEEP,BATTLE_MENU_5,BATTLE_MENU_6};
+    const u32 unsupportedYesNo[]={BATTLE_MENU_SWITCH_OR_KEEP,BATTLE_MENU_5,BATTLE_MENU_6};
     for (u32 i=0;i<NELEMS(unsupportedYesNo);i++) {
         input.curMenuId=unsupportedYesNo[i]; NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input);
         CHECK(!state->mode && !state->ready && !state->enabledMask && !state->nameWidth[0] && !HGNativeBattleUIChoose(state->revision,0));
@@ -179,9 +237,9 @@ u32 CheckOriginalBattleUI(void) {
     NativeBattleUIInvalidate(&input); NativeBattleUIPoll(&input);
     CHECK(state->mode==HG_BATTLE_UI_TARGETS && !state->nameWidth[0] && !state->nameWidth[1] && state->targetSpecies[0]);
     const u32 resourceMenus[]={BATTLE_MENU_MAIN,BATTLE_MENU_FIGHT,BATTLE_MENU_TARGET,
-        BATTLE_MENU_SWITCH_OR_FLEE,BATTLE_MENU_KEEP_FORGET_MOVE,BATTLE_MENU_GIVE_UP_ON_MOVE};
+        BATTLE_MENU_SWITCH_OR_FLEE,BATTLE_MENU_KEEP_FORGET_MOVE,BATTLE_MENU_GIVE_UP_ON_MOVE,BATTLE_MENU_YES_NO};
     const u32 resourceModes[]={HG_BATTLE_UI_COMMAND,HG_BATTLE_UI_MOVES,HG_BATTLE_UI_TARGETS,
-        HG_BATTLE_UI_NEXT_MON,HG_BATTLE_UI_KEEP_FORGET,HG_BATTLE_UI_GIVE_UP};
+        HG_BATTLE_UI_NEXT_MON,HG_BATTLE_UI_KEEP_FORGET,HG_BATTLE_UI_GIVE_UP,HG_BATTLE_UI_YES_NO};
     for (u32 menu=0;menu<NELEMS(resourceMenus);menu++) {
         input.curMenuId=resourceMenus[menu];
         if (menu==1) input.menu.fight=(BattleInputFightMenu){.moveNo={33,45,0,0},.pp={32,40,0,0},.ppMax={35,40,0,0},.battlerType=BATTLER_TYPE_PLAYER_SIDE_SLOT_1};

@@ -8,7 +8,11 @@ static NSMutableSet *sPrivateVisibleHP;
 static BOOL sPrivateObserving, sPrivateOverflow;
 static uint32_t sPrivateDisplayFrame;
 static const NSUInteger sPrivateSampleLimit=1024;
+#ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
+static void (^sCaptureRegistrationDisplay)(uint32_t);
+#endif
 @implementation OriginalController (Checks)
+#ifndef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
 - (BOOL)checkGlyph:(UIImage *)glyph inCard:(UIImage *)card x:(NSInteger)x y:(NSInteger)y {
     CGImageRef g=glyph.CGImage,c=card.CGImage;
     if (!g || !c || x<0 || y<0 || CGImageGetBitsPerPixel(g)!=32 || CGImageGetBitsPerPixel(c)!=32
@@ -293,6 +297,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
     NSData *oldBattle=_battleUIState,*oldBattleBag=_battleBagUIState,*oldBattleParty=_battlePartyUIState; NSDictionary *oldPictures=_battleMenuPictures;
     NSDictionary *oldOwnerPictures=_battleMenuOwnerPictures;
     uint32_t oldOwnerKind=_battleMenuOwnerKind,oldOwnerRevision=_battleMenuOwnerRevision,oldOwnerPhase=_battleMenuOwnerPhase;
+    uint32_t oldFrameEngine=_frameEngine,oldDisplayedEngine=_displayedEngine;
     _battleBagUIState=[NSData dataWithBytes:&bag length:sizeof(bag)]; _battlePartyUIState=zeroParty; _battleMenuPictures=pictures;
     [self displayFrame]; [self viewDidLayoutSubviews];
     report[@"battleMenuUsesPublishedImages"]=@(_battleMenuKind==OriginalBattleMenuBag && _battleMenuImages[0].image==tile && !_battleMenuPanel.hidden);
@@ -425,15 +430,16 @@ static const NSUInteger sPrivateSampleLimit=1024;
     report[@"battlePartyInfoKeepsContextFallback"]=@(contextFallback);
     party.mode=4; // Modes0..3 are supported; an unknown mode keeps the original canvas fallback.
     _battlePartyUIState=[NSData dataWithBytes:&party length:sizeof(party)];
-    [_condition lock]; _selectedEngine=1; [_condition unlock]; [self displayFrame];
+    [_condition lock]; _selectedEngine=_frameEngine=_displayedEngine=1; [_condition unlock]; [self displayFrame];
     report[@"battleMenuUnsupportedModeFallback"]=@(!_battleMenuKind && _battleMenuPanel.hidden && !_canvas.hidden && _canvas.userInteractionEnabled && !_buttons[@1].hidden);
     party.mode=HG_BATTLE_PARTY_UI_USE_ITEM; party.itemId=18;
     report[@"battleMenuOtherItemContextFallback"]=@(OriginalBattleMenuKind(&emptyBag,&party)==0);
     _battleUIState=oldBattle; _battleBagUIState=zeroBag; _battlePartyUIState=zeroParty; _battleMenuPictures=nil;
-    [_condition lock]; _selectedEngine=0; _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO; [_condition unlock];
+    [_condition lock]; _selectedEngine=_frameEngine=_displayedEngine=0; _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO; [_condition unlock];
     HGNativeBattleUIState emptyBattle={0}; [self updateBattleControls:[NSData dataWithBytes:&emptyBattle length:sizeof(emptyBattle)]]; [self displayFrame];
     _battleBagUIState=oldBattleBag; _battlePartyUIState=oldBattleParty; _battleMenuPictures=oldPictures;
     _battleMenuOwnerPictures=oldOwnerPictures; _battleMenuOwnerKind=oldOwnerKind; _battleMenuOwnerRevision=oldOwnerRevision; _battleMenuOwnerPhase=oldOwnerPhase;
+    _frameEngine=oldFrameEngine; _displayedEngine=oldDisplayedEngine;
 }
 - (void)checkSummaryFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
     __block NSUInteger stage=0,attempts=0,moveIndex=0; __block uint32_t originalPartyRevision=0,pages=0;
@@ -698,6 +704,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
     };
     step();
 }
+#endif
 - (BOOL)checkPrivatePixels:(UIImage *)image {
     if (!image.CGImage) return NO;
     NSData *bytes=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(image.CGImage)));
@@ -719,6 +726,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
     [sPrivateCaptures addObject:@{@"file":name,@"kind":kind,@"drawn":@(drawn),@"written":@(written),@"displayFrame":@(sPrivateDisplayFrame)}];
     return drawn && written;
 }
+#ifndef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
 - (void)checkPrivatePartyPublished:(NSData *)data pictures:(NSDictionary *)pictures frame:(uint32_t)frame {
     [_condition lock]; BOOL observing=sPrivateObserving && [sPrivateUICase isEqual:@"field-potion"]; [_condition unlock];
     if (!observing || data.length!=sizeof(HGNativePartyUIState)) return;
@@ -740,6 +748,9 @@ static const NSUInteger sPrivateSampleLimit=1024;
 - (void)checkPrivateCaseDisplay:(uint32_t)frame {
     if (!sPrivateUICase) return;
     sPrivateDisplayFrame=frame;
+#ifdef HEARTGOLD_ORIGINAL_POKEDEX_CHECK
+    [self checkPokedexDisplay:frame];
+#endif
     const HGNativePartyUIState *state=_displayedPartyUIState.length==sizeof(*state) ? _displayedPartyUIState.bytes : NULL;
     if (![sPrivateUICase isEqual:@"field-potion"] || !HGNativePartyUIIsPotionUse(state)) return;
     NSUInteger mons=0,actions=0;
@@ -1993,7 +2004,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
     report[@"partyRawCardCacheScope"]=@(cardCache && !_partyOwnerPictures);
     _env=savedEnv; _partyOwnerPictures=savedPartyPictures;
     NSData *savedPartyState=_partyUIState; NSDictionary *savedPartyDisplayPictures=_partyPictures;
-    uint32_t savedFieldMap=_fieldMapId,savedEngine=_selectedEngine; BOOL savedMenuOpen=_fieldMenuOpen;
+    uint32_t savedFieldMap=_fieldMapId,savedEngine=_selectedEngine,savedFrameEngine=_frameEngine,savedDisplayedEngine=_displayedEngine; BOOL savedMenuOpen=_fieldMenuOpen;
     _partyUIState=[partyData copy]; _partyPictures=@{@"message":glyph}; [self displayFrame]; [self.view layoutIfNeeded];
     BOOL progressHidesAB=_buttons[@1].hidden && _buttons[@2].hidden;
     BOOL blocked=!_partyPanel.hidden && !_partyBack.enabled && !_partyMessage.hidden && [_partyBack.currentTitle isEqual:@"继续"] && progressHidesAB;
@@ -2045,7 +2056,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
         && _buttons[@2].hidden && (backHit==_partyBack || [backHit isDescendantOfView:_partyBack]));
     report[@"partyItemProgressKeepsContext"]=@(giveProgress && invalidContext && !_partyPanel.hidden && _partyMessage.hidden && !_partyMessage.image
         && [_partyBack.currentTitle isEqual:@"返回"]);
-    party->active=0; _partyUIState=[partyData copy]; _fieldMapId=MAP_ROUTE_29; _selectedEngine=0; _fieldMenuOpen=NO; [self displayFrame];
+    party->active=0; _partyUIState=[partyData copy]; _fieldMapId=MAP_ROUTE_29; _selectedEngine=_frameEngine=_displayedEngine=0; _fieldMenuOpen=NO; [self displayFrame];
     report[@"partyFallbackRestoresAB"]=@(fallback && !_buttons[@1].hidden && !_buttons[@2].hidden && !_partyScene
         && [_buttons[@1].currentTitle isEqual:@"互动"] && [_buttons[@2].currentTitle isEqual:@"奔跑"]);
     report[@"partyExitHidesPanel"] = @(!_partyScene && _partyPanel.hidden && _partyBack.hidden);
@@ -2144,7 +2155,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
     report[@"partyPotionUnsupportedPhaseUsesCanvas"]=@(!_partyScene && _partyPanel.hidden && _partyBack.hidden && !_canvas.hidden
         && !_buttons[@1].hidden && !_buttons[@2].hidden && partyKeys==3 && _keys==3 && _pendingKeys==3 && _submittedKeys==3);
     _keys=_pendingKeys=_submittedKeys=partyKeys=0; _touchPressed=NO; _partyChoicePending=_partyTouchActive=NO; [_condition unlock];
-    _partyUIState=savedPartyState; _partyPictures=savedPartyDisplayPictures; _fieldMapId=savedFieldMap; _selectedEngine=savedEngine; _fieldMenuOpen=savedMenuOpen; [self displayFrame];
+    _partyUIState=savedPartyState; _partyPictures=savedPartyDisplayPictures; _fieldMapId=savedFieldMap; _selectedEngine=savedEngine; _frameEngine=savedFrameEngine; _displayedEngine=savedDisplayedEngine; _fieldMenuOpen=savedMenuOpen; [self displayFrame];
     NSDictionary *savedBagOwner=_bagOwnerPictures;
     HGNativeBagUIState cachedBag={.active=1,.revision=71,.phase=HG_BAG_UI_INPUT};
     NSDictionary *bagSeed=@{@"items":@[glyph],@"itemGlyphs":@[glyph],@"revision":@71,@"mode":@0,@"phase":@(HG_BAG_UI_INPUT)};
@@ -2373,9 +2384,13 @@ static const NSUInteger sPrivateSampleLimit=1024;
     [_condition lock];
     _fieldMenuIcons=(0x0DDDDDDDu & ~(15u<<4)) | (1u<<4);
     _fieldMenuFrame=[NSMutableData dataWithLength:256*192*4];
+    _frame=[NSMutableData dataWithLength:256*192*4]; _frameWidth=256; _frameEngine=0;
+    _selectedEngine=_displayedEngine=1;
     [_condition unlock];
     [self.view layoutIfNeeded]; [self displayFrame];
-    report[@"fieldMenuOverlay"] = @(_fieldMenuOpen && !_selectedEngine && !_fieldMenu.hidden && !_fieldMenuShade.hidden && !_canvas.userInteractionEnabled && _joystick.hidden);
+    report[@"fieldMenuUsesPublishedRoute"] = @(_selectedEngine==1 && !_displayedEngine && _fieldMenuOpen && !_fieldMenu.hidden && !_fieldMenuShade.hidden && !_canvas.userInteractionEnabled);
+    [_condition lock]; _selectedEngine=0; [_condition unlock];
+    report[@"fieldMenuOverlay"] = @(_fieldMenuOpen && !_displayedEngine && !_fieldMenu.hidden && !_fieldMenuShade.hidden && !_canvas.userInteractionEnabled && _joystick.hidden);
     report[@"fieldMenuHidesLockedIcons"] = @(_fieldMenu.accessibilityElements.count==1 && [_fieldMenuElements[1].accessibilityLabel isEqual:_fieldMenuNames[1]]);
     BOOL menuTargets=YES;
     for (OriginalMenuElement *element in _fieldMenuElements) {
@@ -2398,7 +2413,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
     [self joystickAt:CGPointMake(64,0) pressed:YES];
     [_condition lock]; report[@"joystickPauseClearsInput"] = @(!_joystickKeys && !_pendingJoystickKeys && ![self takeKeysLocked]); [_condition unlock];
     [self resume];
-    [_condition lock]; report[@"joystickResumeDoesNotMove"] = @(![self takeKeysLocked]); _fieldMapId=_lastPadReadCount=0; [_condition unlock];
+    [_condition lock]; report[@"joystickResumeDoesNotMove"] = @(![self takeKeysLocked]); _fieldMapId=_lastPadReadCount=_frameEngine=_displayedEngine=0; [_condition unlock];
     NSMutableData *battleData = [NSMutableData dataWithLength:sizeof(HGNativeBattleUIState)];
     HGNativeBattleUIState *battle = battleData.mutableBytes;
     battle->active = 1; battle->revision = 7; battle->mode = HG_BATTLE_UI_COMMAND; battle->ready = 1; battle->enabledMask = 15 | 32;
@@ -2450,10 +2465,13 @@ static const NSUInteger sPrivateSampleLimit=1024;
     battle->mode = HG_BATTLE_UI_NONE; battle->ready = 0;
     [self updateBattleControls:[battleData copy]];
     report[@"nativeBattleKeepsSceneDuringAnimation"] = @(_battleScene && !_battleBar.hidden && !_battleButtons[0].enabled);
-    [_condition lock]; _selectedEngine=1; [_condition unlock];
+    [_condition lock]; _selectedEngine=1; _frameEngine=_displayedEngine=0; [_condition unlock];
+    [self updateBattleControls:[battleData copy]];
+    report[@"nativeBattleUsesDisplayedRoute"] = @(_selectedEngine==1 && !_displayedEngine && _battleScene && !_battleBar.hidden);
+    [_condition lock]; _frameEngine=_displayedEngine=1; [_condition unlock];
     [self updateBattleControls:[battleData copy]];
     report[@"nativeBattleSubscreenFallback"] = @(!_battleScene && _battleBar.hidden);
-    [_condition lock]; _selectedEngine=0; _automaticMenuEngine=NO; [_condition unlock];
+    [_condition lock]; _selectedEngine=_frameEngine=_displayedEngine=0; _automaticMenuEngine=NO; [_condition unlock];
     battle->active=0; [self updateBattleControls:[battleData copy]];
     report[@"nativeBattleRestoresFieldControls"] = @(_battleBar.hidden && !_buttons[@1].hidden);
     [self checkBattleMenuControls:report];
@@ -2530,7 +2548,7 @@ static const NSUInteger sPrivateSampleLimit=1024;
                     report[@"resumeAudio"] = @(resumedAudio && heldAudio && [resumedAudio[@"rendered"] unsignedLongLongValue] > [heldAudio[@"rendered"] unsignedLongLongValue] && [resumedAudio[@"submitted"] unsignedLongLongValue] > [heldAudio[@"submitted"] unsignedLongLongValue]);
                     report[@"resumeAudioQueueBounded"] = @([resumedAudio[@"queued"] unsignedLongLongValue] <= 8192 && [resumedAudio[@"dropped"] isEqual:heldAudio[@"dropped"]]);
                     report[@"resumeAudioWithoutUnderrun"] = @([resumedAudio[@"underrunFrames"] isEqual:heldAudio[@"underrunFrames"]]);
-                    report[@"originalFieldMenuSameScreen"] = @(!self->_fieldMenu.hidden && self->_fieldMenu.image.size.width==256 && self->_fieldMenu.image.size.height==192 && self->_canvas.image.size.width>256 && !self->_selectedEngine && self->_fieldMenu.accessibilityElements.count>0);
+                    report[@"originalFieldMenuSameScreen"] = @(!self->_fieldMenu.hidden && self->_fieldMenu.image.size.width==256 && self->_fieldMenu.image.size.height==192 && self->_canvas.image.size.width>256 && !self->_displayedEngine && self->_fieldMenu.accessibilityElements.count>0);
                     uint32_t boots=self->_bootCount, resetFrames=self->_publishedFrames;
                     [self->_condition unlock];
                     NSDictionary *producerAfterResume=[self checkAudioProducerSnapshot];
@@ -2660,4 +2678,447 @@ static const NSUInteger sPrivateSampleLimit=1024;
         });
     });
 }
+#endif
+#ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+enum { CaptureCheckFirstVariant=HG_CAPTURE_QA_NAMED_PARTY, CaptureCheckLastVariant=HG_CAPTURE_QA_EMPTY_PC };
+#else
+enum { CaptureCheckFirstVariant=HG_CAPTURE_QA_PARTY, CaptureCheckLastVariant=HG_CAPTURE_QA_PC };
+#endif
+- (BOOL)captureRegistrationInputIdleLocked {
+    return !_keys && !_pendingKeys && !_submittedKeys && !_joystickKeys && !_pendingJoystickKeys && !_submittedJoystickKeys && !_touchPressed
+        && !_battleChoicePending && !_partyChoicePending && !_partyTouchActive && !_bagChoicePending && !_bagTouchActive
+        && !_summaryChoicePending && !_summaryInputActive && !_summaryTouchPressed && !_summaryInputKeys
+        && !_evolutionChoicePending && !_evolutionInputActive && !_evolutionInputCooling
+        && !_pokedexChoicePending && !_pokedexInputActive && !_pokedexInputCooling && !_pokedexGestureLive && !_pokedexGestureAdmitted
+        && !_battleMenuChoicePending && !_battleMenuTouchActive && !_battleMenuTouchCooling
+        && !_captureChoicePending && !_captureInputActive && !_captureInputCooling;
+}
+// Owner-thread only. UI methods consume _captureQAState's copied NSData instead.
+- (BOOL)readCaptureRegistrationQA:(HGNativeCaptureQAState *)state {
+    if (NSThread.isMainThread) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    uint32_t address=w2c_hgengine_HGNativeCaptureQAGetState(_game);
+    if (!address || address>_env->memory->size || sizeof(*state)>_env->memory->size-address) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    memcpy(state,_env->memory->data+address,sizeof(*state));
+    if (state->version!=HG_CAPTURE_QA_VERSION || state->byteSize!=HG_CAPTURE_QA_BYTES) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    return YES;
+}
+- (BOOL)queueCaptureQARequest:(uint32_t)revision variant:(uint32_t)variant {
+    [_condition lock]; const HGNativeCaptureQAState *q=_captureQAState.length==sizeof(*q) ? _captureQAState.bytes : NULL;
+    BOOL valid=!_paused && !_stopping && !_failure && !_captureQARequestPending && !_captureQARequestInFlight && !_captureQARequestAccepted
+        && q && q->version==HG_CAPTURE_QA_VERSION && q->byteSize==HG_CAPTURE_QA_BYTES && q->revision==revision && q->fieldReady && q->map==MAP_ROUTE_29
+        && !q->requested && !q->started && !q->seeded && !q->errorLine && (variant==CaptureCheckFirstVariant || variant==CaptureCheckLastVariant)
+        && _captureQABootStep==3 && !_captureQABootFrame && [self captureRegistrationInputIdleLocked];
+    if (valid) {_captureQARequestPending=YES;_captureQARequestRevision=revision;_captureQARequestVariant=variant;}
+    [_condition unlock]; return valid;
+}
+// Owner-thread only, outside _condition: the actual guest request may enter engine code.
+- (void)processCaptureRegistrationRequest:(uint32_t)revision variant:(uint32_t)variant idle:(BOOL)idle {
+    [_condition lock]; BOOL running=!_paused && !_stopping && !_failure && _captureQARequestInFlight; [_condition unlock];
+    HGNativeCaptureQAState live={0}; BOOL valid=[self readCaptureRegistrationQA:&live] && live.revision==revision && live.fieldReady
+        && live.map==MAP_ROUTE_29 && !live.requested && !live.started && !live.seeded && !live.errorLine && idle && running
+        && (variant==CaptureCheckFirstVariant || variant==CaptureCheckLastVariant);
+    BOOL accepted=NO; if (valid) {accepted=w2c_hgengine_HGNativeCaptureQARequest(_game,revision,variant)!=0;}
+    [_condition lock]; _captureQAOwnerRequests+=valid; _captureQARequestAccepted=accepted; _captureQARequestInFlight=NO; [_condition unlock];
+}
+- (void)takeCaptureRegistrationBootLocked:(const HGNativeCaptureQAState *)q keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed {
+    if (_captureQARequestAccepted || (q && (q->requested || q->started))) return;
+    _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; *keys=*x=*y=0; *pressed=NO;
+    if (q && q->fieldReady && q->map==MAP_ROUTE_29) {_captureQABootStep=3;_captureQABootFrame=0;return;}
+    if (!_env->resetOccurred && _captureQABootStep<3) {
+        const uint32_t frames[]={450,780,1320}; uint32_t now=OS_GetVBlankCount();
+        if (!_captureQABootFrame && now>=frames[_captureQABootStep]) _captureQABootFrame=now;
+        if (_captureQABootFrame && now-_captureQABootFrame>=8) {_captureQABootFrame=0;_captureQABootStep++;}
+        else if (_captureQABootFrame) *keys=1;
+    }
+}
+- (void)checkCaptureRegistrationDisplay:(uint32_t)frame {
+    sPrivateDisplayFrame=frame;
+    if (sCaptureRegistrationDisplay) sCaptureRegistrationDisplay(frame);
+}
+- (BOOL)captureRegistrationPrivateFilesEqual:(NSDictionary *)before {
+    NSURL *support=[[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject URLByAppendingPathComponent:@"HeartGoldOriginal" isDirectory:YES];
+    if (before.count!=4) return NO;
+    for (NSString *name in before) if (![before[name] isEqualToData:[NSData dataWithContentsOfURL:[support URLByAppendingPathComponent:name]]]) return NO;
+    return YES;
+}
+- (BOOL)captureRegistrationSettlement:(const HGNativeCaptureQAState *)q variant:(uint32_t)variant {
+    if (variant!=CaptureCheckFirstVariant && variant!=CaptureCheckLastVariant) return NO;
+    uint32_t location=variant==CaptureCheckFirstVariant ? HG_CAPTURE_QA_PARTY : HG_CAPTURE_QA_PC;
+    if (!q || q->version!=HG_CAPTURE_QA_VERSION || q->byteSize!=HG_CAPTURE_QA_BYTES || q->errorLine || q->variant!=variant
+        || !q->seeded || !q->requested || !q->started || !q->returned || !q->fieldReturned || !q->fieldReady || q->map!=MAP_ROUTE_29
+        || q->outcome!=4 || q->battleResult!=4 || q->ballBefore!=1 || q->ballAfter || q->ownedBefore || q->ownedDuringPopup || q->ownedAfter!=1
+        || !q->targetKnown || q->targetSpecies!=10 || q->targetLevel!=1 || q->storedSpecies!=q->targetSpecies || q->storedForm!=q->targetForm
+        || q->storedPersonality!=q->targetPersonality || q->storedExp!=q->targetExp || q->storedBall!=q->expectedBall || q->storedOtId!=q->trainerId
+        || !q->oldPartyPreserved || !q->oldPcPreserved || !q->bagExact || !q->flagsPreserved || !q->moneyPreserved || !q->statsExact
+        || q->wildAfter!=q->wildBefore+1 || q->caughtAfter!=q->caughtBefore+1 || q->seenAfter<q->seenBefore || q->seenAfter>q->seenBefore+1
+        || !q->popupWaitFrames || !q->popupReadyFrames || !q->popupFadeFrames || q->popupPrematureOwned || !q->nicknameReadyFrames) return NO;
+    if (location==HG_CAPTURE_QA_PARTY) return q->storedLocation==location && q->partyBefore==1 && q->partyAfter==2
+        && q->pcAfter==q->pcBefore && q->storedBox==UINT32_MAX && q->storedSlot==q->partyBefore;
+    return location==HG_CAPTURE_QA_PC && q->storedLocation==location && q->partyBefore==6 && q->partyAfter==6
+        && q->pcAfter==q->pcBefore+1 && q->storedBox<18 && q->storedSlot<30;
+}
+- (void)checkCaptureRegistrationCase {
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+    NSString *caseName=@"naming",*prefix=@"private-naming",*choiceRole=@"nickname-yes",*reportFile=@"private-naming-check.json";
+    NSString *nativeReportSha=@HG_NAMING_NATIVE_REPORT_SHA256,*nativeModuleSha=@HG_NAMING_NATIVE_MODULE_SHA256;
+    NSString *reportInfoKey=@"HGPrivateNamingNativeReportSha256",*moduleInfoKey=@"HGPrivateNamingNativeModuleSha256";
+    uint32_t nicknameIndex=0; NSString *nicknameCheck=@"nativeNicknameYes";
+    NSString *caseScope=@"Original Yes-nickname capture and keyboard via visible UIKit controls/canvas in two clean guest epochs. Final naming assertions are carried by approved guest returned/errorLine0; intermediate strings and physical gestures need manual/physical validation.";
+#else
+    NSString *caseName=@"capture-registration",*prefix=@"private-capture",*choiceRole=@"nickname-no",*reportFile=@"private-capture-registration-check.json";
+    NSString *nativeReportSha=@HG_CAPTURE_NATIVE_REPORT_SHA256,*nativeModuleSha=@HG_CAPTURE_NATIVE_MODULE_SHA256;
+    NSString *reportInfoKey=@"HGPrivateCaptureNativeReportSha256",*moduleInfoKey=@"HGPrivateCaptureNativeModuleSha256";
+    uint32_t nicknameIndex=1; NSString *nicknameCheck=@"nativeNicknameNo";
+    NSString *caseScope=@"Actual native capture registration and original No-nickname settlement in two clean guest-memory epochs of one owned iOS CHECK process. Snapshot writes do not prove text, portrait, footprint, types or animation fidelity; Root visual review remains required.";
+#endif
+    NSArray *requiredKeys=@[@"caseBinding",@"muted",@"qa244",@"ownerOnlyRequest",@"nativeBagButtons",@"waitBlocksInput",@"captureCanvas",
+        @"staleCaptureRejected",@"pauseCancelsPending",@"typedContinue",@"activeFadeBlocksInput",
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+        @"nativeNicknameYes",
+#else
+        @"nativeNicknameNo",
+#endif
+        @"partyAndPcSettlement",
+        @"fieldControlsRestored",@"popupLifetimeWitness",@"twoGuestEpochs",@"privateSave4Preserved",@"resetQuiescent",@"capturesComplete"];
+    NSArray *roles=@[@"field-before",@"master-ball-use",@"cry-wait",@"registration-ready",@"registration-original",@"original-fade",choiceRole,@"field-return"];
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+    requiredKeys=[requiredKeys arrayByAddingObjectsFromArray:@[@"naming16",@"namingCanvas256",@"namingBusyBlocksInput",
+        @"namingStaleRejected",@"namingPauseClearsPending",@"namingPages",@"namingDelete",@"namingTenPlusExtra",
+        @"startOnlyLocatesOK",@"originalOKTouch",@"guestNamingStorageAssertions",@"namingLeaseReleased"]];
+#endif
+    NSMutableDictionary *checks=[NSMutableDictionary new]; for (NSString *key in requiredKeys) checks[key]=@NO;
+    NSMutableArray *requiredPNGs=[NSMutableArray new],*events=[NSMutableArray new],*variants=[NSMutableArray new];
+    for (uint32_t variant=CaptureCheckFirstVariant;variant<=CaptureCheckLastVariant;variant++) for (NSString *role in roles) [requiredPNGs addObject:[NSString stringWithFormat:@"%@-v%u-%@.png",prefix,variant,role]];
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+    for (uint32_t v=CaptureCheckFirstVariant;v<=CaptureCheckLastVariant;v++)
+        for (NSString *role in @[@"naming-init-busy",@"naming-ready",@"naming-original",@"naming-post-OK-busy",@"naming-inactive"])
+            [requiredPNGs addObject:[NSString stringWithFormat:@"%@-v%u-%@.png",prefix,v,role]];
+    for (NSString *role in @[@"naming-page-busy",@"naming-upper-restored",@"naming-B",@"naming-backspaced",@"naming-ten-A",@"naming-max-busy",@"naming-eleventh-attempt",@"naming-start-positioned"])
+        [requiredPNGs addObject:[NSString stringWithFormat:@"%@-v%u-%@.png",prefix,CaptureCheckFirstVariant,role]];
+    [requiredPNGs addObject:[NSString stringWithFormat:@"%@-v%u-naming-empty.png",prefix,CaptureCheckLastVariant]];
+#endif
+    NSMutableSet *captured=[NSMutableSet new];
+    BOOL (^visible)(UIView *)=^BOOL(UIView *view) {
+        if (!view || !view.window || view.window.hidden || view.window.alpha<=0) return NO;
+        BOOL attached=NO; for (UIView *parent=view;parent;parent=parent.superview) {if (parent.hidden || parent.alpha<=0) return NO;attached|=parent==self.view;}
+        return attached;
+    };
+    NSURL *support=[[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject URLByAppendingPathComponent:@"HeartGoldOriginal" isDirectory:YES];
+    NSMutableDictionary *privateBefore=[NSMutableDictionary new];
+    for (NSString *suffix in @[@"",@".console",@".wifi",@".lock"]) {
+        NSString *name=[@"heartgold.sav" stringByAppendingString:suffix]; NSData *data=[NSData dataWithContentsOfURL:[support URLByAppendingPathComponent:name]];
+        if (data) privateBefore[name]=data;
+    }
+    [_condition lock]; sPrivateUICase=caseName; sPrivateCaptures=[NSMutableArray new]; sPrivateObserving=NO; [_condition unlock];
+    __block uint32_t variant=CaptureCheckFirstVariant,stage=0,stageFrame=0,polls=0,lastStage=UINT32_MAX,epochBoot=0,resetBoot=0,baselineReads=0,readyGeneration=0,readyRevision=0;
+    __block BOOL finishing=NO,waitSeen=NO,fadeSeen=NO,pausePendingCleared=NO;
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+    __block uint32_t pageTurns=0,aCount=0,namingGeneration=0,namingRevision=0,namingPressBase=0;
+    __block BOOL namingInitSeen=NO,namingPageBusy=NO,namingMaxBusy=NO,namingPostOK=NO,namingSubmitted=NO,namingPauseCleared=NO;
+#endif
+    __block void (^finish)(NSString *);
+    BOOL (^shot)(NSString *,BOOL)=^BOOL(NSString *role,BOOL original) {
+        NSString *name=[NSString stringWithFormat:@"%@-v%u-%@.png",prefix,variant,role];
+        if ([captured containsObject:name]) return YES;
+        if (![self checkPrivateCapture:name kind:original ? @"original-MAIN256" : @"UIKit-capture-registration" image:original ? self->_canvas.image : nil]) return NO;
+        [captured addObject:name]; return YES;
+    };
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+    BOOL (^tapNaming)(uint32_t,uint32_t)=^BOOL(uint32_t x,uint32_t y) {
+        if (!self->_namingScene || !visible(self->_canvas) || !self->_canvas.userInteractionEnabled || x>=256 || y>=192) return NO;
+        CGRect bounds=self->_canvas.bounds;
+        CGPoint point=CGPointMake(CGRectGetMinX(bounds)+(x+0.5)*bounds.size.width/256.0,CGRectGetMinY(bounds)+(y+0.5)*bounds.size.height/192.0);
+        [self->_condition lock]; uint32_t before=self->_namingQAInputPresses; [self->_condition unlock];
+        [self tapAt:point];
+        [self->_condition lock]; NSDictionary *last=self->_namingQAInputs.lastObject;
+        BOOL queued=self->_namingChoicePending && self->_namingChoiceTouch && !self->_namingChoiceKeys && self->_namingChoiceX==x && self->_namingChoiceY==y;
+        BOOL admitted=self->_namingQAInputPresses==before+1 && [last[@"touch"] boolValue] && ![last[@"keys"] unsignedIntValue]
+            && [last[@"x"] unsignedIntValue]==x && [last[@"y"] unsignedIntValue]==y;
+        [self->_condition unlock]; return queued || admitted;
+    };
+    BOOL (^pressNaming)(uint32_t)=^BOOL(uint32_t tag) {
+        UIButton *button=self->_buttons[@(tag)]; if (!self->_namingScene || !visible(button) || !button.enabled) return NO;
+        uint32_t key=tag==0x400 ? 4 : tag;
+        [self->_condition lock]; uint32_t before=self->_namingQAInputPresses; [self->_condition unlock];
+        [button sendActionsForControlEvents:UIControlEventTouchDown]; [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+        [self->_condition lock]; NSDictionary *last=self->_namingQAInputs.lastObject;
+        BOOL queued=self->_namingChoicePending && !self->_namingChoiceTouch && self->_namingChoiceKeys==key;
+        BOOL admitted=self->_namingQAInputPresses==before+1 && ![last[@"touch"] boolValue] && [last[@"keys"] unsignedIntValue]==key;
+        [self->_condition unlock]; return queued || admitted;
+    };
+#endif
+    finish=^(NSString *status) {
+        if (finishing) return; finishing=YES; sCaptureRegistrationDisplay=nil; [self stop];
+        __block NSUInteger waits=0; __block void (^stopped)(void); stopped=^{
+            [self->_condition lock]; BOOL done=self->_finished && !self->_env && !self->_game && !self->_wasi,quiesced=self->_resetQuiesced; [self->_condition unlock];
+            if (!done && ++waits<100) {dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),stopped);return;}
+            checks[@"privateSave4Preserved"]=@([self captureRegistrationPrivateFilesEqual:privateBefore]);
+            checks[@"resetQuiescent"]=@([checks[@"resetQuiescent"] boolValue] && done && quiesced);
+            BOOL images=sPrivateCaptures.count==requiredPNGs.count && [captured isEqualToSet:[NSSet setWithArray:requiredPNGs]];
+            for (NSDictionary *row in sPrivateCaptures) images&=[row[@"drawn"] boolValue] && [row[@"written"] boolValue];
+            checks[@"capturesComplete"]=@(images); checks[@"twoGuestEpochs"]=@(variants.count==2 && [variants[1][@"boot"] unsignedIntValue]==[variants[0][@"boot"] unsignedIntValue]+1);
+            BOOL passed=done && [status isEqual:@"completed"]; for (NSString *key in requiredKeys) passed&=[checks[key] boolValue];
+            NSDictionary *report=@{@"version":@1,@"case":caseName,@"complete":@(done),@"passed":@(passed),@"status":status,
+                @"variant":@(variant),@"stage":@(stage),@"requiredKeys":requiredKeys,@"checks":checks,@"requiredPNGs":requiredPNGs,
+                @"captures":[sPrivateCaptures copy],@"events":events,@"variants":variants,@"guestEpochCount":@(variants.count),@"osProcessCount":@1,
+                @"nativePrerequisiteReportSha256":nativeReportSha,@"nativePrerequisiteModuleSha256":nativeModuleSha,
+                @"qaBytes":@(HG_CAPTURE_QA_BYTES),@"lifecycleObservers":@[@"PokedexEntryPopup_Create",@"PokedexEntryPopup_Delete"],@"gameplayWrappers":@[],
+                @"manualVisualReviewPending":@YES,@"manualVisualPassed":@NO,@"physicalGestureRecognitionVerified":@NO,
+                #ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+                @"namingYesCovered":@([checks[@"nativeNicknameYes"] boolValue] && [checks[@"naming16"] boolValue]),@"intermediateStringsAutomaticallyVerified":@NO,@"independentNamingFreeVerified":@NO,
+#else
+                @"namingYesCovered":@NO,
+#endif
+                @"fullGameComplete":@NO,@"audioStabilityEstablished":@NO,@"audibleAudioValidated":@NO,
+                @"scope":caseScope};
+            NSURL *documents=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
+            [[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[documents URLByAppendingPathComponent:reportFile] options:NSDataWritingAtomic error:nil];
+            stopped=nil; finish=nil;
+        }; stopped();
+    };
+    checks[@"caseBinding"]=@([[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivateCheckCase"] isEqual:caseName]
+        && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_CHECK_CASE"] isEqual:caseName]
+        && [NSProcessInfo.processInfo.environment[@"HEARTGOLD_TEST_MUTE"] isEqual:@"1"]
+        && [[NSBundle.mainBundle objectForInfoDictionaryKey:reportInfoKey] isEqual:nativeReportSha]
+        && [[NSBundle.mainBundle objectForInfoDictionaryKey:moduleInfoKey] isEqual:nativeModuleSha]);
+    if (![checks[@"caseBinding"] boolValue] || privateBefore.count!=4) {finish(@"case_or_private_save_binding_failed");return;}
+    sCaptureRegistrationDisplay=^(uint32_t frame) {
+        [self->_condition lock]; NSData *qaData=[self->_displayedCaptureQAState copy],*ownerQA=[self->_captureQAState copy],*owner=[self->_captureUIState copy];
+        uint32_t displayedReads=self->_displayedCaptureQAPadReads;
+        uint32_t reads=self->_lastPadReadCount,boot=self->_bootCount,bootStep=self->_captureQABootStep,bootHeld=self->_captureQABootFrame;
+        uint32_t presses=self->_captureQAInputPresses,releases=self->_captureQAInputReleases,lastRelease=self->_captureQALastReleaseReads,maxHeld=self->_captureQAMaxHeldReads;
+        BOOL failed=self->_failure!=nil || self->_finished,paused=self->_paused,suspended=self->_suspended,requestPending=self->_captureQARequestPending,requestInFlight=self->_captureQARequestInFlight,requestAccepted=self->_captureQARequestAccepted;
+        uint32_t ownerRequests=self->_captureQAOwnerRequests;
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+        NSData *namingData=[self->_displayedNamingUIState copy],*namingOwner=[self->_namingUIState copy];
+        uint32_t namingPresses=self->_namingQAInputPresses,namingReleases=self->_namingQAInputReleases,namingLastRelease=self->_namingQALastReleaseReads,namingMaxHeld=self->_namingQAMaxHeldReads;
+        NSArray *namingInputs=[self->_namingQAInputs copy]; BOOL namingOverflow=self->_namingQAOverflow;
+        BOOL namingIdle=!self->_namingChoicePending && !self->_namingInputActive && !self->_namingInputCooling;
+        BOOL namingZero=namingIdle && !self->_namingChoiceTouch && !self->_namingInputTouch && !self->_namingChoice.active && !self->_namingInput.active
+            && !self->_namingChoiceKeys && !self->_namingInputKeys && !self->_namingInputReads && !self->_namingReleaseReads;
+#endif
+        BOOL idle=!self->_captureChoicePending && !self->_captureInputActive && !self->_captureInputCooling;
+        BOOL zeroLease=idle && !self->_captureChoiceGeneration && !self->_captureChoiceRevision && !self->_captureInputGeneration && !self->_captureInputRevision && !self->_captureInputReads && !self->_captureReleaseReads;
+        BOOL raw=!self->_keys && !self->_pendingKeys && !self->_submittedKeys && !self->_joystickKeys && !self->_pendingJoystickKeys && !self->_submittedJoystickKeys && !self->_touchPressed;
+        NSDictionary *audio=self->_audioChanging ? nil : [self->_audio statistics]; BOOL resetClean=self->_restartClean,resetQuiesced=self->_resetQuiesced; [self->_condition unlock];
+        const HGNativeCaptureQAState *q=qaData.length==sizeof(*q) ? qaData.bytes : NULL;
+        const HGNativeCaptureQAState *liveQA=ownerQA.length==sizeof(*liveQA) ? ownerQA.bytes : NULL;
+        const HGNativeCaptureUIState *p=self->_displayedCaptureUIState.length==sizeof(*p) ? self->_displayedCaptureUIState.bytes : NULL;
+        const HGNativeBattleUIState *b=self->_displayedBattleUIState.length==sizeof(*b) ? self->_displayedBattleUIState.bytes : NULL;
+        const HGNativeBattleBagUIState *bag=self->_displayedBattleBagUIState.length==sizeof(*bag) ? self->_displayedBattleBagUIState.bytes : NULL;
+        if (stage!=lastStage) { [events addObject:@{@"variant":@(variant),@"stage":@(stage),@"frame":@(frame),@"boot":@(boot),@"padReads":@(reads),@"displayedPadReads":@(displayedReads),@"qaRevision":@(q ? q->revision : 0),@"capturePhase":@(p ? p->callerPhase : 0)}]; lastStage=stage; stageFrame=frame; }
+        if (failed || ++polls>36000 || frame-stageFrame>7200 || events.count>=2048 || (q && q->errorLine)) {finish(failed ? @"engine_failed" : q && q->errorLine ? @"native_guest_failed" : @"flow_timeout");return;}
+        if (!q || q->version!=HG_CAPTURE_QA_VERSION || q->byteSize!=HG_CAPTURE_QA_BYTES) return;
+        checks[@"qa244"]=@YES;
+        if (audio && ![audio[@"muted"] boolValue]) {finish(@"audio_not_muted");return;} if (audio) checks[@"muted"]=@YES;
+        BOOL paired=p && owner.length==sizeof(*p) && !memcmp(p,owner.bytes,sizeof(*p));
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+        const HGNativeNamingUIState *n=namingData.length==sizeof(*n) ? namingData.bytes : NULL;
+        BOOL namingPaired=n && namingOwner.length==sizeof(*n) && !memcmp(n,namingOwner.bytes,sizeof(*n));
+        BOOL namingDone=namingIdle && namingPresses==namingReleases && (!namingPresses || reads-namingLastRelease>=2);
+        if (namingOverflow || namingMaxHeld>4) {finish(@"naming_input_observer_overflow_or_hold");return;}
+        if (n && n->active) {
+            if (!namingPaired) return;
+            BOOL geometry=self->_namingScene && visible(self->_canvas) && !self->_displayedEngine && self->_displayedWidth==256
+                && self->_canvas.image.size.width==256 && self->_canvas.image.size.height==192
+                && fabs(self->_canvas.bounds.size.width*3-self->_canvas.bounds.size.height*4)<=1
+                && self->_battleBar.hidden && self->_partyPanel.hidden && self->_bagPanel.hidden && self->_summaryPanel.hidden
+                && self->_battleMenuPanel.hidden && self->_pokedexPanel.hidden && self->_joystick.hidden && self->_menuButton.hidden;
+            if (!geometry || !raw) {finish(@"naming_canvas_or_priority_failed");return;}
+            checks[@"naming16"]=@YES; checks[@"namingCanvas256"]=@YES;
+            if (!n->ready) {
+                if (HGNativeNamingUIInputAllowed(n,n->ownerGeneration,n->revision) || self->_canvas.userInteractionEnabled
+                    || self->_buttons[@1].enabled || self->_buttons[@2].enabled || self->_buttons[@0x400].enabled || self->_buttons[@8].enabled) {finish(@"naming_busy_input_enabled");return;}
+                checks[@"namingBusyBlocksInput"]=@YES;
+                if (stage==20 && !namingInitSeen) {if (!shot(@"naming-init-busy",NO)) {finish(@"capture_failed");return;}namingInitSeen=YES;}
+                if (stage==25 && !namingPageBusy) {if (!shot(@"naming-page-busy",NO)) {finish(@"capture_failed");return;}namingPageBusy=YES;}
+                if (stage==28 && aCount==10 && !namingMaxBusy) {if (!shot(@"naming-max-busy",NO)) {finish(@"capture_failed");return;}namingMaxBusy=YES;}
+                if (namingSubmitted && !namingPostOK) {if (!shot(@"naming-post-OK-busy",NO)) {finish(@"capture_failed");return;}namingPostOK=YES;}
+            }
+        }
+#endif
+        if (p && p->active) {
+            if (!paired) return;
+            uint32_t keys=0xA5A5A5A5; BOOL allowed=HGNativeCaptureUIResolveInput(p,p->ownerGeneration,p->revision,&keys);
+            BOOL canvas=self->_captureScene && !self->_canvas.hidden && !self->_canvas.userInteractionEnabled && !self->_displayedEngine && self->_displayedWidth==256
+                && self->_canvas.image.size.width==256 && self->_canvas.image.size.height==192 && self->_battleBar.hidden && self->_partyPanel.hidden && self->_bagPanel.hidden
+                && self->_summaryPanel.hidden && self->_battleMenuPanel.hidden && self->_pokedexPanel.hidden && self->_joystick.hidden && self->_menuButton.hidden && self->_buttons[@2].hidden;
+            if (!canvas || !raw || (!allowed && self->_buttons[@1].enabled) || q->ownedDuringPopup || q->popupPrematureOwned) {finish(@"capture_priority_or_input_failed");return;}
+            checks[@"captureCanvas"]=@YES;
+            if (p->callerPhase==13 && !p->done && !p->ready && q->popupWaitFrames>=2 && [self checkPrivatePixels:self->_canvas.image]) {
+                if (!shot(@"cry-wait",NO)) {finish(@"capture_failed");return;} waitSeen=YES; checks[@"waitBlocksInput"]=@YES;
+            }
+            if (p->callerPhase==14 && !p->ready) {if (!shot(@"original-fade",NO)) {finish(@"capture_failed");return;} fadeSeen=YES; checks[@"activeFadeBlocksInput"]=@YES;}
+        }
+        BOOL bagReady=bag && bag->active && bag->ready && self->_battleMenuKind==OriginalBattleMenuBag && !self->_battleMenuPanel.hidden;
+        BOOL command=b && b->active && b->ready && b->mode==HG_BATTLE_UI_COMMAND;
+        switch (stage) {
+        case 0:
+            if (!q->fieldReady || q->map!=MAP_ROUTE_29 || bootStep!=3 || bootHeld || q->requested || q->started || q->seeded
+                || !p || p->active || p->ready || p->done || !zeroLease || !liveQA || liveQA->revision!=q->revision || self->_fieldMapId!=MAP_ROUTE_29) break;
+            epochBoot=boot; if (!shot(@"field-before",NO)) {finish(@"capture_failed");return;}
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+            if ([self queueCaptureQARequest:q->revision variant:HG_CAPTURE_QA_PARTY]) {finish(@"non_naming_variant_admitted");return;}
+#endif
+            if ([self queueCaptureQARequest:q->revision+1 variant:variant]) {finish(@"stale_request_admitted");return;}
+            if (![self queueCaptureQARequest:q->revision variant:variant]) break;
+            stage=1; break;
+        case 1:
+            if (!requestPending && !requestInFlight && !requestAccepted && !q->requested) {finish(@"owner_request_rejected");return;}
+            if (!q->started || !q->targetKnown || !command || !visible(self->_battleBar) || !visible(self->_battleButtons[1]) || !self->_battleButtons[1].enabled) break;
+            if (!requestAccepted || ownerRequests!=1 || q->variant!=variant || !q->seeded) {finish(@"owner_request_evidence_failed");return;}
+            checks[@"ownerOnlyRequest"]=@YES; [self->_battleButtons[1] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=2; break;
+        case 2:
+            if (!bagReady || bag->phase!=HG_BATTLE_BAG_UI_POCKETS || !visible(self->_battleMenuButtons[2]) || !self->_battleMenuButtons[2].enabled) break;
+            [self->_battleMenuButtons[2] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=3; break;
+        case 3:
+            if (!bagReady || bag->phase!=HG_BATTLE_BAG_UI_ITEMS || bag->pocket!=2) break;
+            { NSUInteger row=0; while (row<HG_BATTLE_BAG_UI_ITEMS_PER_PAGE && bag->itemId[row]!=1) row++;
+              if (row==HG_BATTLE_BAG_UI_ITEMS_PER_PAGE) {if (bag->pageIndex+1<bag->pageCount && visible(self->_battleMenuButtons[8]) && self->_battleMenuButtons[8].enabled) [self->_battleMenuButtons[8] sendActionsForControlEvents:UIControlEventTouchUpInside]; else {finish(@"master_ball_missing");return;} break;}
+              if (bag->quantity[row]!=1 || !visible(self->_battleMenuButtons[row]) || !self->_battleMenuButtons[row].enabled) {finish(@"master_ball_item_invalid");return;}
+              [self->_battleMenuButtons[row] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=4; } break;
+        case 4:
+            if (!bagReady || bag->phase!=HG_BATTLE_BAG_UI_USE || !visible(self->_battleMenuButtons[0]) || !self->_battleMenuButtons[0].enabled) break;
+            if (bag->selectedItemId!=1 || bag->selectedQuantity!=1 || !shot(@"master-ball-use",NO)) {finish(@"master_ball_use_invalid");return;}
+            checks[@"nativeBagButtons"]=@YES; [self->_battleMenuButtons[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; stage=5; break;
+        case 5:
+            if (!waitSeen || !paired || !p->active || !p->ready || !p->done || p->callerPhase!=13 || !idle) break;
+            readyGeneration=p->ownerGeneration; readyRevision=p->revision;
+            [self->_condition lock]; self->_captureChoicePending=YES; self->_captureChoiceGeneration=readyGeneration+1; self->_captureChoiceRevision=readyRevision; [self->_condition unlock]; baselineReads=reads; stage=6; break;
+        case 6:
+        case 7:
+            if (reads-baselineReads<1 || !idle) break;
+            if (!paired || !p->active || !p->ready || p->ownerGeneration!=readyGeneration || p->revision!=readyRevision) {finish(@"stale_capture_advanced_original");return;}
+            if (stage==6) { [self->_condition lock]; self->_captureChoicePending=YES; self->_captureChoiceGeneration=readyGeneration; self->_captureChoiceRevision=readyRevision+1; [self->_condition unlock]; baselineReads=reads; stage=7; }
+            else { checks[@"staleCaptureRejected"]=@YES;
+                [self->_condition lock]; self->_captureChoicePending=YES; self->_captureChoiceGeneration=readyGeneration+1; self->_captureChoiceRevision=readyRevision;
+                self->_inactive=YES; [self updatePauseLocked]; pausePendingCleared=!self->_captureChoicePending && !self->_captureInputActive && !self->_captureInputCooling; [self->_condition unlock]; stage=8; }
+            break;
+        case 8:
+            if (!paused || !suspended) break;
+            if (!pausePendingCleared || !zeroLease || self->_buttons[@1].enabled || !paired || !p->ready || p->revision!=readyRevision) {finish(@"pause_pending_cleanup_failed");return;}
+            checks[@"pauseCancelsPending"]=@YES; baselineReads=reads; [self resume]; stage=9; break;
+        case 9:
+            if (paused || reads-baselineReads<2 || !idle || !paired || !p->active || !p->ready || !visible(self->_buttons[@1]) || !self->_buttons[@1].enabled) break;
+            if (!shot(@"registration-ready",NO) || !shot(@"registration-original",YES)) {finish(@"capture_failed");return;}
+            [self->_buttons[@1] sendActionsForControlEvents:UIControlEventTouchDown]; [self->_buttons[@1] sendActionsForControlEvents:UIControlEventTouchUpInside];
+            checks[@"typedContinue"]=@YES; baselineReads=reads; stage=10; break;
+        case 10:
+            if ((p && p->active) || !fadeSeen || !q->nicknameReadyFrames || !b || !b->active || !b->ready || b->mode!=HG_BATTLE_UI_YES_NO) break;
+            if (!zeroLease || presses!=1 || releases!=1 || reads-lastRelease<2 || !(b->enabledMask&(1u<<nicknameIndex)) || !visible(self->_battleBar) || !visible(self->_battleButtons[0]) || !visible(self->_battleButtons[1]) || !self->_battleButtons[nicknameIndex].enabled) break;
+            if (maxHeld>4) {finish(@"capture_lease_exceeded_four_pad_reads");return;}
+            for (NSUInteger i=0;i<2;i++) if (!b->nameWidth[i] || !self->_battleButtons[i].configuration.image || self->_battleButtons[i].configuration.title.length) {finish(@"original_yes_no_glyph_missing");return;}
+            if (![self->_battleBar.accessibilityLabel isEqual:@"是或否"] || !shot(choiceRole,NO)) {finish(@"nickname_prompt_invalid");return;}
+            [self->_battleButtons[nicknameIndex] sendActionsForControlEvents:UIControlEventTouchUpInside]; checks[nicknameCheck]=@YES;
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+            stage=20;
+#else
+            stage=11;
+#endif
+            break;
+        case 11:
+            if (!q->returned || !q->fieldReady || !q->fieldReturned || q->map!=MAP_ROUTE_29 || (p && p->active) || (b && b->active) || (bag && bag->active)) break;
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+            if (!n || n->active || self->_namingScene || !namingZero || !namingDone || namingPresses!=(variant==CaptureCheckFirstVariant ? 18u : 1u)
+                || namingInputs.count!=namingPresses) {finish(@"naming_exit_or_lease_failed");return;}
+            checks[@"namingLeaseReleased"]=@YES; checks[@"guestNamingStorageAssertions"]=@(!q->errorLine && q->returned && q->fieldReturned);
+#endif
+            if (![self captureRegistrationSettlement:q variant:variant] || !requestAccepted || ownerRequests!=1) {finish(@"original_settlement_failed");return;}
+            if (self->_captureScene || self->_canvas.hidden || !self->_canvas.userInteractionEnabled || self->_joystick.hidden || self->_menuButton.hidden
+                || !self->_buttons[@1].enabled || !self->_buttons[@2].enabled || !zeroLease || !raw || !shot(@"field-return",NO)) {finish(@"field_controls_not_restored");return;}
+            { NSMutableArray *words=[NSMutableArray new]; const uint32_t *values=(const uint32_t *)q; for (NSUInteger i=0;i<sizeof(*q)/sizeof(*values);i++) [words addObject:@(values[i])];
+              [variants addObject:@{@"variant":@(variant),@"boot":@(epochBoot),@"qaWords":words,@"ownerRequests":@(ownerRequests),@"settled":@YES,@"popupLifecycleChecked":@(!q->errorLine && q->returned),
+                  @"captureInputPresses":@(presses),@"captureInputReleases":@(releases),@"maxHeldPadReads":@(maxHeld),@"lastReleasePadRead":@(lastRelease)
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+                  ,@"namingInputPresses":@(namingPresses),@"namingInputReleases":@(namingReleases),@"namingMaxHeldPadReads":@(namingMaxHeld),
+                  @"namingInputs":namingInputs ?: @[],@"guestNamingAssertionsCarried":@(!q->errorLine && q->returned),@"nameBufferDirectlyReadByUI":@NO
+#endif
+              }]; }
+            if (![self captureRegistrationPrivateFilesEqual:privateBefore]) {finish(@"private_save_changed_before_reset");return;}
+            if (variant==CaptureCheckLastVariant) {checks[@"partyAndPcSettlement"]=@(variants.count==2);checks[@"fieldControlsRestored"]=@YES;checks[@"popupLifetimeWitness"]=@(variants.count==2 && [variants[0][@"popupLifecycleChecked"] boolValue] && [variants[1][@"popupLifecycleChecked"] boolValue]);finish(@"completed");return;}
+            resetBoot=boot; [self->_condition lock]; self->_checkResetPending=YES; [self->_condition unlock]; stage=12; break;
+        case 12:
+            if (boot!=resetBoot+1 || !resetQuiesced || !resetClean || !q->fieldReady || q->map!=MAP_ROUTE_29 || bootStep!=3 || bootHeld) break;
+            if (q->started || q->requested || q->seeded || q->returned || q->fieldReturned || q->variant || q->battleGeneration || q->targetKnown || q->errorLine
+                || !p || p->active || p->ready || p->done || !zeroLease || requestPending || requestInFlight || requestAccepted || ownerRequests || presses || releases || lastRelease || maxHeld
+                || ![self captureRegistrationPrivateFilesEqual:privateBefore]) {finish(@"fresh_second_epoch_invalid");return;}
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+            if (namingPresses || namingReleases || namingLastRelease || namingMaxHeld || namingInputs.count || namingOverflow || !namingZero) {finish(@"naming_observers_not_reset");return;}
+            pageTurns=aCount=namingGeneration=namingRevision=namingPressBase=0;
+            namingInitSeen=namingPageBusy=namingMaxBusy=namingPostOK=namingSubmitted=namingPauseCleared=NO;
+#endif
+            checks[@"resetQuiescent"]=@YES; variant=CaptureCheckLastVariant; stage=0; waitSeen=fadeSeen=pausePendingCleared=NO; readyGeneration=readyRevision=0; break;
+#ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
+        case 20:
+            if (!namingInitSeen || !n || !n->active || !n->ready || !namingPaired || !namingDone) break;
+            namingGeneration=n->ownerGeneration; namingRevision=n->revision; namingPressBase=namingPresses;
+            if (!shot(@"naming-ready",NO) || !shot(@"naming-original",YES)) {finish(@"capture_failed");return;}
+            [self tapAt:CGPointMake(CGRectGetMaxX(self->_canvas.bounds)+1,CGRectGetMidY(self->_canvas.bounds))];
+            [self->_condition lock]; BOOL outsideRejected=!self->_namingChoicePending && !self->_namingInputActive;
+            self->_namingChoice=*n; self->_namingChoice.ownerGeneration++; self->_namingChoiceKeys=1; self->_namingChoiceTouch=NO; self->_namingChoicePending=YES; [self->_condition unlock];
+            if (!outsideRejected) {finish(@"naming_outside_canvas_admitted");return;} baselineReads=reads; stage=21; break;
+        case 21:
+        case 22:
+            if (reads-baselineReads<1 || !namingIdle) break;
+            if (!namingPaired || !n || !n->active || !n->ready || n->ownerGeneration!=namingGeneration || n->revision!=namingRevision || namingPresses!=namingPressBase) {finish(@"stale_naming_input_advanced");return;}
+            if (stage==21) {
+                [self->_condition lock]; self->_namingChoice=*n; self->_namingChoice.revision++; self->_namingChoiceKeys=1; self->_namingChoiceTouch=NO; self->_namingChoicePending=YES; [self->_condition unlock];
+                baselineReads=reads; stage=22;
+            } else {
+                checks[@"namingStaleRejected"]=@YES;
+                [self->_condition lock]; self->_namingChoice=*n; self->_namingChoice.ownerGeneration++; self->_namingChoiceKeys=1; self->_namingChoicePending=YES;
+                self->_inactive=YES; [self updatePauseLocked];
+                namingPauseCleared=!self->_namingChoicePending && !self->_namingInputActive; [self->_condition unlock]; stage=23;
+            } break;
+        case 23:
+            if (!paused || !suspended) break;
+            if (!namingPauseCleared || !namingPaired || !n || !n->active || !n->ready || n->revision!=namingRevision
+                || self->_canvas.userInteractionEnabled || self->_buttons[@1].enabled || self->_buttons[@2].enabled || namingPresses!=namingPressBase) {finish(@"naming_pause_pending_cleanup_failed");return;}
+            checks[@"namingPauseClearsPending"]=@YES; baselineReads=reads; [self resume]; stage=24; break;
+        case 24:
+            if (paused || reads-baselineReads<2 || !namingDone || !namingPaired || !n || !n->active || !n->ready) break;
+            if (variant==CaptureCheckLastVariant) {
+                if (!shot(@"naming-empty",NO) || !tapNaming(213,71)) {finish(@"naming_empty_OK_not_queued");return;}
+                namingSubmitted=YES; checks[@"originalOKTouch"]=@YES; stage=31;
+            } else {
+                if (!pressNaming(0x400)) {finish(@"naming_Select_not_queued");return;}
+                pageTurns=1; stage=25;
+            } break;
+        case 25:
+            if (!namingPaired || !n || !n->active || !n->ready || !namingDone || namingPresses!=pageTurns) break;
+            if (pageTurns<3) {if (!pressNaming(0x400)) {finish(@"naming_Select_not_queued");return;}pageTurns++;break;}
+            if (!namingPageBusy || !shot(@"naming-upper-restored",NO) || !tapNaming(52,97)) {finish(@"naming_upper_or_B_touch_failed");return;}
+            checks[@"namingPages"]=@YES; stage=26; break;
+        case 26:
+            if (!namingPaired || !n || !n->active || !n->ready || !namingDone || namingPresses!=4) break;
+            if (!shot(@"naming-B",NO) || !pressNaming(2)) {finish(@"naming_B_delete_not_queued");return;} stage=27; break;
+        case 27:
+            if (!namingPaired || !n || !n->active || !n->ready || !namingDone || namingPresses!=5) break;
+            if (!shot(@"naming-backspaced",NO) || !tapNaming(36,97)) {finish(@"naming_first_A_not_queued");return;}
+            checks[@"namingDelete"]=@YES; aCount=1; stage=28; break;
+        case 28:
+            if (!namingPaired || !n || !n->active || !n->ready || !namingDone || namingPresses!=5+aCount) break;
+            if (aCount<10) {if (!tapNaming(36,97)) {finish(@"naming_A_not_queued");return;}aCount++;break;}
+            if (!namingMaxBusy || !shot(@"naming-ten-A",NO) || !tapNaming(36,97)) {finish(@"naming_ten_A_or_extra_failed");return;}
+            stage=29; break;
+        case 29:
+            if (!namingPaired || !n || !n->active || !n->ready || !namingDone || namingPresses!=16) break;
+            if (!shot(@"naming-eleventh-attempt",NO) || !pressNaming(8)) {finish(@"naming_Start_not_queued");return;}
+            checks[@"namingTenPlusExtra"]=@YES; stage=30; break;
+        case 30:
+            if (!namingPaired || !n || !n->active || !n->ready || !namingDone || namingPresses!=17) break;
+            if (q->returned || q->fieldReturned || !self->_namingScene || !shot(@"naming-start-positioned",NO)) {finish(@"Start_submitted_or_left_naming");return;}
+            checks[@"startOnlyLocatesOK"]=@YES;
+            if (!tapNaming(213,71)) {finish(@"naming_original_OK_not_queued");return;}
+            namingSubmitted=YES; checks[@"originalOKTouch"]=@YES; stage=31; break;
+        case 31:
+            if (!n || n->active || !namingPostOK || self->_namingScene || !namingDone) break;
+            if (!shot(@"naming-inactive",NO)) {finish(@"capture_failed");return;} stage=11; break;
+#endif
+        default: finish(@"invalid_stage");return;
+        }
+    };
+}
+#endif
 @end

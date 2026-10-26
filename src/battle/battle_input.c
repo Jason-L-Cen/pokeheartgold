@@ -1741,7 +1741,7 @@ int BattleInput_CheckTouch(BattleInput *battleInput) {
     rectHit = NativeBattleUIPoll(battleInput);
     // Native buttons enter the original feedback, cursor and controller path below.
     u32 nativeMode = NativeBattleUIMode(battleInput);
-    if (rectHit == -1 && (nativeMode < HG_BATTLE_UI_NEXT_MON || nativeMode > HG_BATTLE_UI_GIVE_UP)) {
+    if (rectHit == -1 && (nativeMode < HG_BATTLE_UI_NEXT_MON || nativeMode > HG_BATTLE_UI_YES_NO)) {
 #endif
     if (BattleSystem_GetBattleType(battleInput->battleSystem) & BATTLE_TYPE_TUTORIAL) {
         rectHit = BattleInput_CatchingTutorialMain(battleInput);
@@ -2156,6 +2156,9 @@ static void BattleInput_CreateYesNoMenuObjects(BattleInput *battleInput, int men
     String *strYes = NewString_ReadMsgData(msgLoader, msg_0197_00940); // Yes
     String *strNo = NewString_ReadMsgData(msgLoader, msg_0197_00941);  // No
 
+#ifdef HEARTGOLD_NATIVE
+    if (NativeBattleUIMode(battleInput) == HG_BATTLE_UI_YES_NO) NativeBattleUITargetReset();
+#endif
     BattleInput_CreateTextObject(battleInput, &battleInput->textObj[MENUTXT_YES], strYes, 4, MAKE_TEXT_COLOR(1, 2, 3), 2, 20023, 128, 67, 1, NULL);
     BattleInput_CreateTextObject(battleInput, &battleInput->textObj[MENUTXT_NO], strNo, 4, MAKE_TEXT_COLOR(10, 11, 12), 2, 20023, 128, 139, 1, NULL);
 
@@ -4697,10 +4700,12 @@ static u32 NativeBattleUIMode(const BattleInput *input) {
         return HG_BATTLE_UI_MOVES;
     case BATTLE_MENU_TARGET:
         return HG_BATTLE_UI_TARGETS;
+    case BATTLE_MENU_YES_NO:
     case BATTLE_MENU_KEEP_FORGET_MOVE:
     case BATTLE_MENU_GIVE_UP_ON_MOVE:
     case BATTLE_MENU_SWITCH_OR_FLEE:
         if (input != sNativeBattleInput || (BattleSystem_GetBattleType(input->battleSystem) & BATTLE_TYPE_TUTORIAL)) return HG_BATTLE_UI_NONE;
+        if (input->curMenuId == BATTLE_MENU_YES_NO) return HG_BATTLE_UI_YES_NO;
         if (input->curMenuId == BATTLE_MENU_KEEP_FORGET_MOVE) return HG_BATTLE_UI_KEEP_FORGET;
         if (input->curMenuId == BATTLE_MENU_GIVE_UP_ON_MOVE) return HG_BATTLE_UI_GIVE_UP;
         return HG_BATTLE_UI_NEXT_MON;
@@ -4778,7 +4783,8 @@ static void NativeBattleUITargetReset(void) { MI_CpuClear8(&sNativeTargetUI, siz
 
 static void NativeBattleUICacheName(BattleInput *input, BattleInputTextObject *text, const Window *window, u32 length, u32 color) {
     if (input != sNativeBattleInput) return;
-    BOOL twoOptions = input->curMenuId == BATTLE_MENU_KEEP_FORGET_MOVE || input->curMenuId == BATTLE_MENU_GIVE_UP_ON_MOVE || input->curMenuId == BATTLE_MENU_SWITCH_OR_FLEE;
+    BOOL twoOptions = input->curMenuId == BATTLE_MENU_YES_NO || input->curMenuId == BATTLE_MENU_KEEP_FORGET_MOVE
+        || input->curMenuId == BATTLE_MENU_GIVE_UP_ON_MOVE || input->curMenuId == BATTLE_MENU_SWITCH_OR_FLEE;
     if ((input->curMenuId != BATTLE_MENU_TARGET && !twoOptions) || (twoOptions && NativeBattleUIMode(input) == HG_BATTLE_UI_NONE)) return;
     for (u32 i = 0; i < (twoOptions ? 2 : 4); i++) if (text == &input->textObj[twoOptions ? i : sNativeTargetHitboxes[i]]) {
         sNativeTargetUI.nameWidth[i] = NativeBattleUIName(window, length, color, sNativeTargetUI.namePixels[i]);
@@ -4814,7 +4820,7 @@ static void NativeBattleUIPublish(void) {
         // The original menu ID survives feedback, but its deleted FontOAM objects do not.
         if (!live) mode = HG_BATTLE_UI_NONE;
     }
-    BOOL twoOptions = mode >= HG_BATTLE_UI_NEXT_MON && mode <= HG_BATTLE_UI_GIVE_UP;
+    BOOL twoOptions = mode >= HG_BATTLE_UI_NEXT_MON && mode <= HG_BATTLE_UI_YES_NO;
     if (mode == HG_BATTLE_UI_TARGETS || twoOptions) gNativeBattleUIState = sNativeTargetUI;
     else MI_CpuClear8(&gNativeBattleUIState, sizeof(gNativeBattleUIState));
     gNativeBattleUIState.active = sNativeBattleInput != NULL;

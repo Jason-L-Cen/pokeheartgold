@@ -12,10 +12,12 @@ import subprocess
 
 from build_original_data import wasm_object
 from import_original_content import narc,read_boot_header
+from prepare_original_headers import run
 
 ROOT=Path(__file__).resolve().parents[2]
 SOURCE_BASE=1024
 MESSAGE_PATH=Path('a/0/2/7')
+POKEDEX_GRAPHICS_PATH=Path('a/0/6/8')
 
 def sha(data): return hashlib.sha256(data).hexdigest()
 
@@ -103,6 +105,75 @@ def write_narc(members):
     names=b'BTNF'+struct.pack('<I',16)+bytes.fromhex('0400000000000100')
     payload=b'GMIF'+struct.pack('<I',8+len(image))+image
     return struct.pack('<4sHHIHH',b'NARC',0xFFFE,0x100,16+len(fat)+len(names)+len(payload),16,3)+fat+names+payload
+
+def pokedex_logo_screen(data):
+    if (len(data)<36 or data[:8]!=b'RCSN\xff\xfe\x00\x01'
+        or struct.unpack_from('<IHH',data,8)!=(len(data),16,1) or data[16:20]!=b'NRCS'
+        or struct.unpack_from('<I',data,20)[0]!=len(data)-16 or struct.unpack_from('<I',data,28)[0]):
+        raise ValueError('Invalid original Pokédex logo screen')
+    width,height=struct.unpack_from('<HH',data,24); size=struct.unpack_from('<I',data,32)[0]
+    if (width,height) not in ((80,24),(176,32)) or size!=width*height//32 or len(data)!=36+size:
+        raise ValueError('Unsupported original Pokédex logo dimensions')
+    if (width,height)==(176,32): return data
+    # Preserve the original opaque BG0 backing so the list underneath cannot show through.
+    result=bytearray(data[:36]+struct.pack('<H',0x9001)*88)
+    struct.pack_into('<I',result,8,len(result)); struct.pack_into('<I',result,20,len(result)-16)
+    struct.pack_into('<HH',result,24,176,32); struct.pack_into('<I',result,32,176)
+    for row in range(3): result[36+(row*22+6)*2:36+(row*22+16)*2]=data[36+row*20:36+(row+1)*20]
+    return bytes(result)
+
+def pokedex_sprite_members(destination,original):
+    if len(original)!=123: raise ValueError('Unsupported Pokédex graphics archive revision')
+    source=ROOT/'files/graphic/zukan_gra'; tool=ROOT/'tools/nitrogfx/nitrogfx'
+    scratch=destination/'pokedex-sprites'; scratch.mkdir(parents=True,exist_ok=True)
+    selected=list(original)
+    provenance=dict(path=str(POKEDEX_GRAPHICS_PATH),tool=str(tool.relative_to(ROOT)),toolSha256=sha(tool.read_bytes()),members=[])
+    provenance['logoMembers']=[]; blank_character=None
+    for index in (7,8):
+        name=f'zukan_gra_{index:08d}'; raw=scratch/(name+'.NSCR'); packed=raw.with_suffix(raw.suffix+'.lz'); commands=[]
+        if len(original[index])<4 or original[index][0]!=0x10: raise ValueError('Invalid original Pokédex logo LZ10 member')
+        packed.write_bytes(original[index]); command=[tool,packed,raw]; run(command); commands.append(list(map(str,command)))
+        previous=raw.read_bytes(); decoded=pokedex_logo_screen(previous)
+        if decoded!=previous:
+            if blank_character is None:
+                character_packed=scratch/'zukan_gra_00000001.NCGR.lz'; character_raw=character_packed.with_suffix('')
+                if len(original[1])<4 or original[1][0]!=0x10: raise ValueError('Invalid original Pokédex background LZ10 member')
+                character_packed.write_bytes(original[1]); command=[tool,character_packed,character_raw]; run(command); commands.append(list(map(str,command)))
+                blank_character=character_raw.read_bytes()
+                if (len(blank_character)<48 or blank_character[:6]!=b'RGCN\xff\xfe'
+                    or struct.unpack_from('<H',blank_character,6)[0] not in (0x100,0x101)
+                    or struct.unpack_from('<IHH',blank_character,8)[:2]!=(len(blank_character),16)
+                    or not struct.unpack_from('<H',blank_character,14)[0] or blank_character[16:20]!=b'RAHC'
+                    or struct.unpack_from('<I',blank_character,28)[0]!=3 or struct.unpack_from('<I',blank_character,36)[0]):
+                    raise ValueError('Invalid original Pokédex background characters')
+                block=struct.unpack_from('<I',blank_character,20)[0]; size,offset=struct.unpack_from('<II',blank_character,40); start=24+offset
+                if block<32 or block>len(blank_character)-16 or size<64 or start<48 or start>16+block-size or blank_character[start+32:start+64]!=b'\x77'*32:
+                    raise ValueError('Original Pokédex logo padding tile does not match its background')
+            raw.write_bytes(decoded); command=[tool,raw,packed,'-nopad']; run(command); commands.append(list(map(str,command)))
+            selected[index]=packed.read_bytes()
+            if len(selected[index])<4 or selected[index][0]!=0x10 or int.from_bytes(selected[index][1:4],'little')!=len(decoded):
+                raise ValueError('Invalid normalized Pokédex logo LZ10 member')
+        row=dict(member=index,source='rom',originalSha256=sha(original[index]),originalDecodedSha256=sha(previous),decodedSha256=sha(decoded),
+            nativeSha256=sha(selected[index]),sourceSizeTiles=[value//8 for value in struct.unpack_from('<HH',previous,24)],nativeSizeTiles=[22,4],
+            paddingOffsetTiles=[6,0] if decoded!=previous else [0,0],commands=commands)
+        if decoded!=previous: row.update(paddingTile=0x9001,blankCharacterMember=1,blankCharacterSha256=sha(original[1]),blankCharacterDecodedSha256=sha(blank_character))
+        provenance['logoMembers'].append(row)
+    # The source search sliders use animations 67/68 and cells 63/64 as one resource group.
+    for index,suffix in ((12,'NCGR'),(13,'NCER'),(14,'NANR')):
+        name=f'zukan_gra_{index:08d}'; source_file=source/(name+('.png' if index==12 else '.'+suffix))
+        raw=scratch/(name+'.'+suffix); packed=raw.with_suffix(raw.suffix+'.lz'); commands=[]
+        if index==12:
+            command=[tool,source_file,raw,'-clobbersize','-version101','-mappingtype','64']
+            run(command); commands.append(list(map(str,command)))
+        else: raw.write_bytes(source_file.read_bytes())
+        command=[tool,raw,packed,'-nopad']; run(command); commands.append(list(map(str,command)))
+        decoded=raw.read_bytes(); data=packed.read_bytes()
+        if len(data)<4 or data[0]!=0x10 or int.from_bytes(data[1:4],'little')!=len(decoded):
+            raise ValueError(f'Invalid original Pokédex LZ10 member: {index}')
+        selected[index]=data
+        provenance['members'].append(dict(member=index,source=str(source_file.relative_to(ROOT)),sourceSha256=sha(source_file.read_bytes()),
+            decodedSha256=sha(decoded),commands=commands,originalSha256=sha(original[index]),nativeSha256=sha(data)))
+    return selected,provenance
 
 def source_table(path,name='sMapHeaders'):
     obj=wasm_object(path.read_bytes(),True)
@@ -215,7 +286,7 @@ def prepare(destination,compiler,flags):
     result=subprocess.run([compiler,'-I',include,'-DHG_NATIVE_ROM_TABLES',*flags,'-c',ROOT/'src/script_manager.c','-o',script_verify],cwd=ROOT,capture_output=True,text=True)
     (destination/'native-script.log').write_text(result.stdout+result.stderr)
     if result.returncode or source_table(script_verify,'sScriptBankMapping')!=script_table: raise RuntimeError('Native standard-script records do not match the ROM table')
-    pack=destination/'pack'; (pack/'files').mkdir(parents=True,exist_ok=True)
+    pack=destination/'pack'; (pack/'files').mkdir(parents=True,exist_ok=True); pokedex_graphics=None
     for record in manifest['files']:
         if Path(record['path']).is_absolute() or '..' in Path(record['path']).parts: raise ValueError('Unsafe content path')
         source_file=original/'files'/record['path']; target=pack/'files'/record['path']; target.parent.mkdir(parents=True,exist_ok=True)
@@ -223,13 +294,20 @@ def prepare(destination,compiler,flags):
         target.unlink(missing_ok=True)
         if Path(record['path'])==MESSAGE_PATH:
             data=write_narc(members); target.write_bytes(data); record.update(size=len(data),sha256=sha(data))
+        elif Path(record['path'])==POKEDEX_GRAPHICS_PATH:
+            selected_graphics,pokedex_graphics=pokedex_sprite_members(destination,narc(source_file))
+            pokedex_graphics['originalArchiveSha256']=record['sha256']
+            data=write_narc(selected_graphics); target.write_bytes(data); record.update(size=len(data),sha256=sha(data))
+            if narc(target)!=selected_graphics: raise RuntimeError('Native Pokédex graphics archive round trip failed')
+            pokedex_graphics['archiveSha256']=sha(data)
         else: os.link(source_file,target)
     shutil.copyfile(original/'boot-header.bin',pack/'boot-header.bin')
     (pack/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n'); read_boot_header(pack)
     if narc(pack/'files'/MESSAGE_PATH)!=members: raise RuntimeError('Native message archive round trip failed')
+    if pokedex_graphics is None: raise ValueError('Missing original Pokédex graphics archive')
     report=dict(scope='region data binding; complete dialogue and gameplay fidelity unverified',imageSha256=manifest['image']['sha256'],sourceBase=SOURCE_BASE,
         romMessages=len(original_messages),sourceMessages=len(source),reusedRomBanks=sum(c['rom'] is not None for c in choices),
-        sourceFallbackBanks=[c['source'] for c in choices if c['rom'] is None],choices=choices,mapCount=len(maps)//24,
+        sourceFallbackBanks=[c['source'] for c in choices if c['rom'] is None],choices=choices,mapCount=len(maps)//24,pokedexGraphics=pokedex_graphics,
         sourceMapInitializerSha256=sha((ROOT/'src/data/map_headers.h').read_bytes()),
         sourceMapObjectSha256=sha(baseline.read_bytes()),sourceMapTableSha256=sha(baseline_maps),
         romMapAddress=base+offset,mapSha256=sha(maps),messageArchiveSha256=sha((pack/'files'/MESSAGE_PATH).read_bytes()),
@@ -248,6 +326,8 @@ def verify(profile):
     checks=[(pack/'files'/MESSAGE_PATH,'messageArchiveSha256'),(include/'hg_native_map_headers.h','mapHeaderSha256'),
         (include/'hg_native_script_banks.h','scriptHeaderSha256'),(include/'msgdata/msg.naix','messageHeaderSha256')]
     if any(sha(path.read_bytes())!=report[key] for path,key in checks): raise ValueError('Native content changed since engine linking')
+    if 'pokedexGraphics' in report and sha((pack/'files'/POKEDEX_GRAPHICS_PATH).read_bytes())!=report['pokedexGraphics']['archiveSha256']:
+        raise ValueError('Native Pokédex graphics changed since engine linking')
     manifest=json.loads((pack/'manifest.json').read_text())
     for record in manifest['files']:
         if Path(record['path']).is_absolute() or '..' in Path(record['path']).parts or sha((pack/'files'/record['path']).read_bytes())!=record['sha256']:

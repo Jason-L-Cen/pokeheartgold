@@ -12,6 +12,9 @@
 #include "overlay_18.h"
 #include "palette.h"
 #include "sprite_system.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pokedex_ui.h"
+#endif
 
 enum {
     POKEDEXAPP_MAINSEQ_00 = 0,
@@ -111,6 +114,22 @@ enum {
 };
 
 typedef struct PokedexAppData PokedexAppData;
+#ifdef HEARTGOLD_NATIVE
+u32 NativePokedexUIAdvanceGeneration(void);
+BOOL NativePokedexUIOwnWindows(HGNativePokedexUIState *state);
+void NativePokedexUIPrepareBuild(HGNativePokedexUIState *live, const HGNativePokedexUIState *committed, u32 phase, u32 family, const HGNativePokedexUIState *current);
+void NativePokedexUIBind(PokedexAppData *app);
+void NativePokedexUIBegin(PokedexAppData *app, u32 phase);
+void NativePokedexUIEnd(PokedexAppData *app, u32 phase, BOOL afterDraw);
+void NativePokedexUIRetire(PokedexAppData *app);
+void NativePokedexUICommit(PokedexAppData *app);
+void NativePokedexUIWindows(PokedexAppData *app, HGNativePokedexUIState *state);
+void NativePokedexUIInputs(PokedexAppData *app, HGNativePokedexUIState *state);
+u32 NativePokedexUIVisual(HGNativePokedexUIState *state, const HGNativePokedexUIVisual *visual);
+u32 NativePokedexUIRaster(HGNativePokedexUIState *state, u32 role, u32 index, u32 engine, int x, int y, int width, int height);
+u32 NativePokedexUIFindWindow(const HGNativePokedexUIState *state, u32 window);
+u32 NativePokedexUISprite(PokedexAppData *app, HGNativePokedexUIState *state, u32 role, u32 index, u32 first, u32 count, BOOL sub);
+#endif
 
 typedef struct PokedexFlashButtonState {
     u8 x;

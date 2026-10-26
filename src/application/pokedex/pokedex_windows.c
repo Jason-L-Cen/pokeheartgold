@@ -21,6 +21,9 @@
 #include "pokedex_language.h"
 #include "pokedex_util.h"
 #include "text.h"
+#ifdef HEARTGOLD_NATIVE
+#include "palette_vram_addr.h"
+#endif
 
 static const WindowTemplate sPokedexEntryMenuWindowTemplates[] = {
     { .bgId = GF_BG_LYR_SUB_1,  .left = 2,  .top = 0,  .width = 9,  .height = 2, .palette = 2, .baseTile = 0x3EE },
@@ -224,6 +227,9 @@ void PokedexApp_AddWindows(PokedexAppData *pokedexApp, const WindowTemplate *tem
 
 void PokedexApp_RemoveAllWindows(PokedexAppData *pokedexApp) {
     u32 i;
+#ifdef HEARTGOLD_NATIVE
+    NativePokedexUIRetire(pokedexApp);
+#endif
 
     for (i = 0; i < 101; i++) {
         if (pokedexApp->windows[i].pixelBuffer) {
@@ -821,13 +827,21 @@ void PokedexApp_DrawSearchTypePage(PokedexAppData *pokedexApp) {
     PokedexApp_ClearBgTilemap(pokedexApp, GF_BG_LYR_MAIN_0);
     FillWindowPixelBuffer(&pokedexApp->windows[44], 0);
     PokedexApp_PrintMessage(&pokedexApp->windows[44], pokedexApp->msgData, msg_0802_00028, 28, 0, 0, MAKE_TEXT_COLOR(2, 1, 0), 2);
+#ifdef HEARTGOLD_NATIVE
+    msgNo = sSearchTypeMsgIds;
+#else
     // the type names' message ids (u16) are addressed relative to the window template table after them
     msgNo = (const u16 *)&sSizeCheckWindowTemplates[7].top;
+#endif
     i = 47;
     window = &pokedexApp->windows[47];
     for (; i <= 64; i++) {
         FillWindowPixelBuffer(window, 0);
+#ifdef HEARTGOLD_NATIVE
+        PokedexApp_PrintMessage(window, pokedexApp->msgData, *msgNo, 32, 0, 4, MAKE_TEXT_COLOR(2, 1, 0), 2);
+#else
         PokedexApp_PrintMessage(window, pokedexApp->msgData, msgNo[-47], 32, 0, 4, MAKE_TEXT_COLOR(2, 1, 0), 2);
+#endif
         window++;
         msgNo++;
     }
@@ -1480,6 +1494,117 @@ void PokedexApp_ClearFormCompareWindows(PokedexAppData *pokedexApp) {
     ClearWindowTilemapAndScheduleTransfer(&pokedexApp->windows[7]);
 }
 
+#ifdef HEARTGOLD_NATIVE
+static void NativePokedexWindow(PokedexAppData *app, HGNativePokedexUIState *state, const WindowTemplate *templates, u32 id, u32 role) {
+    const WindowTemplate *t = &templates[id];
+    const Window *w = &app->windows[id];
+    if (!w->pixelBuffer || w->bgConfig != app->bgConfig || w->bgId != t->bgId
+        || w->tilemapLeft != t->left || w->tilemapTop != t->top || w->width != t->width || w->height != t->height
+        || w->paletteNum != t->palette || w->baseTile != t->baseTile || w->colorMode != GF_BG_CLR_4BPP
+        || w->bgId >= 8 || app->bgConfig->bgs[w->bgId].colorMode != GX_BG_COLORMODE_16) return;
+    HGNativePokedexUIVisual v;
+    MI_CpuClear8(&v, sizeof(v));
+    v.role = role; v.index = id; v.kind = HG_POKEDEX_UI_VISUAL_WINDOW;
+    v.source.window.pixelBuffer = (u32)(uintptr_t)w->pixelBuffer;
+    v.source.window.tileWidth = w->width; v.source.window.tileHeight = w->height;
+    v.source.window.engine = w->bgId >= GF_BG_LYR_SUB_0;
+    const u16 *palette = v.source.window.engine ? GetSubBgPlttAddr() : GetMainBgPlttAddr();
+    MI_CpuCopy16(palette + w->paletteNum * 16, v.source.window.palette, sizeof(v.source.window.palette));
+    NativePokedexUIVisual(state, &v);
+}
+
+static void NativePokedexWindowRange(PokedexAppData *app, HGNativePokedexUIState *state, const WindowTemplate *templates, u32 first, u32 last, u32 role) {
+    for (u32 id = first; id <= last; ++id) NativePokedexWindow(app, state, templates, id, role);
+}
+
+static void NativePokedexSearchSummary(PokedexAppData *app, HGNativePokedexUIState *state) {
+    NativePokedexWindow(app, state, sSearchWindowTemplates, 0, HG_POKEDEX_UI_IMAGE_HELP);
+    NativePokedexWindowRange(app, state, sSearchWindowTemplates, 1, 7, HG_POKEDEX_UI_IMAGE_CRITERION_LABEL);
+    NativePokedexWindowRange(app, state, sSearchWindowTemplates, 8, 16, HG_POKEDEX_UI_IMAGE_CRITERION_VALUE);
+    NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_BODY_SHAPE, 1, 43, 1, TRUE);
+}
+
+void NativePokedexUIWindows(PokedexAppData *app, HGNativePokedexUIState *state) {
+    u32 family = state->family;
+    if (family == HG_POKEDEX_UI_FAMILY_OVERVIEW) {
+        NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_HEADER, 0, 0, 40, 24, 176, 32);
+        NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_PORTRAIT, 0, 1, 0, 0, 256, 160);
+        NativePokedexWindowRange(app, state, sListWindowTemplates, 0, 1, HG_POKEDEX_UI_IMAGE_COUNT_LABEL);
+        NativePokedexWindow(app, state, sListWindowTemplates, 2 + (app->countWindowSwap ^ 1), HG_POKEDEX_UI_IMAGE_COUNT_NUMBER);
+        NativePokedexWindow(app, state, sListWindowTemplates, 4 + (app->countWindowSwap ^ 1), HG_POKEDEX_UI_IMAGE_COUNT_NUMBER);
+    } else if (family == HG_POKEDEX_UI_FAMILY_LIST || family == HG_POKEDEX_UI_FAMILY_SEARCH_RESULTS) {
+        BOOL search = family == HG_POKEDEX_UI_FAMILY_SEARCH_RESULTS;
+        const WindowTemplate *templates = search ? sSearchWindowTemplates : sListWindowTemplates;
+        u32 name = search ? 94 : 6, header = search ? 81 : 7;
+        for (u32 i = 0; i < 15; ++i) NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_GRID_CELL, i, 0, 27 + 40 * (i % 5), 4 + 40 * (i / 5), 40, 40);
+        if (state->species) NativePokedexWindow(app, state, templates, name, HG_POKEDEX_UI_IMAGE_SELECTED_NAME);
+        if (search && !app->listPage && !app->listCursor) NativePokedexSearchSummary(app, state);
+        else {
+            NativePokedexWindowRange(app, state, templates, header, header + 3, HG_POKEDEX_UI_IMAGE_HEADER);
+            if (state->species && state->caughtState == 2) NativePokedexWindow(app, state, templates, header + 4, HG_POKEDEX_UI_IMAGE_FLAVOR);
+            if (state->species) NativePokedexWindowRange(app, state, templates, header + (app->language == LANGUAGE_ENGLISH ? 5 : 9),
+                header + (app->language == LANGUAGE_ENGLISH ? 8 : 12), HG_POKEDEX_UI_IMAGE_MEASURE_VALUE);
+            NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_PORTRAIT, 0, (search ? 46 : 11) + app->monPicSwap, 1, TRUE);
+            for (u32 i = 0; i < 2; ++i) NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_TYPE, i, (search ? 49 : 14) + 2 * app->typeIconSwap + i, 1, TRUE);
+            NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_FOOTPRINT, 0, search ? 48 : 13, 1, TRUE);
+            NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_CAUGHT, 0, search ? 44 : 9, 1, TRUE);
+            NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_LANGUAGE, 0, search ? 24 : 8, 1, TRUE);
+            NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_LANGUAGE, 1, search ? 53 : 18, 6, TRUE);
+        }
+    } else if (family >= HG_POKEDEX_UI_FAMILY_SEARCH_MENU && family <= HG_POKEDEX_UI_FAMILY_SEARCH_BODY) {
+        NativePokedexWindow(app, state, sSearchWindowTemplates, 0, HG_POKEDEX_UI_IMAGE_HELP);
+        NativePokedexWindow(app, state, sSearchWindowTemplates, 17, HG_POKEDEX_UI_IMAGE_FOOTER);
+        NativePokedexWindow(app, state, sSearchWindowTemplates, 19, HG_POKEDEX_UI_IMAGE_FOOTER);
+        if (family == HG_POKEDEX_UI_FAMILY_SEARCH_MENU) {
+            NativePokedexWindow(app, state, sSearchWindowTemplates, 18, HG_POKEDEX_UI_IMAGE_FOOTER);
+            NativePokedexWindowRange(app, state, sSearchWindowTemplates, 20, 26, HG_POKEDEX_UI_IMAGE_CRITERION_LABEL);
+            NativePokedexWindowRange(app, state, sSearchWindowTemplates, 27, 35, HG_POKEDEX_UI_IMAGE_CRITERION_VALUE);
+            NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_BODY_SHAPE, 0, 28, 1, FALSE);
+        } else if (family == HG_POKEDEX_UI_FAMILY_SEARCH_NAME) {
+            NativePokedexWindowRange(app, state, sSearchWindowTemplates, 65, 66, HG_POKEDEX_UI_IMAGE_HEADER);
+            for (u32 i = 0; i < 27; ++i) {
+                u32 cell = PokedexApp_GetLetterGridCell(i);
+                NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_OPTION, i, 0, 24 + 32 * (cell % 7), 40 + 32 * (cell / 7), 16, 16);
+            }
+        } else if (family == HG_POKEDEX_UI_FAMILY_SEARCH_ORDER) NativePokedexWindowRange(app, state, sSearchWindowTemplates, 36, 43, HG_POKEDEX_UI_IMAGE_OPTION);
+        else if (family == HG_POKEDEX_UI_FAMILY_SEARCH_TYPE) NativePokedexWindowRange(app, state, sSearchWindowTemplates, 44, 64, HG_POKEDEX_UI_IMAGE_OPTION);
+        else if (family == HG_POKEDEX_UI_FAMILY_SEARCH_HEIGHT || family == HG_POKEDEX_UI_FAMILY_SEARCH_WEIGHT) {
+            u32 first = family == HG_POKEDEX_UI_FAMILY_SEARCH_HEIGHT ? 68 : 71;
+            NativePokedexWindowRange(app, state, sSearchWindowTemplates, first, first + 2, HG_POKEDEX_UI_IMAGE_MEASURE_VALUE);
+        } else if (family == HG_POKEDEX_UI_FAMILY_SEARCH_AREA) NativePokedexWindowRange(app, state, sSearchWindowTemplates, 74, 79, HG_POKEDEX_UI_IMAGE_OPTION);
+        else {
+            NativePokedexWindow(app, state, sSearchWindowTemplates, 80, HG_POKEDEX_UI_IMAGE_HEADER);
+            for (u32 i = 0; i < 15; ++i) NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_OPTION, i, 0, 16 + 48 * (i % 5), 40 + 40 * (i / 5), 32, 32);
+        }
+    } else if (family == HG_POKEDEX_UI_FAMILY_AREA) {
+        NativePokedexWindowRange(app, state, sAreaWindowTemplates, 0, 4, HG_POKEDEX_UI_IMAGE_HEADER);
+        if (app->nationalDex == 1) {
+            NativePokedexWindow(app, state, sAreaWindowTemplates, 5, HG_POKEDEX_UI_IMAGE_HEADER);
+            NativePokedexWindow(app, state, sAreaWindowTemplates, 7, HG_POKEDEX_UI_IMAGE_HEADER);
+        } else NativePokedexWindow(app, state, sAreaWindowTemplates, 6, HG_POKEDEX_UI_IMAGE_HEADER);
+        NativePokedexWindowRange(app, state, sAreaWindowTemplates, 8, 13, HG_POKEDEX_UI_IMAGE_AREA_ROW);
+        NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_AREA_MAP, 0, 1, 0, 0, 256, 192);
+    } else if (family == HG_POKEDEX_UI_FAMILY_SIZE) {
+        NativePokedexWindowRange(app, state, sSizeCheckWindowTemplates, 0, 12, HG_POKEDEX_UI_IMAGE_MEASURE_VALUE);
+        for (u32 i = 0; i < 2; ++i) NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_SIZE_SCENE, i, i, 0, 0, 256, 160);
+    } else if (family == HG_POKEDEX_UI_FAMILY_FORMS) {
+        NativePokedexWindowRange(app, state, sFormsWindowTemplates, 0, 9, HG_POKEDEX_UI_IMAGE_HEADER);
+        NativePokedexWindowRange(app, state, sFormsWindowTemplates, 10, 15, HG_POKEDEX_UI_IMAGE_FORM_ROW);
+        NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_FORM_PICTURE, 0, 1 + 2 * (app->formPicSwapA ^ 1), 1, TRUE);
+        NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_FORM_PICTURE, 1, 2 + 2 * (app->formPicSwapA ^ 1), 1, TRUE);
+        for (u32 i = 0; i < 6; ++i) NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_FORM_ICON, i, 14 + i, 1, FALSE);
+    } else if (family == HG_POKEDEX_UI_FAMILY_COMPARE) {
+        static const u8 windows[] = { 0, 3, 5, 6, 7, 8, 9 };
+        for (u32 i = 0; i < sizeof(windows); ++i) NativePokedexWindow(app, state, sFormsWindowTemplates, windows[i], HG_POKEDEX_UI_IMAGE_HEADER);
+        NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_FORM_PICTURE, 0, 1 + 2 * (app->formPicSwapA ^ 1), 1, TRUE);
+        NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_FORM_PICTURE, 1, 2 + 2 * (app->formPicSwapB ^ 1), 1, TRUE);
+        for (u32 i = 0; i < 2; ++i) NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_FORM_ICON, i, 14 + i, 1, FALSE);
+    } else if (family == HG_POKEDEX_UI_FAMILY_ENTRY) {
+        NativePokedexWindowRange(app, state, sPokedexEntryMenuWindowTemplates, 0, 1, HG_POKEDEX_UI_IMAGE_HEADER);
+        NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_ENTRY_BODY, 0, 0, 48, 72, 160, 32);
+    }
+}
+#endif
 void PokedexApp_DrawCenteredFormName(PokedexAppData *pokedexApp, int windowId, int index) {
     int msgNo, width;
 

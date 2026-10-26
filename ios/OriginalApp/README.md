@@ -2,6 +2,18 @@
 
 This target runs the compiled original C/C++ engine in UIKit. The earlier Swift/Metal target in `App/`, its JSON save and screenshots are retained prototype work; they do not describe the current original-engine target. The executable contains native arm64 code generated at build time; it does not load a DS CPU interpreter, JIT or WebAssembly module at runtime.
 
+## Capture, Pokédex and Naming checkpoint (2026-10-27)
+
+The original Pokédex now has a single-screen bridge for its lists, search criteria, Area/time display, forms and comparison. Original window ownership prevents stale species text during transitions. Its native and UIKit regressions passed before the latest Naming addition; they are historical evidence, not a new full-game run.
+
+Capture uses the original catch, registration and storage code. Naming now keeps the original keyboard, character limit, deletion, page selection and empty-name behavior. A read-only 16-byte lifetime packet gates native touch and short button leases. The Pokémon icon loads at the current original cell/image-proxy location instead of assuming a fixed atlas offset; artwork and keyboard resources are reused. Both native cases matched all 131 opaque Caterpie icon pixels and verified actual nickname/default-name storage in the party and a full-party PC case.
+
+The dedicated iOS Naming run passed 31 checks and 35 captures across two guest lifetimes. All images were reviewed, including B/delete, ten characters, an extra character attempt, Start positioning without submission, original OK, empty/default naming and return to field controls. Pixels, width and display-engine identity are now published together; the live input route remains separate. The shared UIKit regression passed 241 individual checks plus its aggregate result and 32 reviewed captures, including deliberate live/display-route mismatches. A first Naming exit check failed before this route fix and remains recorded.
+
+The latest strict audit passed 96 checks with 1,600 unit records: 1,592 compiled target units, 8 explicit target-specific exclusions and 136 selected data proofs. The shipping interface has 25 exports and no private QA exports. Older private CHECK reports are tied to their own interface/source epochs and must not be treated as current regressions for the expanded interface.
+
+All latest tests were muted and preserved the existing user files and original save. This default UIKit run recorded zero audio drops and underruns; an earlier intermittent audio stall remains unresolved. A separate offline check verifies the unchanged 8,192-frame capacity boundary, including actual partial consumption, without proving the cause of that stall or changing audio policy. Full-story completion, every menu/animation, DS frame parity, physical-device play and audible audio stability remain unverified. Build commands below still apply; this is a development checkpoint, not final acceptance.
+
 ## Original Evolution checkpoint (2026-10-25)
 
 Evolution now presents the original scene, sprite animation, effects and text in the landscape single-screen UI. A 196-byte read-only packet exposes the original owner, revision, waiting windows and available actions. Native input leases follow that lifetime; B cancels only in the original phase 8 with `CAN_CANCEL`. Original game code still performs leveling, Evolution, item use and Pokédex registration.

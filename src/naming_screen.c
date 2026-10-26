@@ -33,6 +33,10 @@
 #include "palette_blink.h"
 #include "vram_transfer_manager.h"
 
+#ifdef HEARTGOLD_NATIVE
+#include "native_naming_ui.h"
+#endif
+
 #define NAME_SCREEN_CONTROL_DAKU            0xD001 // unused
 #define NAME_SCREEN_CONTROL_HANDAKU         0xD002 // unused
 #define NAME_SCREEN_CONTROL_SPACE           0xD003 // unused
@@ -148,7 +152,11 @@ typedef struct NamingScreenTouchHitboxDef {
 } NamingScreenTouchHitboxDef;
 
 BOOL NamingScreenApp_Init(OverlayManager *ovyMan, int *pState);
+#ifdef HEARTGOLD_NATIVE
+static void NamingScreen_LoadMonIcon(NNSG2dCharacterData *pCharData, NNSG2dPaletteData *pPlttData, int species, int form, Sprite *iconSprite);
+#else
 static void NamingScreen_LoadMonIcon(NNSG2dCharacterData *pCharData, NNSG2dPaletteData *pPlttData, int species, int form);
+#endif
 BOOL NamingScreenApp_Main(OverlayManager *ovyMan, int *pState);
 static NamingScreenMainState NamingScreen_HandleInput(NamingScreenAppData *data, NamingScreenMainState state);
 static void NamingScreen_SetDefaultName(NamingScreenAppData *data, NamingScreenArgs *args);
@@ -198,6 +206,38 @@ static BOOL NamingScreen_HandleTouchInput(NamingScreenAppData *data);
 
 // set but never referenced, never cleaned up
 static NamingScreenAppData *sAppData;
+
+#ifdef HEARTGOLD_NATIVE
+static HGNativeNamingUIState sNativeNamingUI;
+static const NamingScreenAppData *sNativeNamingOwner;
+
+const HGNativeNamingUIState *HGNativeNamingUIGetState(void) { return &sNativeNamingUI; }
+
+static void NativeNamingUIBegin(const NamingScreenAppData *owner) {
+    if (!owner || owner == sNativeNamingOwner) return;
+    sNativeNamingOwner = owner;
+    if (!++sNativeNamingUI.ownerGeneration) ++sNativeNamingUI.ownerGeneration;
+    if (!++sNativeNamingUI.revision) ++sNativeNamingUI.revision;
+    sNativeNamingUI.active = 1;
+    sNativeNamingUI.ready = 0;
+}
+
+static void NativeNamingUIPublish(const NamingScreenAppData *owner, int phase) {
+    if (owner != sNativeNamingOwner || !sNativeNamingUI.active) return;
+    uint32_t ready = phase == NS_MAIN_STATE_INPUT_LOOP && owner->pageSwitchState == NS_PAGESWITCH_STATE_IDLE
+        && !owner->kbCursor.ignoreInput;
+    if (sNativeNamingUI.ready == ready) return;
+    sNativeNamingUI.ready = ready;
+    if (!++sNativeNamingUI.revision) ++sNativeNamingUI.revision;
+}
+
+static void NativeNamingUIRetire(const NamingScreenAppData *owner) {
+    if (!owner || owner != sNativeNamingOwner) return;
+    sNativeNamingOwner = NULL;
+    sNativeNamingUI.active = sNativeNamingUI.ready = 0;
+    if (!++sNativeNamingUI.revision) ++sNativeNamingUI.revision;
+}
+#endif
 
 // sprite params
 // [0]: x coord
@@ -487,6 +527,9 @@ BOOL NamingScreenApp_Init(OverlayManager *ovyMan, int *pState) {
 
         data = OverlayManager_CreateAndGetData(ovyMan, sizeof(NamingScreenAppData), HEAP_ID_NAMING_SCREEN);
         memset(data, 0, sizeof(NamingScreenAppData));
+#ifdef HEARTGOLD_NATIVE
+        NativeNamingUIBegin(data);
+#endif
         data->bgConfig = BgConfig_Alloc(HEAP_ID_NAMING_SCREEN);
         narc = NARC_New(NARC_data_namein, HEAP_ID_NAMING_SCREEN);
         data->msgFormat = MessageFormat_New(HEAP_ID_NAMING_SCREEN);
@@ -517,7 +560,11 @@ BOOL NamingScreenApp_Init(OverlayManager *ovyMan, int *pState) {
     case NS_INIT_STATE_LOAD_MON_ICON:
         data = OverlayManager_GetData(ovyMan);
         if (data->type == NAME_SCREEN_POKEMON) {
+#ifdef HEARTGOLD_NATIVE
+            NamingScreen_LoadMonIcon(data->monIconCharData, data->plttData, data->playerGenderOrMonSpecies, data->monForm, data->iconSprites[0]);
+#else
             NamingScreen_LoadMonIcon(data->monIconCharData, data->plttData, data->playerGenderOrMonSpecies, data->monForm);
+#endif
         }
         sAppData = data;
         data->paletteBlink = PaletteBlink_New(NULL, PM_LCD_BOTTOM, 12, HEAP_ID_NAMING_SCREEN);
@@ -528,8 +575,40 @@ BOOL NamingScreenApp_Init(OverlayManager *ovyMan, int *pState) {
     return FALSE;
 }
 
+#ifdef HEARTGOLD_NATIVE
+static BOOL NativeNamingMonIconOffset(const NNSG2dCellData *cell, const NNSG2dImageProxy *image, u32 *offset) {
+    if (!cell || !cell->numOAMAttrs || cell->numOAMAttrs > 128 || !cell->pOamAttrArray || !image || !offset
+        || image->attr.mappingType != GX_OBJVRAMMODE_CHAR_1D_32K || image->attr.fmt != GX_TEXFMT_PLTT16) return FALSE;
+    u32 base = NNS_G2dGetImageLocation(image, NNS_G2D_VRAM_TYPE_2DMAIN);
+    if ((base & 31) || base > 0x8000 - 0x200) return FALSE;
+    u32 tile = cell->pOamAttrArray[0].attr2 & 0x3FF;
+    BOOL mainFound = FALSE;
+    for (u32 i = 0; i < cell->numOAMAttrs; ++i) {
+        const NNSG2dCellOAMAttrData *oam = &cell->pOamAttrArray[i];
+        u32 palette = oam->attr2 >> 12;
+        if ((oam->attr0 & 0xE000) || (oam->attr1 & 0xC000) != 0x8000
+            || (oam->attr2 & 0x3FF) != tile || (palette != 5 && palette != 6)) return FALSE;
+        if (palette == 6) mainFound = TRUE;
+    }
+    // The icon and its palette-5 shadow share one glyph; 1D32K charNo must not wrap.
+    if (!mainFound || tile * 32 > 0x8000 - 0x200 - base) return FALSE;
+    *offset = base + tile * 32;
+    return TRUE;
+}
+
+static void NamingScreen_LoadMonIcon(NNSG2dCharacterData *pCharData, NNSG2dPaletteData *pPlttData, int species, int form, Sprite *iconSprite) {
+    NNSG2dCellAnimation *animation = iconSprite ? Sprite_GetCellAnim(iconSprite) : NULL;
+    u32 offset;
+    if (!pCharData || !pCharData->pRawData || pCharData->szByte < 0x200 || pCharData->pixelFmt != GX_TEXFMT_PLTT16
+        || !NativeNamingMonIconOffset(animation ? animation->pCurrentCell : NULL, iconSprite ? Sprite_GetImageProxy(iconSprite) : NULL, &offset)) {
+        GF_ASSERT(FALSE);
+        return;
+    }
+    GX_LoadOBJ(pCharData->pRawData, offset, 0x200);
+#else
 static void NamingScreen_LoadMonIcon(NNSG2dCharacterData *pCharData, NNSG2dPaletteData *pPlttData, int species, int form) {
     GX_LoadOBJ(pCharData->pRawData, 0x57E0, 0x200);
+#endif
     const u16 *rawPltt = pPlttData->pRawData;
     u32 plttNo = GetMonIconPaletteEx(species, form, FALSE);
     GX_LoadOBJPltt(rawPltt + 16 * plttNo, 0xC0, 0x20);
@@ -597,12 +676,18 @@ BOOL NamingScreenApp_Main(OverlayManager *ovyMan, int *pState) {
         break;
     case NS_MAIN_STATE_WAIT_FADE_OUT:
         if (IsPaletteFadeFinished()) {
+#ifdef HEARTGOLD_NATIVE
+            NativeNamingUIPublish(data, *pState);
+#endif
             return TRUE;
         }
         break;
     }
 
     SpriteList_RenderAndAnimateSprites(data->spriteList);
+#ifdef HEARTGOLD_NATIVE
+    NativeNamingUIPublish(data, *pState);
+#endif
     return FALSE;
 }
 
@@ -696,6 +781,9 @@ static BOOL NamingScreen_PMCharArrayIsAllSpaces(const u16 *s) {
 BOOL NamingScreenApp_Exit(OverlayManager *ovyMan, int *pState) {
     NamingScreenAppData *data = OverlayManager_GetData(ovyMan);
     NamingScreenArgs *args = OverlayManager_GetArgs(ovyMan);
+#ifdef HEARTGOLD_NATIVE
+    NativeNamingUIRetire(data);
+#endif
 
     data->entryBuf[data->textCursorPos] = EOS;
     if (data->type == NAME_SCREEN_POKEMON) {

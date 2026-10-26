@@ -7,6 +7,136 @@
 
 #include "pokemon.h"
 #include "pokedex_language.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pokedex_ui.h"
+// Resident main storage: OVY18 restoration must not reuse a previous visit's owner identity.
+static u32 sNativePokedexGeneration;
+static u8 sNativePokedexWindowPixels[24 * 1024];
+static u32 sNativePokedexWindowBytes, sNativePokedexWindowGeneration;
+u32 NativePokedexUIAdvanceGeneration(void) {
+    if (++sNativePokedexGeneration == 0) ++sNativePokedexGeneration;
+    sNativePokedexWindowBytes = sNativePokedexWindowGeneration = 0;
+    return sNativePokedexGeneration;
+}
+
+BOOL NativePokedexUIOwnWindows(HGNativePokedexUIState *state) {
+    // The wire addresses are guest32 pointers; direct64 hosts must never dereference them.
+    if (sizeof(uintptr_t) > 4 || !state || state->visualCount > HG_POKEDEX_UI_VISUALS) return FALSE;
+    uintptr_t arena = (uintptr_t)sNativePokedexWindowPixels;
+    if (arena > UINT32_MAX - sizeof(sNativePokedexWindowPixels)) return FALSE;
+    u32 total = 0;
+    for (u32 i = 0; i < state->visualCount; ++i) {
+        const HGNativePokedexUIVisual *visual = &state->visuals[i];
+        if (!HGNativePokedexUIVisualIsValid(visual)) return FALSE;
+        if (visual->kind != HG_POKEDEX_UI_VISUAL_WINDOW) continue;
+        const HGNativePartyUIWindow *window = &visual->source.window;
+        u32 size = window->tileWidth * window->tileHeight * 32;
+        uintptr_t source = window->pixelBuffer;
+        if (size > sizeof(sNativePokedexWindowPixels) - total
+            || (source < arena + sizeof(sNativePokedexWindowPixels) && source + size > arena)) return FALSE;
+        total += size;
+    }
+    // Every descriptor and the whole budget are valid before the previous image is touched.
+    u32 offset = 0;
+    for (u32 i = 0; i < state->visualCount; ++i) {
+        HGNativePokedexUIVisual *visual = &state->visuals[i];
+        if (visual->kind != HG_POKEDEX_UI_VISUAL_WINDOW) continue;
+        HGNativePartyUIWindow *window = &visual->source.window;
+        u32 size = window->tileWidth * window->tileHeight * 32;
+        memcpy(sNativePokedexWindowPixels + offset, (const void *)(uintptr_t)window->pixelBuffer, size);
+        window->pixelBuffer = (u32)(uintptr_t)(sNativePokedexWindowPixels + offset);
+        offset += size;
+    }
+    sNativePokedexWindowBytes = total;
+    sNativePokedexWindowGeneration = state->ownerGeneration;
+    return TRUE;
+}
+
+void NativePokedexUIPrepareBuild(HGNativePokedexUIState *live, const HGNativePokedexUIState *committed, u32 phase, u32 family, const HGNativePokedexUIState *current) {
+    if (!live) return;
+    // Only post-draw can retain the real phase-23 marker; it never carries input or borrowed assets.
+    BOOL transition = current && committed && sizeof(uintptr_t) <= 4 && phase == 23 && family == HG_POKEDEX_UI_FAMILY_NONE
+        && live->active == 1 && live->version == HG_POKEDEX_UI_VERSION && live->byteSize == sizeof(*live)
+        && committed->active == 1 && committed->version == HG_POKEDEX_UI_VERSION && committed->byteSize == sizeof(*committed)
+        && live->ownerGeneration && live->ownerGeneration == committed->ownerGeneration
+        && live->revision && live->revision == committed->revision && live->frameSerial && live->frameSerial == committed->frameSerial
+        && current->frameSerial == committed->frameSerial && live->phase == phase && committed->phase == phase
+        && live->family == family && committed->family == family
+        && !committed->ready && !current->ready && committed->busyReason == HG_POKEDEX_UI_BUSY_TRANSITION && current->busyReason == HG_POKEDEX_UI_BUSY_TRANSITION
+        && !(committed->keyEnabledMask | committed->controlCount | committed->controlEnabledMask | committed->visualCount
+            | current->keyEnabledMask | current->controlCount | current->controlEnabledMask | current->visualCount)
+        && !memcmp(committed, current, offsetof(HGNativePokedexUIState, revision))
+        && !memcmp((const u8 *)committed + offsetof(HGNativePokedexUIState, phase),
+            (const u8 *)current + offsetof(HGNativePokedexUIState, phase), sizeof(*current) - offsetof(HGNativePokedexUIState, phase));
+    if (transition) {
+        const u8 *track = (const u8 *)&current->continuation, *records = (const u8 *)current->controls;
+        for (u32 i = 0; i < sizeof(current->continuation); ++i) if (track[i]) { transition = FALSE; break; }
+        for (u32 i = 0; transition && i < sizeof(current->controls) + sizeof(current->visuals); ++i)
+            if (records[i]) transition = FALSE;
+        if (transition) { memcpy(live, committed, sizeof(*live)); return; }
+    }
+    HGNativePokedexUITrack phaseTrack = { .kind = HGNativePokedexUIDragKind(family) };
+    BOOL phaseMatches = family && family < HG_POKEDEX_UI_FAMILY_COUNT
+        && (phase == HGNativePokedexUIFamilyLimit(family, 0) || phase == HGNativePokedexUITrackPhase(&phaseTrack));
+    phaseTrack.handle = 1;
+    if ((phaseTrack.kind == HG_POKEDEX_UI_DRAG_HEIGHT || phaseTrack.kind == HG_POKEDEX_UI_DRAG_WEIGHT)
+        && phase == HGNativePokedexUITrackPhase(&phaseTrack)) phaseMatches = TRUE;
+    BOOL keep = sizeof(uintptr_t) <= 4 && committed && phaseMatches && live->active == 1
+        && live->version == HG_POKEDEX_UI_VERSION && live->byteSize == sizeof(*live)
+        && committed->active == 1 && committed->version == HG_POKEDEX_UI_VERSION && committed->byteSize == sizeof(*committed)
+        && live->ownerGeneration && live->ownerGeneration == committed->ownerGeneration
+        && live->revision == committed->revision && live->frameSerial && live->frameSerial == committed->frameSerial
+        && live->family == family && committed->family == family && committed->visualCount
+        && committed->visualCount <= HGNativePokedexUIFamilyLimit(family, 2);
+    uintptr_t arena = (uintptr_t)sNativePokedexWindowPixels;
+    if (keep) for (u32 i = 0; i < committed->visualCount; ++i) {
+        const HGNativePokedexUIVisual *visual = &committed->visuals[i];
+        if (!HGNativePokedexUIVisualIsValid(visual)) { keep = FALSE; break; }
+        if (visual->kind != HG_POKEDEX_UI_VISUAL_WINDOW) continue;
+        uintptr_t pixels = visual->source.window.pixelBuffer;
+        u32 size = visual->source.window.tileWidth * visual->source.window.tileHeight * 32;
+        if (sNativePokedexWindowGeneration != committed->ownerGeneration || pixels < arena
+            || pixels - arena > sNativePokedexWindowBytes || size > sNativePokedexWindowBytes - (pixels - arena)) { keep = FALSE; break; }
+    }
+    // A post-draw candidate grants no new capability: it can only prove the owned ready packet is still exact.
+    BOOL restore = keep && current && committed->phase == phase && phase == HGNativePokedexUIFamilyLimit(family, 0)
+        && committed->ready == 1 && committed->busyReason == HG_POKEDEX_UI_BUSY_NONE && !committed->continuation.kind
+        && current->ready == 1 && current->busyReason == HG_POKEDEX_UI_BUSY_NONE
+        && current->frameSerial == committed->frameSerial
+        && !memcmp(committed, current, offsetof(HGNativePokedexUIState, revision))
+        && !memcmp((const u8 *)committed + offsetof(HGNativePokedexUIState, phase),
+            (const u8 *)current + offsetof(HGNativePokedexUIState, phase),
+            offsetof(HGNativePokedexUIState, visuals) - offsetof(HGNativePokedexUIState, phase));
+    if (restore) for (u32 i = 0; i < committed->visualCount; ++i) {
+        const HGNativePokedexUIVisual *before = &committed->visuals[i], *now = &current->visuals[i];
+        if (!HGNativePokedexUIVisualIsValid(now) || memcmp(before, now, offsetof(HGNativePokedexUIVisual, source))) { restore = FALSE; break; }
+        if (now->kind != HG_POKEDEX_UI_VISUAL_WINDOW) {
+            if (memcmp(before, now, sizeof(*now))) { restore = FALSE; break; }
+            continue;
+        }
+        const HGNativePartyUIWindow *oldWindow = &before->source.window, *window = &now->source.window;
+        u32 size = window->tileWidth * window->tileHeight * 32;
+        uintptr_t source = window->pixelBuffer;
+        if (memcmp(&oldWindow->tileWidth, &window->tileWidth, sizeof(*window) - offsetof(HGNativePartyUIWindow, tileWidth))
+            || (source < arena + sizeof(sNativePokedexWindowPixels) && source + size > arena)
+            || memcmp((const void *)(uintptr_t)oldWindow->pixelBuffer, (const void *)source, size)) { restore = FALSE; break; }
+    }
+    if (restore) { memcpy(live, committed, sizeof(*live)); return; }
+    BOOL continuation = keep && committed->phase == phase && committed->busyReason == HG_POKEDEX_UI_BUSY_DRAG
+        && !committed->ready && HGNativePokedexUITrackIsValid(&committed->continuation, family)
+        && HGNativePokedexUITrackPhase(&committed->continuation) == phase;
+    if (keep) memcpy(live, committed, sizeof(*live));
+    else {
+        live->visualCount = 0;
+        memset(&live->continuation, 0, sizeof(*live) - offsetof(HGNativePokedexUIState, continuation));
+    }
+    live->phase = phase; live->family = family;
+    live->ready = live->keyEnabledMask = live->controlCount = live->controlEnabledMask = 0;
+    memset(live->controls, 0, sizeof(live->controls));
+    if (!continuation) memset(&live->continuation, 0, sizeof(live->continuation));
+    live->busyReason = continuation ? HG_POKEDEX_UI_BUSY_DRAG : HG_POKEDEX_UI_BUSY_BUILD;
+}
+#endif
 
 #define POKEDEX_MAGIC (0xBEEFCAFE)
 #define ASSERT_POKEDEX(pokedex)                       \

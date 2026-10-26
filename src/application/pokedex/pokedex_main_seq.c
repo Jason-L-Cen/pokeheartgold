@@ -241,7 +241,13 @@ static int (*const sMainSeqFuncs[POKEDEXAPP_MAINSEQ_MAX])(PokedexAppData *pokede
 };
 
 BOOL PokedexApp_RunMainSeq(PokedexAppData *pokedexApp, int *pState) {
+#ifdef HEARTGOLD_NATIVE
+    NativePokedexUIBegin(pokedexApp, *pState);
+#endif
     *pState = sMainSeqFuncs[*pState](pokedexApp);
+#ifdef HEARTGOLD_NATIVE
+    NativePokedexUIEnd(pokedexApp, *pState, FALSE);
+#endif
     if (*pState == POKEDEXAPP_MAINSEQ_MAX) {
         return FALSE;
     }
@@ -249,6 +255,9 @@ BOOL PokedexApp_RunMainSeq(PokedexAppData *pokedexApp, int *pState) {
     BgCellManager_Update(pokedexApp->bgCellManager);
     PokedexApp_TickSprites(pokedexApp);
     SpriteSystem_DrawSprites(pokedexApp->spriteManager);
+#ifdef HEARTGOLD_NATIVE
+    NativePokedexUIEnd(pokedexApp, *pState, TRUE);
+#endif
     return TRUE;
 }
 

@@ -42,11 +42,23 @@ u32 CheckOriginalIntegerRuntime(void) {
         CHECK((u64)_ll_mod((s64)a,(s64)b)==cases64[i].smod);
         CHECK(_ll_udiv(a,b)==cases64[i].udiv && _ull_div(a,b)==cases64[i].udiv);
         CHECK(_ull_mod(a,b)==cases64[i].umod);
+#ifdef HEARTGOLD_ABI32
+        volatile s64 signedA=(s64)a,signedB=(s64)b;
+        volatile u64 unsignedA=a,unsignedB=b;
+        CHECK((u64)(signedA/signedB)==cases64[i].sdiv);
+        CHECK(unsignedA/unsignedB==cases64[i].udiv);
+#endif
     }
     for (u32 i=0;i<sizeof(cases32)/sizeof(cases32[0]);i++) {
         CHECK((u32)_s32_div_f((s32)cases32[i].a,(s32)cases32[i].b)==cases32[i].sdiv);
         CHECK(_u32_div_f(cases32[i].a,cases32[i].b)==cases32[i].udiv);
         CHECK(_u32_div_not_0_f(cases32[i].a,cases32[i].b)==cases32[i].unchecked);
+#ifdef HEARTGOLD_ABI32
+        volatile s32 signedA=(s32)cases32[i].a,signedB=(s32)cases32[i].b;
+        volatile u32 unsignedA=cases32[i].a,unsignedB=cases32[i].b;
+        CHECK((u32)(signedA/signedB)==cases32[i].sdiv);
+        CHECK(unsignedA/unsignedB==cases32[i].udiv);
+#endif
     }
     for (u32 i=0;i<sizeof(shifts)/sizeof(shifts[0]);i++) {
         CHECK((u64)_ll_shl((s64)0xFEDCBA9876543210ULL,shifts[i].count)==shifts[i].result);

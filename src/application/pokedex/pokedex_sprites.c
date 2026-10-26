@@ -102,6 +102,9 @@ void PokedexApp_DeleteSprite(PokedexAppData *pokedexApp, int index) {
 
 void PokedexApp_DeleteAllSprites(PokedexAppData *pokedexApp) {
     u32 i;
+#ifdef HEARTGOLD_NATIVE
+    NativePokedexUIRetire(pokedexApp);
+#endif
 
     for (i = 0; i < 120; i++) {
         PokedexApp_DeleteSprite(pokedexApp, i);
@@ -1479,6 +1482,41 @@ void PokedexApp_MoveSprite25Vertically(PokedexAppData *pokedexApp, int dy) {
     ManagedSprite_SetPositionXY(pokedexApp->sprites[25], x, y + dy);
 }
 
+#ifdef HEARTGOLD_NATIVE
+// Same NCER bounds/radius convention as GF_G2dIsCellVisible; crop the committed renderer,
+// including original transforms/background, rather than extracting or redrawing OBJ graphics.
+u32 NativePokedexUISprite(PokedexAppData *app, HGNativePokedexUIState *state, u32 role, u32 index, u32 first, u32 count, BOOL sub) {
+    struct CellBounds { NNSG2dCellData cell; s16 maxX, maxY, minX, minY; };
+    int left = 256, top = 192, right = 0, bottom = 0;
+    if (first >= 120 || count > 120 - first) return HG_POKEDEX_UI_INDEX_NONE;
+    for (u32 i = first; i < first + count; ++i) {
+        ManagedSprite *sprite = app->sprites[i];
+        if (!sprite || !sprite->sprite || !ManagedSprite_GetDrawFlag(sprite)) continue;
+        NNSG2dCellAnimation *animation = Sprite_GetCellAnim(sprite->sprite);
+        if (!animation || !animation->pCurrentCell) continue;
+        const struct CellBounds *cell = (const struct CellBounds *)animation->pCurrentCell;
+        s16 x, y;
+        PokedexApp_GetSpritePos(app, i, &x, &y, sub);
+        int radius = (cell->cell.cellAttr & 63) * 4;
+        int x0 = -radius, y0 = -radius, x1 = radius, y1 = radius;
+        if (cell->cell.cellAttr & (1 << 11)) { x0 = cell->minX; x1 = cell->maxX; y0 = cell->minY; y1 = cell->maxY; }
+        VecFx32 *scale = Sprite_GetScalePtr(sprite->sprite);
+        if (scale) { x0 = FX_Mul(x0 * FX32_ONE, scale->x) / FX32_ONE; x1 = FX_Mul(x1 * FX32_ONE, scale->x) / FX32_ONE;
+            y0 = FX_Mul(y0 * FX32_ONE, scale->y) / FX32_ONE; y1 = FX_Mul(y1 * FX32_ONE, scale->y) / FX32_ONE; }
+        if (x0 > x1) { int swap = x0; x0 = x1; x1 = swap; }
+        if (y0 > y1) { int swap = y0; y0 = y1; y1 = swap; }
+        if (x + x0 < left) left = x + x0;
+        if (x + x1 > right) right = x + x1;
+        if (y + y0 < top) top = y + y0;
+        if (y + y1 > bottom) bottom = y + y1;
+    }
+    if (left < 0) left = 0;
+    if (top < 0) top = 0;
+    if (right > 256) right = 256;
+    if (bottom > 192) bottom = 192;
+    return NativePokedexUIRaster(state, role, index, sub, left, top, right - left, bottom - top);
+}
+#endif
 void PokedexApp_ShowSprite25(PokedexAppData *pokedexApp) {
     ManagedSprite_SetPositionXY(pokedexApp->sprites[25], 48, 24);
     PokedexApp_SetSpriteVisible(pokedexApp, 25, TRUE);

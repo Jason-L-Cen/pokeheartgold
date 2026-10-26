@@ -8,7 +8,7 @@ import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
-from check_abi32 import ROOT,BUILD,WABT,native_build_settings
+from check_abi32 import ROOT,BUILD,WABT,native_build_settings,restore_arm_division
 from prepare_exception_unwind import restore_exception_depth
 from import_original_content import read_boot_header
 from prepare_native_content import verify
@@ -20,7 +20,8 @@ def generate_engine(destination, module, run):
     header=destination/'hgengine-impl.h'
     content=header.read_text()
     if content.count('#include "hgengine.h"')!=1: raise RuntimeError('Generated implementation header changed')
-    header.write_text(content.replace('#include "hgengine.h"','#include "hgengine.h"\n#include "NativeImports.h"'))
+    content=content.replace('#include "hgengine.h"','#include "hgengine.h"\n#include "NativeImports.h"')
+    header.write_text(restore_arm_division(content))
     generated=sorted(destination.glob('hgengine_*.c'))
     if len(generated)!=16: raise RuntimeError('Expected sixteen generated native C units')
     invalid_calls=set()

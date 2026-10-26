@@ -386,6 +386,9 @@ void PokedexApp_VBlankCallback(void *cb_arg) {
     PokedexApp_ApplyPendingSubBgPriority(pokedexApp);
     DoScheduledBgGpuUpdates(pokedexApp->bgConfig);
     SpriteSystem_TransferOam();
+#ifdef HEARTGOLD_NATIVE
+    NativePokedexUICommit(pokedexApp);
+#endif
     OS_SetIrqCheckFlag(OS_IE_V_BLANK);
 }
 

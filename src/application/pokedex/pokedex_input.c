@@ -1166,6 +1166,9 @@ u32 PokedexApp_HandleSearchResultListInput(PokedexAppData *pokedexApp, int mode)
 }
 
 void PokedexApp_FreeGridInput(PokedexAppData *pokedexApp) {
+#ifdef HEARTGOLD_NATIVE
+    NativePokedexUIRetire(pokedexApp);
+#endif
     if (pokedexApp->gridInput != NULL) {
         GridInputHandler_Free(pokedexApp->gridInput);
         pokedexApp->gridInput = NULL;
@@ -1371,3 +1374,252 @@ u32 PokedexApp_HandleEntryMenuInput(PokedexAppData *pokedexApp, u32 *touched) {
     }
     return -1;
 }
+#ifdef HEARTGOLD_NATIVE
+extern const u8 gPokedexAreaScrollbarLengths[], gPokedexScrollbarLengths[];
+
+static u32 NativePokedexImage(const HGNativePokedexUIState *state, u32 role, u32 index) {
+    for (u32 i = 0; i < state->visualCount; ++i)
+        if (state->visuals[i].kind == HG_POKEDEX_UI_VISUAL_RASTER && state->visuals[i].role == role && state->visuals[i].index == index) return i;
+    return HG_POKEDEX_UI_INDEX_NONE;
+}
+
+static HGNativePokedexUIControl *NativePokedexControl(HGNativePokedexUIState *state, u32 role, u32 index, u32 visual, BOOL enabled, BOOL selected) {
+    if (visual == HG_POKEDEX_UI_INDEX_NONE) return NULL;
+    GF_ASSERT(state->controlCount < HGNativePokedexUIFamilyLimit(state->family, 1));
+    if (state->controlCount >= HGNativePokedexUIFamilyLimit(state->family, 1)) {
+        state->busyReason = HG_POKEDEX_UI_BUSY_UNSUPPORTED; return NULL;
+    }
+    u32 id = state->controlCount++;
+    HGNativePokedexUIControl *control = &state->controls[id];
+    control->role = role; control->index = index; control->visualId = visual;
+    control->flags = (enabled ? HG_POKEDEX_UI_CONTROL_ENABLED : 0) | (selected ? HG_POKEDEX_UI_CONTROL_SELECTED : 0);
+    if (enabled) state->controlEnabledMask |= 1u << id;
+    return control;
+}
+
+static void NativePokedexKey(HGNativePokedexUIState *state, u32 role, u32 index, u32 visual, u32 key, BOOL enabled) {
+    HGNativePokedexUIControl *c = NativePokedexControl(state, role, index, visual, enabled, FALSE);
+    if (c) { c->transportKind = HG_POKEDEX_UI_TRANSPORT_KEY; c->transport.key = key; }
+}
+
+// The exact original first-hit table is authoritative, including circle entries and overlap.
+static void NativePokedexPoint(HGNativePokedexUIState *state, const TouchscreenHitbox *table, u32 hit,
+    u32 x, u32 y, u32 role, u32 index, u32 visual, BOOL enabled, BOOL selected) {
+    if (!TouchscreenHitbox_PointIsIn(&table[hit], x, y) || TouchscreenHitbox_FindHitboxAtPoint(table, x, y) != hit) return;
+    HGNativePokedexUIControl *c = NativePokedexControl(state, role, index, visual, enabled, selected);
+    if (c) { c->transportKind = HG_POKEDEX_UI_TRANSPORT_TOUCH; c->transport.touch.x = x; c->transport.touch.y = y; }
+}
+
+static void NativePokedexTable(HGNativePokedexUIState *state, const TouchscreenHitbox *table, u32 hit,
+    u32 role, u32 index, u32 visual, BOOL enabled, BOOL selected) {
+    const TouchscreenHitbox *box = &table[hit];
+    BOOL circle = box->rect.top == TOUCHSCREEN_CIRCLE_SENTINEL;
+    u32 x = circle ? box->circle.x : (box->rect.left + box->rect.right) / 2;
+    u32 y = circle ? box->circle.y : (box->rect.top + box->rect.bottom) / 2;
+    if (visual == HG_POKEDEX_UI_INDEX_NONE) {
+        int left = circle ? (int)x - box->circle.r : box->rect.left;
+        int top = circle ? (int)y - box->circle.r : box->rect.top;
+        int width = circle ? 2 * box->circle.r : box->rect.right - box->rect.left;
+        int height = circle ? 2 * box->circle.r : box->rect.bottom - box->rect.top;
+        u32 imageRole = role == HG_POKEDEX_UI_ROLE_TAB ? HG_POKEDEX_UI_IMAGE_TAB
+            : role == HG_POKEDEX_UI_ROLE_LANGUAGE ? HG_POKEDEX_UI_IMAGE_LANGUAGE
+            : role == HG_POKEDEX_UI_ROLE_PAGE || role == HG_POKEDEX_UI_ROLE_RANGE_STEP ? HG_POKEDEX_UI_IMAGE_ARROW
+            : role == HG_POKEDEX_UI_ROLE_TIME ? HG_POKEDEX_UI_IMAGE_OPTION
+            : role == HG_POKEDEX_UI_ROLE_FACING || role == HG_POKEDEX_UI_ROLE_SIDE || role == HG_POKEDEX_UI_ROLE_FORM_STEP ? HG_POKEDEX_UI_IMAGE_COMPARE_CONTROL
+            : HG_POKEDEX_UI_IMAGE_FOOTER;
+        // Semantic indices separate independently visible artwork sharing a role.
+        u32 imageIndex = role == HG_POKEDEX_UI_ROLE_LANGUAGE ? index + 2 : role == HG_POKEDEX_UI_ROLE_SIDE ? index + 6
+            : imageRole == HG_POKEDEX_UI_IMAGE_FOOTER ? role : index;
+        if (role == HG_POKEDEX_UI_ROLE_TAB) { left = 64 * index; top = 160; width = 64; height = 32; }
+        visual = NativePokedexUIRaster(state, imageRole, imageIndex, 0, left, top, width, height);
+    }
+    NativePokedexPoint(state, table, hit, x, y, role, index, visual, enabled, selected);
+}
+
+static BOOL NativePokedexTrack(PokedexAppData *app, const HGNativePokedexUIState *state, u32 handle, HGNativePokedexUITrack *track) {
+    MI_CpuClear8(track, sizeof(*track));
+    track->kind = HGNativePokedexUIDragKind(state->family); track->handle = handle;
+    if (track->kind == HG_POKEDEX_UI_DRAG_HEIGHT || track->kind == HG_POKEDEX_UI_DRAG_WEIGHT) {
+        u32 sprite = handle ? 11 : 5;
+        if (handle > 1 || !app->sprites[sprite]) return FALSE;
+        s16 x, y; PokedexApp_GetSpritePos(app, sprite, &x, &y, FALSE);
+        track->axis = HG_POKEDEX_UI_AXIS_X; track->fixed = handle ? 132 : 60;
+        track->minimum = PokedexApp_SliderValueToX(app, 0); track->maximum = PokedexApp_SliderValueToX(app, 152); track->position = x;
+    } else {
+        u32 sprite = track->kind == HG_POKEDEX_UI_DRAG_LIST ? 1 : track->kind == HG_POKEDEX_UI_DRAG_RESULTS ? 18 : 5;
+        if (handle || !track->kind || !app->sprites[sprite]) return FALSE;
+        s16 x, y; PokedexApp_GetSpritePos(app, sprite, &x, &y, FALSE);
+        track->axis = HG_POKEDEX_UI_AXIS_Y; track->fixed = x; track->position = y;
+        if (track->kind == HG_POKEDEX_UI_DRAG_LIST || track->kind == HG_POKEDEX_UI_DRAG_RESULTS) {
+            if (!state->listLength || (track->kind == HG_POKEDEX_UI_DRAG_LIST ? state->listLength - 1 : state->listLength) / 15 == 0) return FALSE;
+            track->minimum = PokedexApp_GetListScrollbarMinY(app, sprite); track->maximum = PokedexApp_GetListScrollbarMaxY(app, sprite);
+        } else {
+            BOOL area = track->kind == HG_POKEDEX_UI_DRAG_AREA;
+            if ((area ? app->areaList.areas.nMaps : app->numSeenForms) < 2) return FALSE;
+            const u8 *lengths = area ? gPokedexAreaScrollbarLengths : gPokedexScrollbarLengths;
+            track->minimum = PokedexApp_GetScrollbarMinY(app, sprite, lengths, area ? 96 : 64, 86);
+            track->maximum = PokedexApp_GetScrollbarMaxY(app, sprite, lengths, area ? 96 : 64, 86);
+        }
+    }
+    return HGNativePokedexUITrackIsValid(track, state->family);
+}
+
+static void NativePokedexDragControl(PokedexAppData *app, HGNativePokedexUIState *state, const TouchscreenHitbox *table,
+    u32 hit, u32 role, u32 handle, u32 visual) {
+    HGNativePokedexUITrack track;
+    if (!NativePokedexTrack(app, state, handle, &track)) return;
+    u32 x = track.axis == HG_POKEDEX_UI_AXIS_X ? track.position : track.fixed;
+    u32 y = track.axis == HG_POKEDEX_UI_AXIS_Y ? track.position : track.fixed;
+    if (!TouchscreenHitbox_PointIsIn(&table[hit], x, y) || TouchscreenHitbox_FindHitboxAtPoint(table, x, y) != hit) return;
+    HGNativePokedexUIControl *c = NativePokedexControl(state, role, handle, visual, TRUE, FALSE);
+    if (c) { c->transportKind = HG_POKEDEX_UI_TRANSPORT_TRACK; c->transport.track = track; }
+}
+
+void NativePokedexUIInputs(PokedexAppData *app, HGNativePokedexUIState *state) {
+    u32 family = state->family;
+    BOOL continuation = state->busyReason == HG_POKEDEX_UI_BUSY_DRAG;
+    if (continuation) {
+        u32 handle = state->phase == 41 || state->phase == 48;
+        if (!NativePokedexTrack(app, state, handle, &state->continuation)) { state->busyReason = HG_POKEDEX_UI_BUSY_UNSUPPORTED; return; }
+        // Copy the same original control artwork during a drag, then discard ALL normal
+        // capabilities below. Only the read-only continuation geometry remains actionable.
+        state->busyReason = HG_POKEDEX_UI_BUSY_NONE;
+    }
+    if (state->busyReason) return;
+    state->keyEnabledMask = 1u << HG_POKEDEX_UI_KEY_BACK;
+    if (!state->resultCount && (family == HG_POKEDEX_UI_FAMILY_LIST || family == HG_POKEDEX_UI_FAMILY_OVERVIEW)) {
+        NativePokedexTable(state, family == HG_POKEDEX_UI_FAMILY_LIST ? sPokedexListHitboxes : sPokedexListMenuHitboxes,
+            family == HG_POKEDEX_UI_FAMILY_LIST ? 10 : 4, HG_POKEDEX_UI_ROLE_EXIT, 0, HG_POKEDEX_UI_INDEX_NONE, TRUE, FALSE);
+        return;
+    }
+    if (family == HG_POKEDEX_UI_FAMILY_OVERVIEW) {
+        NativePokedexTable(state, sPokedexListMenuHitboxes, 3, HG_POKEDEX_UI_ROLE_OPEN_LIST, 0, HG_POKEDEX_UI_INDEX_NONE, TRUE, FALSE);
+        NativePokedexTable(state, sPokedexListMenuHitboxes, 2, HG_POKEDEX_UI_ROLE_OPEN_SEARCH, 0, HG_POKEDEX_UI_INDEX_NONE, TRUE, FALSE);
+        NativePokedexTable(state, sPokedexListMenuHitboxes, 4, HG_POKEDEX_UI_ROLE_EXIT, 0, HG_POKEDEX_UI_INDEX_NONE, TRUE, FALSE);
+        u32 visual = NativePokedexUISprite(app, state, HG_POKEDEX_UI_IMAGE_FOOTER, 10, 0, 1, FALSE);
+        NativePokedexKey(state, HG_POKEDEX_UI_ROLE_DEX_MODE, 0, visual, PAD_KEY_LEFT, app->nationalDex && app->dexMode == 0);
+        NativePokedexKey(state, HG_POKEDEX_UI_ROLE_DEX_MODE, 1, visual, PAD_KEY_RIGHT, app->nationalDex && app->dexMode == 1);
+        state->keyEnabledMask |= 1u << HG_POKEDEX_UI_KEY_CONFIRM;
+        if (app->nationalDex) state->keyEnabledMask |= 1u << (app->dexMode == 0 ? HG_POKEDEX_UI_KEY_LEFT : HG_POKEDEX_UI_KEY_RIGHT);
+    } else if (family == HG_POKEDEX_UI_FAMILY_LIST || family == HG_POKEDEX_UI_FAMILY_SEARCH_RESULTS) {
+        BOOL search = family == HG_POKEDEX_UI_FAMILY_SEARCH_RESULTS;
+        BOOL species = state->species && (!search || app->listPage || app->listCursor);
+        u32 last = search ? state->listLength / 15 : state->listLength ? (state->listLength - 1) / 15 : 0;
+        for (u32 i = 0; i < 15; ++i) NativePokedexPoint(state, sPokedexListHitboxes, 0,
+            47 + 40 * (i % 5), 24 + 40 * (i / 5), HG_POKEDEX_UI_ROLE_GRID_CELL, i,
+            NativePokedexImage(state, HG_POKEDEX_UI_IMAGE_GRID_CELL, i), i != app->listCursor || species || (search && !app->listPage && !i), i == app->listCursor);
+        static const u32 roles[] = { HG_POKEDEX_UI_ROLE_OPEN_SEARCH, HG_POKEDEX_UI_ROLE_CRY, HG_POKEDEX_UI_ROLE_ENTRY, HG_POKEDEX_UI_ROLE_EXIT };
+        for (u32 i = 0; i < 4; ++i) NativePokedexTable(state, sPokedexListHitboxes, 7 + i, roles[i], 0,
+            HG_POKEDEX_UI_INDEX_NONE, (i != 1 && i != 2) || species, FALSE);
+        if (!search || app->listPage || app->listCursor)
+            for (u32 i = 0; i < 2; ++i) NativePokedexTable(state, sPokedexListHitboxes, 5 + i, HG_POKEDEX_UI_ROLE_LANGUAGE, i,
+                HG_POKEDEX_UI_INDEX_NONE, species && PokedexApp_HasForeignEntries(app, state->species), FALSE);
+        for (u32 i = 0; i < 2; ++i) NativePokedexTable(state, sPokedexListHitboxes, 2 + i, HG_POKEDEX_UI_ROLE_PAGE, i,
+            HG_POKEDEX_UI_INDEX_NONE, i ? app->listPage < last : app->listPage > 0, FALSE);
+        const TouchscreenHitbox *trackBox = &sPokedexListHitboxes[4];
+        u32 track = NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_TRACK, 0, 0, trackBox->rect.left, trackBox->rect.top,
+            trackBox->rect.right - trackBox->rect.left, trackBox->rect.bottom - trackBox->rect.top);
+        NativePokedexDragControl(app, state, sPokedexListHitboxes, 4, HG_POKEDEX_UI_ROLE_SCROLLBAR, 0, track);
+        if (!search) NativePokedexKey(state, HG_POKEDEX_UI_ROLE_OPEN_LIST, 0,
+            NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_FOOTER, 10, 0, 0, 0, 24, 124), PAD_BUTTON_START, TRUE);
+        if (app->listCursor >= 5 || app->listPage) state->keyEnabledMask |= 1u << HG_POKEDEX_UI_KEY_UP;
+        if (app->listCursor < 10 || app->listPage < last) state->keyEnabledMask |= 1u << HG_POKEDEX_UI_KEY_DOWN;
+        if (app->listCursor || app->listPage) state->keyEnabledMask |= 1u << HG_POKEDEX_UI_KEY_LEFT;
+        if (app->listCursor < 14 || app->listPage < last) state->keyEnabledMask |= 1u << HG_POKEDEX_UI_KEY_RIGHT;
+        if (species || (search && !app->listPage && !app->listCursor)) state->keyEnabledMask |= 1u << HG_POKEDEX_UI_KEY_CONFIRM;
+    } else if (family >= HG_POKEDEX_UI_FAMILY_SEARCH_MENU && family <= HG_POKEDEX_UI_FAMILY_SEARCH_BODY) {
+        const TouchscreenHitbox *table = NULL;
+        u32 count = HGNativePokedexUIFamilyLimit(family, 3), first = 0;
+        switch (family) {
+        case HG_POKEDEX_UI_FAMILY_SEARCH_MENU: table = sSearchMenuHitboxes; first = 20; break;
+        case HG_POKEDEX_UI_FAMILY_SEARCH_ORDER: table = sSearchOrderHitboxes; first = 38; break;
+        case HG_POKEDEX_UI_FAMILY_SEARCH_NAME: table = sSearchNameHitboxes; break;
+        case HG_POKEDEX_UI_FAMILY_SEARCH_TYPE: table = sSearchTypeHitboxes; first = 47; break;
+        case HG_POKEDEX_UI_FAMILY_SEARCH_HEIGHT: table = sSearchHeightHitboxes; break;
+        case HG_POKEDEX_UI_FAMILY_SEARCH_WEIGHT: table = sSearchWeightHitboxes; break;
+        case HG_POKEDEX_UI_FAMILY_SEARCH_AREA: table = sSearchAreaHitboxes; first = 76; break;
+        case HG_POKEDEX_UI_FAMILY_SEARCH_BODY: table = sSearchFormHitboxes; break;
+        }
+        if (!app->gridInput || state->gridCursor >= count) { state->keyEnabledMask = 0; state->busyReason = HG_POKEDEX_UI_BUSY_UNSUPPORTED; return; }
+        state->keyEnabledMask |= 15u;
+        if (app->gridInput->enabledFlag[state->gridCursor >> 5] & (1u << (state->gridCursor & 31))) state->keyEnabledMask |= 1u << HG_POKEDEX_UI_KEY_CONFIRM;
+        BOOL range = family == HG_POKEDEX_UI_FAMILY_SEARCH_HEIGHT || family == HG_POKEDEX_UI_FAMILY_SEARCH_WEIGHT;
+        for (u32 i = 0; i < count; ++i) {
+            BOOL footer = family != HG_POKEDEX_UI_FAMILY_SEARCH_MENU && i >= count - 2;
+            u32 visual = footer ? NativePokedexUIFindWindow(state, i == count - 2 ? 17 : 19)
+                : first ? NativePokedexUIFindWindow(state, first + i)
+                : NativePokedexImage(state, HG_POKEDEX_UI_IMAGE_OPTION, i);
+            u32 role = footer ? (i == count - 2 ? HG_POKEDEX_UI_ROLE_ACCEPT : HG_POKEDEX_UI_ROLE_CANCEL)
+                : family == HG_POKEDEX_UI_FAMILY_SEARCH_MENU ? (i < 7 ? HG_POKEDEX_UI_ROLE_CRITERION : i == 7 ? HG_POKEDEX_UI_ROLE_RESET : i == 8 ? HG_POKEDEX_UI_ROLE_SEARCH : HG_POKEDEX_UI_ROLE_CANCEL)
+                : HG_POKEDEX_UI_ROLE_OPTION;
+            if (family == HG_POKEDEX_UI_FAMILY_SEARCH_MENU && i >= 7) visual = NativePokedexUIFindWindow(state, 17 + i - 7);
+            BOOL enabled = !!(app->gridInput->enabledFlag[i >> 5] & (1u << (i & 31)));
+            if (range && i < 2) {
+                const TouchscreenHitbox *box = &table[i];
+                visual = NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_TRACK, i, 0, box->rect.left, box->rect.top, box->rect.right - box->rect.left, box->rect.bottom - box->rect.top);
+                NativePokedexDragControl(app, state, table, i, HG_POKEDEX_UI_ROLE_RANGE_HANDLE, i, visual);
+            } else NativePokedexTable(state, table, i, role, footer || (family == HG_POKEDEX_UI_FAMILY_SEARCH_MENU && i >= 7) ? 0 : i,
+                visual, enabled, state->gridCursor == i);
+        }
+        if (range) {
+            u32 min = state->data.range.minIndex, max = state->data.range.maxIndex;
+            for (u32 i = 0; i < 4; ++i) NativePokedexTable(state, sPokedexSearchSliderHitboxes, i, HG_POKEDEX_UI_ROLE_RANGE_STEP, i,
+                HG_POKEDEX_UI_INDEX_NONE, i == 0 ? max < 152 : i == 1 ? max > min : i == 2 ? min < max : min > 0, FALSE);
+        }
+    } else {
+        BOOL caught = state->species && Pokedex_CheckMonCaughtFlag(app->args->pokedex, state->species);
+        if (family != HG_POKEDEX_UI_FAMILY_COMPARE) for (u32 i = 0; i < 4; ++i)
+            NativePokedexTable(state, sPokedexEntryTabHitboxes, i, HG_POKEDEX_UI_ROLE_TAB, i, HG_POKEDEX_UI_INDEX_NONE, i != 1 || caught, app->entryTab == i + 1);
+        if (family == HG_POKEDEX_UI_FAMILY_AREA || family == HG_POKEDEX_UI_FAMILY_FORMS) {
+            BOOL area = family == HG_POKEDEX_UI_FAMILY_AREA;
+            const TouchscreenHitbox *table = area ? sPokedexAreaHitboxes : sPokedexFormsHitboxes;
+            int position = area ? app->areaListPos : app->selectedForm;
+            int length = area ? app->areaList.areas.nMaps : app->numSeenForms;
+            static const int delta[] = { -2, -1, 2, 1, -1, 1 };
+            for (u32 i = 0; i < 8; ++i) {
+                if (i == 6) {
+                    const TouchscreenHitbox *box = &table[i];
+                    u32 visual = NativePokedexUIRaster(state, HG_POKEDEX_UI_IMAGE_TRACK, 0, 0, box->rect.left, box->rect.top,
+                        box->rect.right - box->rect.left, box->rect.bottom - box->rect.top);
+                    NativePokedexDragControl(app, state, table, i, HG_POKEDEX_UI_ROLE_SCROLLBAR, 0, visual); continue;
+                }
+                u32 visual = HG_POKEDEX_UI_INDEX_NONE;
+                if (i < 4) { static const u8 rows[] = { 0, 1, 4, 3 }; visual = NativePokedexUIFindWindow(state, (area ? 8 : 10) + rows[i]); }
+                if (!area && i == 7) visual = NativePokedexUIFindWindow(state, 4);
+                if (area && i == 7) visual = NativePokedexUIFindWindow(state, 5);
+                BOOL enabled = i < 6 ? position + delta[i] >= 0 && position + delta[i] < length : area ? app->nationalDex && app->areaRegion != 0 : length != 1;
+                NativePokedexTable(state, table, i, i < 6 ? HG_POKEDEX_UI_ROLE_FORM_STEP : area ? HG_POKEDEX_UI_ROLE_REGION : HG_POKEDEX_UI_ROLE_COMPARE,
+                    i < 6 ? i : 0, visual, enabled, FALSE);
+            }
+            if (area) {
+                NativePokedexTable(state, table, 8, HG_POKEDEX_UI_ROLE_REGION, 1, NativePokedexUIFindWindow(state, 7), app->nationalDex && app->areaRegion != 1, FALSE);
+                for (u32 i = 0; i < 3; ++i) NativePokedexTable(state, table, 9 + i, HG_POKEDEX_UI_ROLE_TIME, i, HG_POKEDEX_UI_INDEX_NONE, app->areaTimeOfDay != i, app->areaTimeOfDay == i);
+            }
+            NativePokedexKey(state, HG_POKEDEX_UI_ROLE_ENTRY, 0, NativePokedexUIFindWindow(state, area ? 4 : 0), area ? PAD_KEY_LEFT : PAD_KEY_RIGHT, TRUE);
+            state->keyEnabledMask |= 3u;
+            if (area || length != 1) state->keyEnabledMask |= 1u << HG_POKEDEX_UI_KEY_CONFIRM;
+            state->keyEnabledMask |= (1u << HG_POKEDEX_UI_KEY_LEFT) | (1u << HG_POKEDEX_UI_KEY_RIGHT);
+        } else if (family == HG_POKEDEX_UI_FAMILY_COMPARE) {
+            for (u32 i = 0; i < 8; ++i) NativePokedexTable(state, sPokedexFormCompareHitboxes, i,
+                i < 4 ? HG_POKEDEX_UI_ROLE_FORM_STEP : i == 4 ? HG_POKEDEX_UI_ROLE_FACING : i == 5 ? HG_POKEDEX_UI_ROLE_CANCEL : HG_POKEDEX_UI_ROLE_SIDE,
+                i < 4 ? i : i >= 6 ? i - 6 : 0, i == 4 ? NativePokedexUIFindWindow(state, 8) : i == 5 ? NativePokedexUIFindWindow(state, 9) : HG_POKEDEX_UI_INDEX_NONE,
+                i == 4 || i == 5 || (app->numSeenForms >= 3 && (i < 6 || app->compareSide != i - 6)), FALSE);
+            state->keyEnabledMask |= 1u << HG_POKEDEX_UI_KEY_CONFIRM;
+            if (app->numSeenForms >= 3) state->keyEnabledMask |= 15u;
+        } else if (family == HG_POKEDEX_UI_FAMILY_SIZE) {
+            NativePokedexKey(state, HG_POKEDEX_UI_ROLE_REPLAY, 0, NativePokedexImage(state, HG_POKEDEX_UI_IMAGE_SIZE_SCENE, 0), PAD_BUTTON_A, TRUE);
+            state->keyEnabledMask |= (1u << HG_POKEDEX_UI_KEY_LEFT) | (1u << HG_POKEDEX_UI_KEY_RIGHT) | (1u << HG_POKEDEX_UI_KEY_CONFIRM);
+        } else if (family == HG_POKEDEX_UI_FAMILY_ENTRY) {
+            NativePokedexTable(state, sPokedexEntryMenuHitboxes, 0, HG_POKEDEX_UI_ROLE_ENTRY_BACK, 0,
+                NativePokedexImage(state, HG_POKEDEX_UI_IMAGE_ENTRY_BODY, 0), TRUE, FALSE);
+            state->keyEnabledMask |= (1u << HG_POKEDEX_UI_KEY_LEFT) | (1u << HG_POKEDEX_UI_KEY_RIGHT) | (1u << HG_POKEDEX_UI_KEY_CONFIRM);
+        }
+    }
+    if (continuation) {
+        state->controlCount = state->controlEnabledMask = state->keyEnabledMask = 0;
+        MI_CpuClear8(state->controls, sizeof(state->controls));
+        if (!state->busyReason) state->busyReason = HG_POKEDEX_UI_BUSY_DRAG;
+    }
+    if (state->busyReason) state->controlEnabledMask = state->keyEnabledMask = 0;
+}
+#endif

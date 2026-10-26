@@ -36,6 +36,35 @@
 // Battle UI observations must survive OVY12's original data/BSS restoration.
 HGNativeBattleUIState gNativeBattleUIState;
 const HGNativeBattleUIState *HGNativeBattleUIGetState(void) { return &gNativeBattleUIState; }
+HGNativeCaptureUIState gNativeCaptureUIState;
+const HGNativeCaptureUIState *HGNativeCaptureUIGetState(void) { return &gNativeCaptureUIState; }
+
+void NativeCaptureUIInvalidate(void) {
+    u32 generation = gNativeCaptureUIState.ownerGeneration, revision = gNativeCaptureUIState.revision + 1;
+    MI_CpuClear8(&gNativeCaptureUIState, sizeof(gNativeCaptureUIState));
+    gNativeCaptureUIState.ownerGeneration = generation;
+    gNativeCaptureUIState.revision = revision ? revision : 1;
+}
+
+void NativeCaptureUIBegin(uint32_t species, uint32_t form) {
+    NativeCaptureUIInvalidate();
+    if (!++gNativeCaptureUIState.ownerGeneration) ++gNativeCaptureUIState.ownerGeneration;
+    gNativeCaptureUIState.active = TRUE;
+    gNativeCaptureUIState.callerPhase = HG_CAPTURE_UI_DISMISS_PHASE;
+    gNativeCaptureUIState.species = species;
+    gNativeCaptureUIState.form = form;
+}
+
+void NativeCaptureUIPublish(uint32_t callerPhase, uint32_t done) {
+    u32 ready = callerPhase == HG_CAPTURE_UI_DISMISS_PHASE && done == 1;
+    if (!gNativeCaptureUIState.active || (gNativeCaptureUIState.callerPhase == callerPhase
+        && gNativeCaptureUIState.done == done && gNativeCaptureUIState.ready == ready)) return;
+    if (!++gNativeCaptureUIState.revision) ++gNativeCaptureUIState.revision;
+    gNativeCaptureUIState.callerPhase = callerPhase;
+    gNativeCaptureUIState.ready = ready;
+    gNativeCaptureUIState.done = done;
+}
+
 // The whole submenu observations must also survive OVY8 unload/reload.
 HGNativeBattleBagUIState gNativeBattleBagUIState;
 HGNativeBattlePartyUIState gNativeBattlePartyUIState;
@@ -52,6 +81,9 @@ static void BattleSetup_SetBattleBgAndTerrain(BattleSetup *setup, FieldSystem *f
 
 BattleSetup *BattleSetup_New(enum HeapID heapID, u32 battleTypeFlags) {
     int i;
+#ifdef HEARTGOLD_NATIVE
+    NativeCaptureUIInvalidate();
+#endif
     BattleSetup *setup = Heap_Alloc(heapID, sizeof(BattleSetup));
     MI_CpuClear8(setup, sizeof(BattleSetup));
     setup->battleType = battleTypeFlags;
@@ -156,6 +188,9 @@ BattleSetup *BattleSetup_New_Tutorial(enum HeapID heapID, FieldSystem *fieldSyst
 
 void BattleSetup_Delete(BattleSetup *setup) {
     int i;
+#ifdef HEARTGOLD_NATIVE
+    NativeCaptureUIInvalidate();
+#endif
 
     for (i = 0; i < BATTLER_MAX; ++i) {
         GF_ASSERT(setup->party[i] != NULL);

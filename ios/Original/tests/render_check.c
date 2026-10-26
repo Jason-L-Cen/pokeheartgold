@@ -151,6 +151,15 @@ static void checkObjectMosaic(void) {
 }
 
 void CheckNative2D(void) {
+    u16 blendControl=reg_G2_BLDCNT, blendAlpha=reg_G2_BLDALPHA;
+    reg_G2_BLDCNT=0xFFFF; reg_G2_BLDALPHA=0x1234;
+    *(vu16 *)REG_BLDCNT_ADDR = 0;
+    CHECK(!reg_G2_BLDCNT && reg_G2_BLDALPHA==0x1234);
+    G2x_SetBlendAlpha_(REG_BLDCNT_ADDR, GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG2, 0xF, 7);
+    CHECK(reg_G2_BLDCNT==0x0640 && reg_G2_BLDALPHA==0x070F);
+    G2x_SetBlendAlpha_(REG_BLDCNT_ADDR, GX_BLEND_PLANEMASK_NONE, GX_BLEND_PLANEMASK_BG1 | GX_BLEND_PLANEMASK_BG3 | GX_BLEND_PLANEMASK_BD, 6, 10);
+    CHECK(reg_G2_BLDCNT==0x2A40 && reg_G2_BLDALPHA==0x0A06);
+    reg_G2_BLDCNT=blendControl; reg_G2_BLDALPHA=blendAlpha;
     const u8 lz10[] = {0x10,9,0,0,0x10,'A','B','C',0x30,2}; u8 decoded[300];
     CHECK(HGNativeUncompressLZ(lz10, sizeof(lz10), decoded, sizeof(decoded)) && memcmp(decoded, "ABCABCABC", 9) == 0);
     for (unsigned i = 0; i < sizeof(lz10); i++) CHECK(!HGNativeUncompressLZ(lz10, i, decoded, sizeof(decoded)));

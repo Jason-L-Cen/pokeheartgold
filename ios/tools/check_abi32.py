@@ -78,13 +78,33 @@ def prepare_tools():
         if not binary.is_file(): run(['tar','-xzf',archive,'-C',TOOLS],name+'.extract.log')
 
 
+def restore_arm_division(source):
+    """Keep the original MSL ARM quotient behavior at the wasm2c boundary."""
+    signed = r"""#define DIV_S(ut, min, x, y)                                  \
+  ((UNLIKELY((y) == 0))                  ? TRAP(DIV_BY_ZERO)  \
+   : (UNLIKELY((x) == min && (y) == -1)) ? TRAP(INT_OVERFLOW) \
+                                         : (ut)((x) / (y)))
+"""
+    unsigned = '#define DIV_U(x, y) DIVREM_U(/, x, y)\n'
+    restored_signed = signed.replace('TRAP(DIV_BY_ZERO)', '(ut)(x)').replace('TRAP(INT_OVERFLOW)', '(ut)(x)')
+    restored_unsigned = '#define DIV_U(x, y) ((UNLIKELY((y) == 0)) ? (x) : ((x) / (y)))\n'
+    for name, original, restored in (('DIV_S', signed, restored_signed), ('DIV_U', unsigned, restored_unsigned)):
+        if len(re.findall(r'(?m)^[ \t]*#[ \t]*define[ \t]+' + name + r'[ \t]*\(', source)) != 1:
+            raise RuntimeError('Pinned wasm2c division macro count changed: ' + name)
+        if source.count(original) == 1 and not source.count(restored):
+            source = source.replace(original, restored)
+        elif source.count(restored) != 1 or source.count(original):
+            raise RuntimeError('Pinned wasm2c division macro layout changed: ' + name)
+    return source
+
+
 def link_engine(link,listing,destination,native_content=None):
     target=destination/'engine.wasm'; target.unlink(missing_ok=True)
     command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--export=HGNativeRegisterAddress',
              '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D',
              '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth','-Wl,--export=HGNativeGeometryFrame',
-             '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativePartyUIGetState','-Wl,--export=HGNativePartyUIGetStats',
-             '-Wl,--export=HGNativeBagUIGetState','-Wl,--export=HGNativeSummaryUIGetState','-Wl,--export=HGNativeEvolutionUIGetState',
+             '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativeCaptureUIGetState','-Wl,--export=HGNativeNamingUIGetState','-Wl,--export=HGNativePartyUIGetState','-Wl,--export=HGNativePartyUIGetStats',
+             '-Wl,--export=HGNativeBagUIGetState','-Wl,--export=HGNativeSummaryUIGetState','-Wl,--export=HGNativeEvolutionUIGetState','-Wl,--export=HGNativePokedexUIGetState',
              '-Wl,--export=HGNativeBattleBagUIGetState','-Wl,--export=HGNativeBattlePartyUIGetState',
              '-Wl,--export=HGNativeFieldMap','-Wl,--export=HGNativeFieldMenuIcons','-Wl,--error-limit=0',
              '@'+str(listing),'-o',str(target)]
@@ -565,6 +585,9 @@ def main():
     sources.append('src/party.c')
     sources.append('ios/Original/tests/summary_ui_check.c')
     sources.append('ios/Original/tests/evolution_ui_check.c')
+    sources.append('ios/Original/tests/pokedex_ui_check.c')
+    sources.append('ios/Original/tests/naming_ui_check.c')
+    sources.append('src/pokedex.c')
     sources += ['src/mail.c', 'src/seal_case.c', 'src/move.c', 'src/msgdata.c', 'src/pm_string.c', 'src/item.c']
     sources.append('ios/Original/tests/ball_pocket_check.c')
     sources.append('ios/Original/tests/item_reply_check.c')
@@ -988,6 +1011,8 @@ def main():
     exports.append('CheckOriginalBagPacketUI')
     exports.append('CheckOriginalSummaryUI')
     exports.append('CheckOriginalEvolutionUI')
+    exports.append('CheckPokedexUI')
+    exports.append('CheckNativeNamingUI')
     exports.append('CheckOriginalBallPocket')
     exports.append('CheckOriginalItemReply')
     exports.append('HGSoundMusicAction')
@@ -1025,6 +1050,7 @@ def main():
     if generated.count('#include "hg32.h"') != 1:
         raise RuntimeError('Pinned generated C header layout changed')
     generated = generated.replace('#include "hg32.h"', '#include "hg32.h"\n#include "NativeImports.h"')
+    generated = restore_arm_division(generated)
     from prepare_exception_unwind import restore_exception_depth
     generated,_=restore_exception_depth(generated)
     expected_stack_writes = len(re.findall(r'w2c_0x5F_stack_pointer\s*=', generated))
