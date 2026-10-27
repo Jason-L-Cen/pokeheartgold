@@ -7,7 +7,7 @@ static HGSaveRoundtripQAState sr;
 static HGSaveRoundtripSnapshot srExpected;
 static uint32_t srRole,srStage,srLease,srReads,srReleaseReads,srOwner,srGeneration,srRevision,srKeys,srX,srY,srTouch;
 static uint32_t srPromptMask,srMenuCloses,srSnapshotWritten,srCompared,srDone;
-static uint32_t srBeforeWritten;
+static uint32_t srBeforeWritten,srVisualMask;
 static const char *srSnapshotPath;
 static HGSaveRoundtripQAState srRead(void) {
     u32 address=w2c_hgengine_HGNativeTrainerCardQAGetState(tcCapture->game);HGSaveRoundtripQAState state;
@@ -44,6 +44,34 @@ static void srWriteBefore(void) {
     TC_CHECK(HGSRWireValid(&sr.beforeSnapshot,sizeof(sr.beforeSnapshot)));
     FILE *file=fopen(path,"wbx");TC_CHECK(file && fwrite(&sr.beforeSnapshot,1,sizeof(sr.beforeSnapshot),file)==sizeof(sr.beforeSnapshot) && !fclose(file));srBeforeWritten=1;
 }
+static u32 srVisualStage(void) {
+    if(srRole!=HG_SR_WRITER)return 0;
+    if((srStage==4 || srStage==5) && tcMenu.active &&
+        sr.savePhase==(srStage==4 ? 4u : 7u) &&
+        HGSRSaveInputAllowed(&sr,sr.saveGeneration,sr.saveRevision))return 1u<<(srStage-4);
+    // Phase12 follows the completed Saving text and original waiting-icon creation; busy need not be observed.
+    if(srStage==6 && tcMenu.active && sr.saveActive==1 && sr.savePhase==12 &&
+        sr.saveGeneration && sr.saveRevision && !sr.saveCalls)return 4;
+    if(srStage==6 && !sr.saveActive && !tcMenu.active && !tcFinal.ui.active &&
+        tcFinal.fieldReady && sr.writerFrozen && sr.saveSuccess==1)return 8;
+    return 0;
+}
+static void srVisualSnapshot(void) {
+    u32 bit=srVisualStage();if(!bit || (srVisualMask&bit))return;
+    HGSaveRoundtripQAState shown=sr;u32 sequence=tcSnapshots;
+    // Save lives on original SUB; its genuine raw parent makes tcSnapshot require both source planes.
+    tcLastSnapshotStep=UINT32_MAX;if(!tcSnapshot())return;
+    HGSaveRoundtripQAState after=srRead();
+    TC_CHECK(after.saveActive==shown.saveActive && after.saveGeneration==shown.saveGeneration &&
+        after.saveRevision==shown.saveRevision && after.savePhase==shown.savePhase &&
+        after.saveReady==shown.saveReady && after.trainer.fieldReady==shown.trainer.fieldReady);
+    char path[4096];TC_CHECK(snprintf(path,sizeof(path),"%s/trainer-%03u-save.bin",tcCapture->folder,sequence)<sizeof(path));
+    FILE *packet=fopen(path,"wbx");TC_CHECK(packet && fwrite(&shown,1,sizeof(shown),packet)==sizeof(shown) && !fclose(packet));
+    srVisualMask|=bit;
+    printf("SAVE snapshot: {\"kind\":%u,\"sequence\":%u,\"stage\":%u,\"phase\":%u,\"active\":%u,\"generation\":%u,\"revision\":%u,\"ready\":%u,\"managerLive\":%u,\"fieldReady\":%u,\"requiredMask\":%u,\"packetBytes\":%zu}\n",
+        bit,sequence,srStage,shown.savePhase,shown.saveActive,shown.saveGeneration,shown.saveRevision,shown.saveReady,
+        shown.managerLive,shown.trainer.fieldReady,bit==8 ? 1 : 3,sizeof(shown));
+}
 static void SRPresent(void *argument) {
     tcCapture=argument;sr=srRead();
     if(srRole==HG_SR_WRITER && sr.beforeFrozen && !srBeforeWritten)srWriteBefore();
@@ -52,7 +80,7 @@ static void SRPresent(void *argument) {
         srCompared=1;srWriteSnapshot();
     }
     if(tcStep==0 || (srRole==HG_SR_WRITER && tcStep<=30)) {TCQAPresent(argument);return;}
-    tcFinal=tcRead();sr=srRead();if(!srSettle())return;
+    tcFinal=tcRead();sr=srRead();srVisualSnapshot();if(!srSettle())return;
     if(srRole==HG_SR_READER) {
         if(!tcFinal.fieldReady)return;
         TC_CHECK(sr.readerFrozen && sr.loadSuccess==1 && srCompared && srSnapshotWritten);
@@ -95,7 +123,7 @@ static void SRPresent(void *argument) {
         if(!tcFinal.fieldReady)return;
         TC_CHECK(srPromptMask==3 && sr.saveCalls==1 && sr.saveSuccess==1 && sr.lastSaveStatus==2 && sr.managerIsStack && !sr.managerLive && sr.flashCompleted && srSnapshotWritten
             && sr.beforeFrozen && sr.preservationChecked==1 && sr.preservationPassed==1 && srBeforeWritten);
-        srDone=1;tcFinish("passed_save_roundtrip_writer",TRUE);
+        TC_CHECK(srVisualMask==15);srDone=1;tcFinish("passed_save_roundtrip_writer",TRUE);
     }
 }
 int main(int argc,char **argv) {
