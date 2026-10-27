@@ -473,6 +473,7 @@ static void TouchscreenMenu_Task(SysTask *task, void *taskData) {
     SpriteList_RenderAndAnimateSprites(data->spriteList);
 #ifdef HEARTGOLD_NATIVE
     TouchscreenMenu_PublishNativeIcons(data, busy);
+    StartMenu_PublishNativeUI(data->fieldSystem);
 #endif
 }
 

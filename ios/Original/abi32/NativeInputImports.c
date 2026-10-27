@@ -2,6 +2,7 @@
 #include "NativeImports.h"
 #include "../NativeEvents.h"
 #include <nitro/spi/native_input.h>
+#include <nitro/spi/ARM9/tp.h>
 #include <nitro/gx/native_display.h>
 #include <nitro/hw/consts_shared.h>
 #include <stdlib.h>
@@ -80,7 +81,8 @@ u32 w2c_env_HGNativeInputRequest(struct w2c_env *env,u32 command,u32 first,u32 s
         (command==HG_INPUT_PAD && (first>1 || second || function)) ||
         ((command==HG_INPUT_SAMPLE || command==HG_INPUT_STOP) && (first || second))) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (command==HG_INPUT_INIT) {
-        if (!env->input) { env->input=calloc(1,sizeof(*env->input)); if (!env->input) wasm_rt_trap(WASM_RT_TRAP_EXHAUSTION); }
+        if (!env->input) { env->input=calloc(1,sizeof(*env->input)); if (!env->input) wasm_rt_trap(WASM_RT_TRAP_EXHAUSTION);
+            env->input->point=(u32)TP_VALIDITY_INVALID_XY<<25; }
         return TRUE;
     }
     if (command==HG_INPUT_PAD) {
@@ -125,7 +127,9 @@ BOOL HGNativeSetInput(struct w2c_env *env,u32 keys,BOOL folded,u32 x,u32 y,BOOL 
     if (!usable(env) || !env->irqTable || (keys&~0x2FFFu) || (u32)folded>1 || x>255 || y>191 || (u32)pressed>1) return FALSE;
     if (!env->input) (void)w2c_env_HGNativeInputRequest(env,HG_INPUT_INIT,0,0,0);
     env->input->pad=keys|((u32)folded<<15);
-    env->input->point=(x<<4)|(y<<16)|((u32)pressed<<24);
+    // A released pen has no coordinate: the original GF collector filters validity, not the touch bit.
+    u32 validity=pressed ? TP_VALIDITY_VALID : TP_VALIDITY_INVALID_XY;
+    env->input->point=(x<<4)|(y<<16)|((u32)pressed<<24)|(validity<<25);
     return TRUE;
 }
 u32 HGNativeInputSamplingRate(struct w2c_env *env,u32 *vcount) {

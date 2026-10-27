@@ -132,7 +132,14 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                 @"partyPhase":@(party ? party->phase : 0),@"selectedMove":@(party ? party->selectedMove : 0),@"fieldReady":@(q ? q->fieldReady : 0),@"fieldMenuOpen":@(menuOpen),@"fieldMenuHidden":@(self->_fieldMenu.hidden)}]; lastStage=stage; lastInfoStage=infoStage;
         }
         NSString *capture=nil; dispatch_block_t action=nil;
-        if (!stage && map==MAP_ROUTE_29 && q && q->fieldReady) {
+        NSData *startMenuData=self->_displayedStartMenuUIState;
+        const HGNativeFieldMenuUIState *startMenu=startMenuData.length==sizeof(*startMenu) ? startMenuData.bytes : NULL;
+        if (!stage && map==MAP_ROUTE_29 && startMenu && HGNativeFieldMenuUIInputAllowed(startMenu,startMenu->ownerGeneration,startMenu->revision)) {
+            UIButton *button=self->_menuButton;
+            if (!button.hidden && button.enabled && button.userInteractionEnabled && button.window
+                && button.window==self.view.window && [button isDescendantOfView:self.view])
+                [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+        } else if (!stage && map==MAP_ROUTE_29 && q && q->fieldReady) {
             if (menuOpen) [self toggleMenu]; stage=1;
         } else if (stage==1 && q && q->fieldReady && !q->requested && !menuOpen && self->_fieldMenu.hidden) {
             [self->_condition lock]; self->_checkBattleMenusRequestRevision=q->revision; self->_checkBattleMenusRequestPending=YES; [self->_condition unlock]; requestRevision=q->revision; stage=2;
@@ -547,7 +554,14 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
             && !self->_battleMode && !self->_battleScene && !self->_battleMenuScene && !self->_partyScene && !self->_bagScene && !self->_summaryScene
             && !self->_canvas.hidden && [self checkPrivatePixels:self->_canvas.image] && !self->_menuButton.hidden && self->_menuButton.enabled && self->_menuButton.window
             && (menu ? !self->_fieldMenu.hidden && self->_fieldMenu.image!=nil : !self->_joystick.hidden);
-        if ((stage==0 || stage==6) && field) {
+        NSData *startMenuData=self->_displayedStartMenuUIState;
+        const HGNativeFieldMenuUIState *startMenu=startMenuData.length==sizeof(*startMenu) ? startMenuData.bytes : NULL;
+        if ((stage==5 || stage==10) && startMenu && HGNativeFieldMenuUIInputAllowed(startMenu,startMenu->ownerGeneration,startMenu->revision)) {
+            UIButton *button=self->_menuButton;
+            if (!button.hidden && button.enabled && button.userInteractionEnabled && button.window
+                && button.window==self.view.window && [button isDescendantOfView:self.view])
+                [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+        } else if ((stage==0 || stage==6) && field) {
             if (!menu) {
                 UIButton *button=self->_menuButton;
                 if (!button.hidden && button.enabled && button.window && [button isDescendantOfView:self.view]) [button sendActionsForControlEvents:UIControlEventTouchUpInside];
@@ -2231,6 +2245,8 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     [self checkOptionsControls:report];
 #ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
     [report addEntriesFromDictionary:[self checkPCBoxHostPrimitives]];
+    [report addEntriesFromDictionary:[self checkTrainerCardHostPrimitives]];
+    [report addEntriesFromDictionary:[self checkStartMenuHostPrimitives]];
 #endif
     report[@"actualCapturesComplete"]=@YES;
     uint8_t tiles[65]={0}; tiles[1]=0x21; tiles[33]=0x03;

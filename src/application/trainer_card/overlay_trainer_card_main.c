@@ -1,6 +1,9 @@
 #include "overlay_trainer_card_main.h"
 
 #include "global.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_trainer_card_ui.h"
+#endif
 
 #include "constants/sndseq.h"
 
@@ -108,6 +111,44 @@ static void TrainerCardMain_PrintSignPrompt(TrainerCardMain *cardMain, int messa
 static void TrainerCardMain_ShowYesNoPrompt(TrainerCardMain *cardMain, int unused);
 static int TrainerCardMain_HandleYesNoPrompt(TrainerCardMain *cardMain, BOOL keepFrame);
 static void TrainerCardMain_SetButtonWindowsHidden(TrainerCardMain *cardMain, int hide);
+
+#ifdef HEARTGOLD_NATIVE
+static void TrainerCardMain_PublishNativeUI(TrainerCardMain *cardMain, int state) {
+    HGNativeTrainerCardUIState next = {0};
+    BgConfig *bg = cardMain->bgConfig;
+    YesNoPrompt *prompt = cardMain->yesNoPrompt;
+    int i;
+    next.phase = state;
+    next.subState = state == TRAINER_CARD_MAIN_SIGN_PROMPT ? cardMain->subState : 0;
+    next.showingBack = cardMain->showingBack;
+    next.isConnected = cardMain->isConnected;
+    next.ready = bg && cardMain->args && cardMain->card && cardMain->frontCharData
+        && cardMain->sprites.spriteList && cardMain->sprites.buttonSprites[0] && cardMain->sprites.buttonSprites[1]
+        && !cardMain->scaleChanged && IsPaletteFadeFinished()
+        && !((bg->bufferTransferScheduled | bg->scrollScheduled) & 0xFC);
+    for (i = 0; i < 14 && next.ready; i++) {
+        next.ready = cardMain->windows[i].bgConfig == bg && cardMain->windows[i].pixelBuffer;
+    }
+    for (i = 2; i < 8 && next.ready; i++) next.ready = bg->bgs[i].tilemapBuffer != NULL;
+    if (state == TRAINER_CARD_MAIN_SIGN_PROMPT) {
+        if (prompt && prompt->buttonsAreInit == 1) {
+            next.promptCursor = prompt->cursorPos;
+            next.promptTouchMode = prompt->inTouchMode;
+            next.promptIgnoreTouch = prompt->ignoreTouch;
+            next.promptLeft = prompt->x * 8;
+            next.promptTop = prompt->y * 8;
+            next.promptWidth = prompt->width * 8;
+            next.promptButtonHeight = prompt->height * 8;
+        }
+        next.ready = next.ready && prompt && prompt->buttonsAreInit == 1 && prompt->result == 3
+            && prompt->confirmSelectionTimer == 0 && prompt->touchHitboxController
+            && NativeTrainerCardUIPromptReady(cardMain)
+            && prompt->bgConfig == bg && prompt->bgId == GF_BG_LYR_SUB_0
+            && cardMain->windows[11].bgId == GF_BG_LYR_SUB_0 && !TextPrinterCheckActive(cardMain->textPrinterId);
+    } else next.ready = next.ready && state == TRAINER_CARD_MAIN_INPUT;
+    NativeTrainerCardUIPublish(cardMain, &next);
+}
+#endif
 
 static const TouchscreenHitbox sTrainerCardCancelHitbox = {
     .rect = { 168, 191, 191, 255 }
@@ -307,6 +348,9 @@ int TrainerCardMainApp_Init(OverlayManager *manager, int *state) {
     Heap_Create(HEAP_ID_3, HEAP_ID_25, 0x50000);
     cardMain = OverlayManager_CreateAndGetData(manager, sizeof(TrainerCardMain), HEAP_ID_25);
     memset(cardMain, 0, sizeof(TrainerCardMain));
+#ifdef HEARTGOLD_NATIVE
+    NativeTrainerCardUIBeginView(cardMain, HG_TRAINER_CARD_VIEWER);
+#endif
     cardMain->args = OverlayManager_GetArgs(manager);
     cardMain->card = (TrainerCardMainCard *)cardMain->args;
     cardMain->inTouchMode = MenuInputStateMgr_GetState(cardMain->args->settings.menuInputStatePtr);
@@ -437,12 +481,19 @@ int TrainerCardMainApp_Main(OverlayManager *manager, int *state) {
         cardMain->scrollOffset = 0;
     }
     SpriteList_RenderAndAnimateSprites(cardMain->sprites.spriteList);
+#ifdef HEARTGOLD_NATIVE
+    TrainerCardMain_PublishNativeUI(cardMain, *state);
+#endif
     return FALSE;
 }
 
 int TrainerCardMainApp_Exit(OverlayManager *manager, int *state) {
     TrainerCardMain *cardMain = OverlayManager_GetData(manager);
+#ifdef HEARTGOLD_NATIVE
+    NativeTrainerCardUIEndView(cardMain);
+#endif
 
+    Main_SetVBlankIntrCB(NULL, NULL);
     TrainerCardMain_ResetBgAffine();
     TrainerCardMain_FreeStrings(cardMain);
     TrainerCardMain_FreeSprites(&cardMain->sprites);
@@ -456,7 +507,6 @@ int TrainerCardMainApp_Exit(OverlayManager *manager, int *state) {
     TextFlags_SetCanABSpeedUpPrint(FALSE);
     MenuInputStateMgr_SetState(cardMain->args->settings.menuInputStatePtr, (MenuInputState)cardMain->inTouchMode);
     OverlayManager_FreeData(manager);
-    Main_SetVBlankIntrCB(NULL, NULL);
     Heap_Destroy(HEAP_ID_25);
     GF_SndHandleSetPlayerVolume(1, 0x7f);
     return TRUE;
@@ -1248,6 +1298,9 @@ static void TrainerCardMain_ShowYesNoPrompt(TrainerCardMain *cardMain, int unuse
     template.ignoreTouchFlag = cardMain->inTouchMode;
     template.initialCursorPos = 0;
     YesNoPrompt_InitFromTemplate(cardMain->yesNoPrompt, &template);
+#ifdef HEARTGOLD_NATIVE
+    NativeTrainerCardUIPromptQueued(cardMain);
+#endif
     ScheduleBgTilemapBufferTransfer(cardMain->bgConfig, GF_BG_LYR_SUB_0);
 }
 

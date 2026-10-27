@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Check the Trainer Card signature packer, prompt template and VBlank callbacks."""
+"""Check Trainer Card packing, prompt/callback safety, teardown and stroke lifetime."""
 
+import argparse
 import re
 import shlex
 import subprocess
@@ -8,6 +9,12 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--source-root", type=Path, default=ROOT)
+parser.add_argument("--candidate-root", type=Path)
+args = parser.parse_args()
+ROOT = args.source_root.resolve()
+SOURCE = args.candidate_root.resolve() if args.candidate_root else ROOT
 
 
 def extract(text, pattern):
@@ -20,8 +27,8 @@ def function(text, name):
     return extract(text, r"^static void " + name + r"\([^;]*?\) \{.*?^\}")
 
 
-signature = (ROOT / "src/application/trainer_card/overlay_trainer_card_signature.c").read_text()
-main = (ROOT / "src/application/trainer_card/overlay_trainer_card_main.c").read_text()
+signature = (SOURCE / "src/application/trainer_card/overlay_trainer_card_signature.c").read_text()
+main = (SOURCE / "src/application/trainer_card/overlay_trainer_card_main.c").read_text()
 prompt_header = (ROOT / "include/yes_no_prompt.h").read_text()
 save_header = (ROOT / "include/save_trainer_card.h").read_text()
 system_header = (ROOT / "include/system.h").read_text()
@@ -41,7 +48,11 @@ parts = [r"""
 #include <stdlib.h>
 #include <string.h>
 typedef uint8_t u8;
+typedef uint16_t u16;
 typedef uint32_t u32;
+typedef int32_t s32;
+#define TRUE 1
+#define FALSE 0
 typedef struct { int unused; } BgConfig;
 typedef struct { int unused; } YesNoPrompt;
 #define GF_ASSERT assert
@@ -148,7 +159,14 @@ parts += [extract(system_header, r"^typedef void \(\*GFIntrCB\)\(void \*\);"), r
 #define BG_POS_OP_SET_X 0
 #define BG_POS_OP_SET_Y 3
 #define OS_IE_VBLANK 1
-typedef struct { BgConfig *bgConfig; int scrollOffset; int scaleChanged; } TrainerCardMain;
+typedef struct { int unused; } TrainerCardMainSprites;
+typedef struct { struct { void *menuInputStatePtr; } settings; } TrainerCardMainArgs;
+typedef struct {
+    BgConfig *bgConfig; int scrollOffset; int scaleChanged;
+    TrainerCardMainSprites sprites;
+    void *frontCharFile, *badgeFrameScreenFile, *frontScreenFile;
+    TrainerCardMainArgs *args; int inTouchMode;
+} TrainerCardMain;
 static BgConfig *expected_bg;
 static TrainerCardMain *expected_main;
 static unsigned events[16];
@@ -173,7 +191,7 @@ static void TrainerCardMain_ApplyFlipScale(TrainerCardMain *card) {
               function(main, "TrainerCardMain_VBlankCB"), r"""
 static void check_callbacks(void) {
     BgConfig bg;
-    TrainerCardMain card = { &bg, 7, 0 };
+    TrainerCardMain card = { .bgConfig = &bg, .scrollOffset = 7, .scaleChanged = 0 };
     GFIntrCB signature_callback = TrainerCardSignature_VBlankCB;
     GFIntrCB main_callback = TrainerCardMain_VBlankCB;
     const unsigned signature_events[] = { 1, 2, 3, 4 };
@@ -197,7 +215,106 @@ static void check_callbacks(void) {
 }
 """]
 
-parts.append("int main(void) { check_pack(); check_prompt(); check_callbacks(); return 0; }\n")
+
+exit_function = extract(main, r"^int TrainerCardMainApp_Exit\([^;]*?\) \{.*?^\}")
+draw_line = function(signature, "TrainerCardSignature_DrawLine")
+assert draw_line.index("if (sample == 0 && hasLast == 0)") < draw_line.index("x = *lastX;")
+assert draw_line.index("if (sample == 0 && hasLast == 0)") < draw_line.index("y = *lastY;")
+assert exit_function.index("Main_SetVBlankIntrCB(NULL, NULL);") < exit_function.index("TrainerCardMain_FreeStrings(cardMain);")
+
+parts += [r"""
+typedef struct { TrainerCardMain *data; } OverlayManager;
+typedef int MenuInputState;
+#define HEAP_ID_25 25
+static GFIntrCB installed_callback;
+static void *installed_owner;
+static unsigned detach_count, free_count, destroyed_heap;
+static TrainerCardMain *OverlayManager_GetData(OverlayManager *manager) { return manager->data; }
+static void Main_SetVBlankIntrCB(GFIntrCB callback, void *owner) {
+    assert(callback == NULL && owner == NULL && free_count == 0);
+    installed_callback = callback; installed_owner = owner; detach_count++;
+}
+static void free_dependency(void) {
+    assert(installed_callback == NULL && installed_owner == NULL && detach_count == 1);
+    free_count++;
+}
+static void TrainerCardMain_ResetBgAffine(void) {}
+static void TrainerCardMain_FreeStrings(TrainerCardMain *card) { assert(card == expected_main); free_dependency(); }
+static void TrainerCardMain_FreeSprites(TrainerCardMainSprites *sprites) { assert(sprites == &expected_main->sprites); free_dependency(); }
+static void Heap_Free(void *data) { assert(data); free_dependency(); }
+static void TrainerCardMain_DestroyWindows(TrainerCardMain *card) { assert(card == expected_main); free_dependency(); }
+static void TrainerCardMain_FreeBgLayers(BgConfig *bg) { assert(bg == expected_bg); free_dependency(); }
+static void GF_TouchpadStopSampling(void) {}
+static void TextFlags_SetCanTouchSpeedUpPrint(int enabled) { assert(!enabled); }
+static void TextFlags_SetCanABSpeedUpPrint(int enabled) { assert(!enabled); }
+static void MenuInputStateMgr_SetState(void *manager, MenuInputState state) { assert(manager && state == 1); }
+static void OverlayManager_FreeData(OverlayManager *manager) { assert(manager->data == expected_main); free_dependency(); manager->data = NULL; }
+static void Heap_Destroy(int heap) { assert(heap == HEAP_ID_25 && !installed_callback); destroyed_heap++; }
+static void GF_SndHandleSetPlayerVolume(int handle, int volume) { assert(handle == 1 && volume == 0x7f && destroyed_heap == 1); }
+/* The original exported Exit signature has an intentionally unused state parameter. */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+""", exit_function, r"""
+#pragma clang diagnostic pop
+static void check_teardown(void) {
+    BgConfig bg;
+    int payload;
+    TrainerCardMainArgs args = { .settings.menuInputStatePtr = &payload };
+    TrainerCardMain card = { .bgConfig = &bg, .frontCharFile = &payload,
+        .badgeFrameScreenFile = &payload, .frontScreenFile = &payload, .args = &args, .inTouchMode = 1 };
+    OverlayManager manager = { &card };
+    expected_main = &card; expected_bg = &bg;
+    installed_callback = TrainerCardMain_VBlankCB; installed_owner = &card;
+    assert(TrainerCardMainApp_Exit(&manager, NULL) == TRUE);
+    assert(detach_count == 1 && free_count == 8 && destroyed_heap == 1 && manager.data == NULL);
+    puts("PASS teardown: actual Exit detaches VBlank before any dependency or owner is freed");
+}
+"""]
+
+stroke_header = (ROOT / "include/application/trainer_card/overlay_trainer_card_signature_internal.h").read_text()
+stroke_parts = [parts[0], extract(stroke_header, r"^#define TRAINER_CARD_SIGNATURE_PEN_COUNT \d+"),
+          extract(stroke_header, r"^typedef struct TrainerCardSignatureStroke \{.*?^\} TrainerCardSignatureStroke;"),
+          extract(stroke_header, r"^typedef struct TrainerCardSignaturePenPos \{.*?^\} TrainerCardSignaturePenPos;"),
+          extract(signature, r"^static const u8 sTrainerCardSignaturePenBitmaps\[16\]\[16\] = \{.*?^\};"), r"""
+typedef struct { int unused; } Window;
+static Window *expected_window;
+static s32 dots[64][2];
+static unsigned dot_count, copies;
+static void TrainerCardSignature_BlitClipped(Window *window, const void *src,
+    s32 sx, s32 sy, s32 sw, s32 sh, s32 x, s32 y, s32 dw, s32 dh) {
+    assert(window == expected_window && src == &sTrainerCardSignaturePenBitmaps[0]);
+    assert(sx == 0 && sy == 0 && sw == 4 && sh == 4 && dw == 4 && dh == 4 && dot_count < 64);
+    dots[dot_count][0] = x; dots[dot_count++][1] = y;
+}
+static void CopyWindowToVram(Window *window) { assert(window == expected_window); copies++; }
+""", draw_line, function(signature, "TrainerCardSignature_SavePenPositions"),
+      function(signature, "TrainerCardSignature_DrawStrokes"), r"""
+static void check_strokes(void) {
+    Window window;
+    TrainerCardSignatureStroke strokes[TRAINER_CARD_SIGNATURE_PEN_COUNT] = {0};
+    TrainerCardSignaturePenPos positions[TRAINER_CARD_SIGNATURE_PEN_COUNT] = {0};
+    expected_window = &window;
+    strokes[0].count = 1; strokes[0].x[0] = 34; strokes[0].y[0] = 75;
+    TrainerCardSignature_DrawStrokes(&window, strokes, positions, 1);
+    assert(dot_count == 0 && copies == 1 && positions[0].count == 1 && positions[0].x == 34 && positions[0].y == 75);
+    assert(strokes[0].count == 0);
+    strokes[0].count = 1; strokes[0].x[0] = 36; strokes[0].y[0] = 75;
+    TrainerCardSignature_DrawStrokes(&window, strokes, positions, 1);
+    assert(dot_count == 3 && copies == 2 && positions[0].x == 36 && positions[0].y == 75);
+    for (unsigned i = 0; i < 3; i++) assert(dots[i][0] == (s32)i + 2 && dots[i][1] == 3);
+    TrainerCardSignature_DrawStrokes(&window, strokes, positions, 1);
+    assert(dot_count == 3 && copies == 2 && positions[0].count == 0);
+    strokes[0].count = 2; strokes[0].x[0] = 40; strokes[0].y[0] = 80; strokes[0].x[1] = 41; strokes[0].y[1] = 81;
+    TrainerCardSignature_DrawStrokes(&window, strokes, positions, 0);
+    assert(dot_count == 5 && copies == 2 && positions[0].count == 2 && positions[0].x == 41 && positions[0].y == 81);
+    assert(dots[3][0] == 8 && dots[3][1] == 8 && dots[4][0] == 9 && dots[4][1] == 9);
+    for (unsigned i = 0; i < TRAINER_CARD_SIGNATURE_PEN_COUNT; i++) assert(strokes[i].count == 0);
+    puts("PASS strokes: actual first-sample, next-frame continuity, release, new stroke and copy/no-copy sequence");
+}
+"""]
+
+parts += stroke_parts[1:]
+parts.append("int main(void) { check_pack(); check_prompt(); check_callbacks(); check_teardown(); check_strokes(); return 0; }\n")
 
 with tempfile.TemporaryDirectory(prefix="trainer-signature-check-") as directory:
     build = Path(directory)
@@ -211,3 +328,15 @@ with tempfile.TemporaryDirectory(prefix="trainer-signature-check-") as directory
     print(shlex.join(command), flush=True)
     subprocess.run(command, check=True)
     subprocess.run([str(binary)], check=True)
+    support = subprocess.run(["clang", "-cc1", "-analyzer-checker-help"], capture_output=True, text=True)
+    if support.returncode == 0 and "core.uninitialized.Assign" in support.stdout:
+        analysis_c = build / "strokes.c"
+        analysis_c.write_text("\n".join(stroke_parts) + "\nint main(void) { check_strokes(); return 0; }\n")
+        # Scalar uninitialized reads are not detected by ASan/UBSan; do not auto-initialize this analyzer input.
+        analyzed = subprocess.run(["clang", "--analyze", "-std=c11", "-Xclang", "-analyzer-checker=core.uninitialized.Assign",
+            "-Xclang", "-analyzer-output=text", str(analysis_c), "-o", str(build / "strokes.plist")],
+            capture_output=True, text=True, check=True)
+        assert "warning:" not in analyzed.stderr, analyzed.stderr
+        print("PASS uninitialized: Clang analyzer found no indeterminate reads in the actual stroke sequence")
+    else:
+        print("SKIP uninitialized analyzer: unavailable; source-order guard and ASan/UBSan stroke checks still ran")

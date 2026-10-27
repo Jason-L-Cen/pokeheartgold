@@ -32,6 +32,10 @@ u32 HGInputAction(u32 action,u32 value) {
     case 8:
         if (TP_WaitRawResult(&raw)) return 1;
         TP_GetCalibratedPoint(&calibrated,&raw); return 0;
+    case 9:
+        // Original GF clients calibrate every exposed ring entry in place.
+        for (u32 i=0;i<9;i++) {TPData point;TP_GetCalibratedPoint(&point,&ring[i]);ring[i]=point;}
+        return 0;
     }
     return ~0u;
 }
@@ -47,7 +51,7 @@ u32 CheckNativeTouch(u32 beforeIRQ) {
     }
     OS_InitIrqTable(); OS_EnableIrqMask(OS_IE_SPFIFO_RECV); OS_EnableIrq();
     CHECK(!PAD_Read() && !PAD_DetectFold() && !HGInputAction(2,0));
-    CHECK(!raw.touch && !raw.validity && !calibrated.x && !calibrated.y);
+    CHECK(!raw.touch && raw.validity==TP_VALIDITY_INVALID_XY && !calibrated.x && !calibrated.y);
     TPCalibrateParam calculated;
     CHECK(!TP_CalcCalibrateParam(&calculated,0,0,0,0,4080,3056,255,191));
     CHECK(!memcmp(&param,&calculated,sizeof(param)));

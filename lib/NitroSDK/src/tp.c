@@ -72,6 +72,20 @@ extern TpWork gTpWork;
 extern TpCalibration gTpCalibration; // label of gTpWork.calibration
 #endif
 
+#ifdef HEARTGOLD_NATIVE
+// Native clients may recalibrate the exposed ring in place between hardware samples.
+// Preserve the ADC domain without manufacturing callbacks; u16 count bounds this native-only mirror to 512 KiB.
+static TPData sTpNativeRaw[0xFFFF];
+static TPData *sTpNativeRawBuffer;
+static u16 sTpNativeRawCount;
+static void TpNativeRestoreRaw(void) {
+    // Native callbacks run on owner service points; this copy has no service point or IRQ-mask change.
+    if (sTpNativeRawBuffer && gTpWork.state == 2 && gTpWork.buffer == sTpNativeRawBuffer && gTpWork.count == sTpNativeRawCount) {
+        MI_CpuCopy8(sTpNativeRaw, gTpWork.buffer, sizeof(TPData) * sTpNativeRawCount);
+    }
+}
+#endif
+
 void TPi_TpCallback(PXIFifoTag tag, u32 data, BOOL err);
 void TP_RequestAutoSamplingStartAsync(u16 vcount, u16 frequency, TPData *buffer, u16 count);
 void TP_RequestAutoSamplingStopAsync(void);
@@ -116,6 +130,11 @@ void TPi_TpCallback(PXIFifoTag tag, u32 data, BOOL err) {
         point->y = raw.y;
         point->touch = (u8)raw.touch;
         point->validity = (u8)raw.validity;
+#ifdef HEARTGOLD_NATIVE
+        if (sTpNativeRawBuffer && gTpWork.state == 2 && gTpWork.buffer == sTpNativeRawBuffer && gTpWork.count == sTpNativeRawCount) {
+            sTpNativeRaw[gTpWork.index] = *point;
+        }
+#endif
         if (gTpWork.callback) {
             gTpWork.callback(command, TP_RESULT_SUCCESS, (u8)gTpWork.index);
         }
@@ -140,9 +159,20 @@ void TPi_TpCallback(PXIFifoTag tag, u32 data, BOOL err) {
         } break;
         case TP_COMMAND_AUTO_START:
             gTpWork.state = 2;
+#ifdef HEARTGOLD_NATIVE
+            sTpNativeRawBuffer = gTpWork.buffer;
+            sTpNativeRawCount = gTpWork.count;
+            for (u32 i = 0; i < sTpNativeRawCount; i++) {
+                sTpNativeRaw[i] = (TPData){ .touch = 0, .validity = TP_VALIDITY_INVALID_XY };
+            }
+#endif
             break;
         case TP_COMMAND_AUTO_STOP:
             gTpWork.state = 0;
+#ifdef HEARTGOLD_NATIVE
+            sTpNativeRawBuffer = NULL;
+            sTpNativeRawCount = 0;
+#endif
             break;
         }
         gTpWork.busy &= ~(1 << command);
@@ -176,6 +206,10 @@ void TP_Init(void) {
         return;
     }
     gTpWork.init = 1;
+#ifdef HEARTGOLD_NATIVE
+    sTpNativeRawBuffer = NULL;
+    sTpNativeRawCount = 0;
+#endif
 #ifdef HEARTGOLD_ABI32
     HGNativeInputRequest(HG_INPUT_INIT,0,0,0);
 #else
@@ -309,7 +343,7 @@ static inline int TpSendAutoSamplingStart(u16 vcount, u16 frequency) {
 void TP_RequestAutoSamplingStartAsync(u16 vcount, u16 frequency, TPData *buffer, u16 count) {
     u32 i;
     OSIntrMode enabled;
-#ifdef HEARTGOLD_ABI32
+#ifdef HEARTGOLD_NATIVE
     if (!buffer || (u32)(uaddr)buffer%2 || !count || !frequency || frequency>255 || vcount>=263) {
         gTpWork.error|=1<<TP_COMMAND_AUTO_START;
         if (gTpWork.callback) gTpWork.callback(TP_COMMAND_AUTO_START,TP_RESULT_INVALID,0);
@@ -365,6 +399,10 @@ void TP_GetLatestRawPointInAuto(TPData *result) {
     int i, index, latest;
     TPData *point;
 
+#ifdef HEARTGOLD_NATIVE
+    TpNativeRestoreRaw();
+#endif
+
     result->validity = TP_VALIDITY_INVALID_XY;
     latest = gTpWork.index;
     if (gTpWork.frequency == 1 || gTpWork.count == 1) {
@@ -402,6 +440,9 @@ void TP_GetLatestRawPointInAuto(TPData *result) {
 }
 
 u32 TP_GetLatestIndexInAuto(void) {
+#ifdef HEARTGOLD_NATIVE
+    TpNativeRestoreRaw();
+#endif
     return gTpWork.index;
 }
 

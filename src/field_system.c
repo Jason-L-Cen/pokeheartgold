@@ -1,4 +1,8 @@
 #include "field_system.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_field_menu_ui.h"
+#include "start_menu.h"
+#endif
 
 #include "constants/field/map_load.h"
 #include "constants/maps.h"
@@ -81,6 +85,7 @@ BOOL Field_AppExec(OverlayManager *man, int *unused) {
 #ifdef HEARTGOLD_NATIVE
     FieldSystem *fieldSystem = OverlayManager_GetData(man);
     BOOL finished = FieldSystem_Main(fieldSystem);
+    StartMenu_PublishNativeUI(fieldSystem);
     sNativeFieldMap = !finished && FieldSystem_IsFieldMapRunning(fieldSystem) && !FieldSystem_IsChildAppRunning(fieldSystem) && fieldSystem->location ? fieldSystem->location->mapId : 0;
     return finished;
 #else
@@ -96,6 +101,7 @@ extern OverlayManagerTemplate gApplication_TitleScreen;
 BOOL Field_AppExit(OverlayManager *man, int *unused) {
 #ifdef HEARTGOLD_NATIVE
     sNativeFieldMap = 0;
+    NativeFieldMenuUIReset();
 #endif
     FieldSystem_Delete(man);
     RegisterMainOverlay(FS_OVERLAY_ID(intro_title), &gApplication_TitleScreen);

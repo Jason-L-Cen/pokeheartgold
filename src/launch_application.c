@@ -4,6 +4,9 @@
 #ifdef HEARTGOLD_NATIVE
 #include "native_options_ui.h"
 #include "native_pc_box_ui.h"
+#include "native_trainer_card_ui.h"
+#include "native_field_menu_ui.h"
+#include "sys_task_api.h"
 #include "native_field_choice_ui.h"
 #endif
 
@@ -762,6 +765,159 @@ void NativePCBoxUIRetire(const void *owner) {
     if (!++gNativePCBoxUIState.revision) ++gNativePCBoxUIState.revision;
 }
 // Native PC Box resident state end.
+
+// Native Trainer Card resident state begin.
+// Overlay50 owns 51 -> 52 -> 51; direct signature launches own only their one view.
+static HGNativeTrainerCardUIState sNativeTrainerCardUIState;
+static const void *sNativeTrainerCardOwner, *sNativeTrainerCardView;
+static SysTask *sNativeTrainerCardPromptTask;
+static uint32_t sNativeTrainerCardPromptReady;
+
+static void NativeTrainerCardUICancelPrompt(void) {
+    sNativeTrainerCardPromptReady = 0;
+    if (sNativeTrainerCardPromptTask) SysTask_Destroy(sNativeTrainerCardPromptTask);
+    sNativeTrainerCardPromptTask = NULL;
+}
+
+static void NativeTrainerCardUIPromptUploaded(SysTask *task, void *view) {
+    if (task == sNativeTrainerCardPromptTask && view == sNativeTrainerCardView) {
+        sNativeTrainerCardPromptTask = NULL;
+        sNativeTrainerCardPromptReady = sNativeTrainerCardView != NULL;
+    }
+    SysTask_Destroy(task);
+}
+
+const HGNativeTrainerCardUIState *HGNativeTrainerCardUIGetState(void) { return &sNativeTrainerCardUIState; }
+
+void NativeTrainerCardUIBegin(const void *owner) {
+    if (!owner || owner == sNativeTrainerCardOwner) return;
+    if (sNativeTrainerCardOwner) NativeTrainerCardUIRetire(sNativeTrainerCardOwner);
+    uint32_t generation = sNativeTrainerCardUIState.ownerGeneration + 1;
+    uint32_t revision = sNativeTrainerCardUIState.revision + 1;
+    sNativeTrainerCardOwner = owner;
+    sNativeTrainerCardView = NULL;
+    sNativeTrainerCardUIState = (HGNativeTrainerCardUIState){ .active = 1,
+        .ownerGeneration = generation ? generation : 1, .revision = revision ? revision : 1 };
+}
+
+void NativeTrainerCardUIBeginView(const void *view, uint32_t kind) {
+    if (!view || (kind != HG_TRAINER_CARD_VIEWER && kind != HG_TRAINER_CARD_SIGNATURE) || sNativeTrainerCardView) return;
+    if (!sNativeTrainerCardOwner) NativeTrainerCardUIBegin(view);
+    NativeTrainerCardUICancelPrompt();
+    sNativeTrainerCardView = view;
+    sNativeTrainerCardUIState.viewActive = 1;
+    sNativeTrainerCardUIState.view = kind;
+    sNativeTrainerCardUIState.ready = 0;
+    if (!++sNativeTrainerCardUIState.ownerGeneration) ++sNativeTrainerCardUIState.ownerGeneration;
+    if (!++sNativeTrainerCardUIState.revision) ++sNativeTrainerCardUIState.revision;
+}
+
+void NativeTrainerCardUIPromptQueued(void *view) {
+    if (!view || view != sNativeTrainerCardView) return;
+    NativeTrainerCardUICancelPrompt();
+    // Original prompt char/palette uploads use priority 0x80 on this same queue.
+    sNativeTrainerCardPromptTask = SysTask_CreateOnVWaitQueue(NativeTrainerCardUIPromptUploaded, view, 0x81);
+}
+
+uint32_t NativeTrainerCardUIPromptReady(const void *view) {
+    return view && view == sNativeTrainerCardView && sNativeTrainerCardPromptReady;
+}
+
+void NativeTrainerCardUIPublish(const void *view, const HGNativeTrainerCardUIState *facts) {
+    if (!view || view != sNativeTrainerCardView || !facts || sNativeTrainerCardUIState.active != 1) return;
+    HGNativeTrainerCardUIState next = *facts;
+    next.active = next.viewActive = 1;
+    next.ownerGeneration = sNativeTrainerCardUIState.ownerGeneration;
+    next.revision = sNativeTrainerCardUIState.revision;
+    next.view = sNativeTrainerCardUIState.view;
+    next.ready = next.ready == 1 && HGNativeTrainerCardUIInputAllowed(&next, next.ownerGeneration, next.revision);
+    if (HGNativeTrainerCardUIIsPrompt(&next) && !NativeTrainerCardUIPromptReady(view)) next.ready = 0;
+    if (memcmp(&next, &sNativeTrainerCardUIState, sizeof(next)) == 0) return;
+    sNativeTrainerCardUIState = next;
+    if (!++sNativeTrainerCardUIState.revision) ++sNativeTrainerCardUIState.revision;
+}
+
+void NativeTrainerCardUIEndView(const void *view) {
+    if (!view || view != sNativeTrainerCardView) return;
+    sNativeTrainerCardView = NULL;
+    sNativeTrainerCardUIState.viewActive = sNativeTrainerCardUIState.ready = 0;
+    NativeTrainerCardUICancelPrompt();
+    if (!++sNativeTrainerCardUIState.revision) ++sNativeTrainerCardUIState.revision;
+    if (view == sNativeTrainerCardOwner) NativeTrainerCardUIRetire(view);
+}
+
+void NativeTrainerCardUIRetire(const void *owner) {
+    if (!owner || owner != sNativeTrainerCardOwner) return;
+    sNativeTrainerCardOwner = sNativeTrainerCardView = NULL;
+    sNativeTrainerCardUIState.active = sNativeTrainerCardUIState.viewActive = sNativeTrainerCardUIState.ready = 0;
+    NativeTrainerCardUICancelPrompt();
+    if (!++sNativeTrainerCardUIState.revision) ++sNativeTrainerCardUIState.revision;
+}
+// Native Trainer Card resident state end.
+
+// Native field menu resident state begin.
+static HGNativeFieldMenuUIState sNativeFieldMenuUIState;
+static const void *sNativeFieldMenuOwner;
+static SysTask *sNativeFieldMenuUploadTask;
+static uint32_t sNativeFieldMenuView,sNativeFieldMenuUploaded,sNativeFieldMenuUploadGeneration;
+static void NativeFieldMenuUICancelUpload(void) {
+    sNativeFieldMenuUploaded=sNativeFieldMenuUploadGeneration=0;
+    if(sNativeFieldMenuUploadTask)SysTask_Destroy(sNativeFieldMenuUploadTask);
+    sNativeFieldMenuUploadTask=NULL;
+}
+static void NativeFieldMenuUIUploaded(SysTask *task,void *unused) {
+    if(task==sNativeFieldMenuUploadTask && sNativeFieldMenuOwner && sNativeFieldMenuView
+        && sNativeFieldMenuUploadGeneration==sNativeFieldMenuUIState.ownerGeneration) {
+        sNativeFieldMenuUploadTask=NULL;sNativeFieldMenuUploaded=1;
+    }
+    SysTask_Destroy(task);
+}
+const HGNativeFieldMenuUIState *HGNativeFieldMenuUIGetState(void){return &sNativeFieldMenuUIState;}
+void NativeFieldMenuUIBegin(const void *owner) {
+    if(!owner || owner==sNativeFieldMenuOwner)return;
+    NativeFieldMenuUICancelUpload();
+    uint32_t generation=sNativeFieldMenuUIState.ownerGeneration+1,revision=sNativeFieldMenuUIState.revision+1;
+    sNativeFieldMenuOwner=owner;sNativeFieldMenuView=0;
+    sNativeFieldMenuUIState=(HGNativeFieldMenuUIState){.active=1,.ownerGeneration=generation ? generation : 1,.revision=revision ? revision : 1};
+}
+void NativeFieldMenuUIBeginView(const void *owner) {
+    if(!owner || owner!=sNativeFieldMenuOwner)return;
+    NativeFieldMenuUICancelUpload();sNativeFieldMenuView=1;
+    sNativeFieldMenuUIState.viewActive=sNativeFieldMenuUIState.controlActive=sNativeFieldMenuUIState.ready=0;
+    if(!++sNativeFieldMenuUIState.ownerGeneration)++sNativeFieldMenuUIState.ownerGeneration;
+    if(!++sNativeFieldMenuUIState.revision)++sNativeFieldMenuUIState.revision;
+    sNativeFieldMenuUploadGeneration=sNativeFieldMenuUIState.ownerGeneration;
+    // Cross the original VBlank/BG/sprite transfers before admitting a newly created menu view.
+    sNativeFieldMenuUploadTask=SysTask_CreateOnVWaitQueue(NativeFieldMenuUIUploaded,NULL,129);
+}
+void NativeFieldMenuUIEndView(const void *owner) {
+    if(!owner || owner!=sNativeFieldMenuOwner || !sNativeFieldMenuView)return;
+    sNativeFieldMenuView=0;
+    sNativeFieldMenuUIState.viewActive=sNativeFieldMenuUIState.controlActive=sNativeFieldMenuUIState.ready=0;
+    NativeFieldMenuUICancelUpload();
+    if(!++sNativeFieldMenuUIState.revision)++sNativeFieldMenuUIState.revision;
+}
+void NativeFieldMenuUIPublish(const void *owner,const HGNativeFieldMenuUIState *facts) {
+    if(!owner || owner!=sNativeFieldMenuOwner || !facts)return;
+    HGNativeFieldMenuUIState next=*facts;
+    next.active=1;next.ownerGeneration=sNativeFieldMenuUIState.ownerGeneration;next.revision=sNativeFieldMenuUIState.revision;
+    next.viewActive=next.viewActive==1 && sNativeFieldMenuView;
+    next.controlActive=next.controlActive==1 && next.childActive==0 && next.phase==3;
+    next.ready=next.ready==1 && sNativeFieldMenuUploaded && HGNativeFieldMenuUIInputAllowed(&next,next.ownerGeneration,next.revision);
+    if(!memcmp(&next,&sNativeFieldMenuUIState,sizeof(next)))return;
+    sNativeFieldMenuUIState=next;
+    if(!++sNativeFieldMenuUIState.revision)++sNativeFieldMenuUIState.revision;
+}
+void NativeFieldMenuUIRetire(const void *owner) {
+    if(!owner || owner!=sNativeFieldMenuOwner)return;
+    sNativeFieldMenuOwner=NULL;sNativeFieldMenuView=0;
+    sNativeFieldMenuUIState.active=sNativeFieldMenuUIState.ready=sNativeFieldMenuUIState.viewActive=0;
+    sNativeFieldMenuUIState.controlActive=sNativeFieldMenuUIState.childActive=0;sNativeFieldMenuUIState.phase=UINT32_MAX;
+    NativeFieldMenuUICancelUpload();
+    if(!++sNativeFieldMenuUIState.revision)++sNativeFieldMenuUIState.revision;
+}
+void NativeFieldMenuUIReset(void){NativeFieldMenuUIRetire(sNativeFieldMenuOwner);}
+// Native field menu resident state end.
 
 // Native field choice resident state begin.
 // OVY_27 is restored on reload; the original SysTask owner and lease counters must stay resident.

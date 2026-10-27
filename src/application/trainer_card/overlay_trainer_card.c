@@ -1,6 +1,16 @@
 #include "overlay_trainer_card.h"
 
 #include "global.h"
+#ifdef HEARTGOLD_NATIVE
+#include <stddef.h>
+#include "native_trainer_card_ui.h"
+_Static_assert(offsetof(Ov50_021E5A3C, saveData) == 0x670
+    && offsetof(TrainerCardAppArgs, settings) + offsetof(TrainerCardAppSettings, saveData) == 0x670,
+    "Trainer Card saveData ABI");
+_Static_assert(offsetof(Ov50_021E5A3C, reqUpdateSignature) == 0x674
+    && offsetof(TrainerCardAppArgs, settings) + offsetof(TrainerCardAppSettings, showBack) == 0x674,
+    "Trainer Card signature request aliases showBack");
+#endif
 
 #include "overlay_manager.h"
 #include "overlay_trainer_card_main.h"
@@ -44,6 +54,9 @@ BOOL TrainerCard_Init(OverlayManager *man, int *state) {
     data->heapID = HEAP_ID_TRAINER_CARD;
     data->parentData = ptr;
     data->unk10 = ptr;
+#ifdef HEARTGOLD_NATIVE
+    NativeTrainerCardUIBegin(data);
+#endif
     return TRUE;
 }
 
@@ -71,6 +84,9 @@ BOOL TrainerCard_Main(OverlayManager *man, int *state) {
 
 BOOL TrainerCard_Exit(OverlayManager *man, int *state) {
     TrainerCardAppState *data = OverlayManager_GetData(man);
+#ifdef HEARTGOLD_NATIVE
+    NativeTrainerCardUIRetire(data);
+#endif
     MI_CpuClear8(data, sizeof(TrainerCardAppState));
     OverlayManager_FreeData(man);
     Sound_ClearSecondaryScene();

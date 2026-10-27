@@ -1,6 +1,9 @@
 #include "overlay_trainer_card_signature.h"
 
 #include "global.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_trainer_card_ui.h"
+#endif
 
 #include "constants/game_stats.h"
 #include "constants/sndseq.h"
@@ -93,6 +96,48 @@ static void TrainerCardSignature_PackCanvas(u8 *signature, const u8 *pixels);
 static void TrainerCardSignature_UpdatePenSound(TrainerCardSignature *signature);
 static void TrainerCardSignature_PlayPenSoundOnTurn(s8 *moves);
 static void TrainerCardSignature_SetDoneButtonHidden(TrainerCardSignature *signature, int hide);
+
+#ifdef HEARTGOLD_NATIVE
+static void TrainerCardSignature_PublishNativeUI(TrainerCardSignature *signature, int state) {
+    HGNativeTrainerCardUIState next = {0};
+    BgConfig *bg = signature->bgConfig;
+    YesNoPrompt *prompt = signature->yesNoPrompt;
+    Window *canvas = &signature->canvasWindow;
+    int i;
+    next.phase = state;
+    next.subState = signature->state;
+    next.ready = state == TRAINER_CARD_SIGNATURE_MAIN_RUN && bg && signature->signature
+        && signature->spriteList && signature->doneButtonSprite && IsPaletteFadeFinished()
+        && !((bg->bufferTransferScheduled | bg->scrollScheduled) & 0x37)
+        && canvas->bgConfig == bg && canvas->bgId == GF_BG_LYR_MAIN_1 && canvas->pixelBuffer
+        && canvas->tilemapLeft == 4 && canvas->tilemapTop == 9 && canvas->width == 24 && canvas->height == 8
+        && signature->messageWindow.bgConfig == bg && signature->messageWindow.pixelBuffer
+        && signature->messageWindow.bgId == GF_BG_LYR_MAIN_0;
+    for (i = 0; i < 6 && next.ready; i++) {
+        if (0x37 & (1 << i)) next.ready = bg->bgs[i].tilemapBuffer != NULL;
+    }
+    if (signature->state == TRAINER_CARD_SIGNATURE_STATE_DRAW) {
+        next.ready = next.ready && gTouchpadState.mode == TOUCHPAD_MODE_SAMPLING && !gTouchpadState.paused;
+    } else if (signature->state == TRAINER_CARD_SIGNATURE_STATE_CONFIRM_PROMPT
+        || signature->state == TRAINER_CARD_SIGNATURE_STATE_ERASE_PROMPT) {
+        if (prompt && prompt->buttonsAreInit == 1) {
+            next.promptCursor = prompt->cursorPos;
+            next.promptTouchMode = prompt->inTouchMode;
+            next.promptIgnoreTouch = prompt->ignoreTouch;
+            next.promptLeft = prompt->x * 8;
+            next.promptTop = prompt->y * 8;
+            next.promptWidth = prompt->width * 8;
+            next.promptButtonHeight = prompt->height * 8;
+        }
+        next.ready = next.ready && prompt && prompt->buttonsAreInit == 1 && prompt->result == 3
+            && prompt->confirmSelectionTimer == 0 && prompt->touchHitboxController
+            && NativeTrainerCardUIPromptReady(signature)
+            && prompt->bgConfig == bg && prompt->bgId == GF_BG_LYR_MAIN_0
+            && !TextPrinterCheckActive(signature->textPrinterId);
+    } else next.ready = 0;
+    NativeTrainerCardUIPublish(signature, &next);
+}
+#endif
 
 static int TrainerCardSignature_State_Draw(TrainerCardSignature *signature, int state);
 static int TrainerCardSignature_State_WaitConfirmMessage(TrainerCardSignature *signature, int state);
@@ -263,6 +308,9 @@ int TrainerCardSignature_Init(OverlayManager *manager, int *state) {
         Heap_Create(HEAP_ID_3, HEAP_ID_39, 0x40000);
         signature = OverlayManager_CreateAndGetData(manager, sizeof(TrainerCardSignature), HEAP_ID_39);
         memset(signature, 0, sizeof(TrainerCardSignature));
+#ifdef HEARTGOLD_NATIVE
+        NativeTrainerCardUIBeginView(signature, HG_TRAINER_CARD_SIGNATURE);
+#endif
         signature->bgConfig = BgConfig_Alloc(HEAP_ID_39);
         narc = NARC_New(NARC_a_0_9_1, HEAP_ID_39);
         signature->msgFormat = MessageFormat_New(HEAP_ID_39);
@@ -324,12 +372,18 @@ int TrainerCardSignature_Main(OverlayManager *manager, int *state) {
         break;
     }
     SpriteList_RenderAndAnimateSprites(signature->spriteList);
+#ifdef HEARTGOLD_NATIVE
+    TrainerCardSignature_PublishNativeUI(signature, *state);
+#endif
     return FALSE;
 }
 
 int TrainerCardSignature_Exit(OverlayManager *manager, int *state) {
     TrainerCardSignature *signature = OverlayManager_GetData(manager);
     int i;
+#ifdef HEARTGOLD_NATIVE
+    NativeTrainerCardUIEndView(signature);
+#endif
 
     TrainerCardSignature_PackCanvas(signature->signature, signature->canvasWindow.pixelBuffer);
     Main_SetVBlankIntrCB(NULL, NULL);
@@ -668,6 +722,9 @@ static void TrainerCardSignature_ShowYesNoPrompt(BgConfig *bgConfig, YesNoPrompt
 static int TrainerCardSignature_State_WaitConfirmMessage(TrainerCardSignature *signature, int state) {
     if (TrainerCardSignature_IsPrinterDone(signature->textPrinterId)) {
         TrainerCardSignature_ShowYesNoPrompt(signature->bgConfig, signature->yesNoPrompt);
+#ifdef HEARTGOLD_NATIVE
+        NativeTrainerCardUIPromptQueued(signature);
+#endif
         TrainerCardSignature_SetDoneButtonHidden(signature, 1);
         signature->state = TRAINER_CARD_SIGNATURE_STATE_CONFIRM_PROMPT;
     }
@@ -727,6 +784,9 @@ static int TrainerCardSignature_State_WaitEraseMessage(TrainerCardSignature *sig
     if (TrainerCardSignature_IsPrinterDone(signature->textPrinterId)) {
         signature->state = TRAINER_CARD_SIGNATURE_STATE_ERASE_PROMPT;
         TrainerCardSignature_ShowYesNoPrompt(signature->bgConfig, signature->yesNoPrompt);
+#ifdef HEARTGOLD_NATIVE
+        NativeTrainerCardUIPromptQueued(signature);
+#endif
     }
     TrainerCardSignature_UpdateCanvas(signature);
     return state;
@@ -768,15 +828,15 @@ static void TrainerCardSignature_DrawLine(Window *window, const void *src, s32 x
     s32 err;
     s32 dy;
 
-    x = *lastX;
-    y = *lastY;
-    endX = x1;
-    endY = y1;
     if (sample == 0 && hasLast == 0) {
         *lastX = x1;
         *lastY = y1;
         return;
     }
+    x = *lastX;
+    y = *lastY;
+    endX = x1;
+    endY = y1;
     dx = x1 - x;
     if (dx < 0) {
         dx = -dx;

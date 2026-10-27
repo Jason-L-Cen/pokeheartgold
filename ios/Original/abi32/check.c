@@ -31,6 +31,7 @@
 #include <nitro/spi/native_mic.h>
 #include <nitro/spi/native_power.h>
 #include <nitro/spi/native_input.h>
+#include <nitro/spi/ARM9/tp.h>
 #include <nitro/os/native_clock.h>
 #include <nitro/hw/consts_shared.h>
 #include <nitro/mi/dma.h>
@@ -314,10 +315,14 @@ static void CheckInputs(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     CHECK(HGNativeInputSamplingRate(env,&phase)==2 && phase==17);
     CHECK(HGNativeSetInput(env,0,FALSE,20,30,TRUE) && HGNativeSampleInput(env));
     CHECK(HGNativeSetInput(env,0,FALSE,40,50,TRUE) && HGNativeSampleInput(env));
+    CHECK(!w2c_hg32_HGInputAction(game,9,0));
     CHECK(w2c_hg32_HGInputAction(game,5,0)==2 && !w2c_hg32_HGInputAction(game,6,0));
     CHECK(read32(env->memory,point)==(30u<<16|20)); // Original filter selects the previous valid sample.
+    CHECK(!w2c_hg32_HGInputAction(game,9,0) && !w2c_hg32_HGInputAction(game,6,0));
+    CHECK(read32(env->memory,point)==(30u<<16|20) && w2c_hg32_HGInputAction(game,5,0)==2);
+    CHECK(HGNativeInputSamplingRate(env,&phase)==2 && phase==17 && !env->pendingINPUT);
     CHECK(HGNativeSetInput(env,0,FALSE,0,0,FALSE) && HGNativeSampleInput(env));
-    CHECK(!w2c_hg32_HGInputAction(game,6,0) && !read32(env->memory,point+4));
+    CHECK(!w2c_hg32_HGInputAction(game,6,0) && read32(env->memory,point+4)==((u32)TP_VALIDITY_INVALID_XY<<16));
     CHECK(HGNativeSetInput(env,0,FALSE,55,60,TRUE));
     for (u32 i=0;i<16;i++) CHECK(HGNativeSampleInput(env));
     CHECK(w2c_hg32_HGInputAction(game,5,0)==1);
@@ -354,7 +359,7 @@ static void CheckInputs(w2c_hg32 *game,w2c_hg32 *other,struct w2c_env *env,struc
     CHECK(read32(env->memory,point)==(17u<<16|79) && read32(env->memory,point+4)==1 && !env->pendingINPUT);
     CHECK(HGNativeSetInput(env,0,FALSE,0,0,FALSE));
     HGNativeWaitNanoseconds(20000000); CHECK(!w2c_hg32_HGInputAction(game,0,0));
-    CHECK(!w2c_hg32_HGInputAction(game,6,0) && !read32(env->memory,point+4));
+    CHECK(!w2c_hg32_HGInputAction(game,6,0) && read32(env->memory,point+4)==((u32)TP_VALIDITY_INVALID_XY<<16));
     CHECK(!w2c_hg32_HGInputAction(game,4,0)); u32 index=w2c_hg32_HGInputAction(game,5,0);
     HGNativeWaitNanoseconds(20000000); CHECK(!w2c_hg32_HGInputAction(game,0,0));
     CHECK(w2c_hg32_HGInputAction(game,5,0)==index && !env->pendingINPUT);
@@ -1884,6 +1889,12 @@ int main(int argc,char **argv) {
     u32 fieldChoiceUI=w2c_hg32_CheckNativeFieldChoiceUI(&first);
     if (fieldChoiceUI) fprintf(stderr,"Native field choice UI qualification check line %u\n",fieldChoiceUI);
     CHECK(!fieldChoiceUI && !w2c_hg32_CheckNativeFieldChoiceUI(&second));
+    u32 trainerCardUI=w2c_hg32_CheckNativeTrainerCardUI(&first);
+    if (trainerCardUI) fprintf(stderr,"Native Trainer Card UI qualification check line %u\n",trainerCardUI);
+    CHECK(!trainerCardUI && !w2c_hg32_CheckNativeTrainerCardUI(&second));
+    u32 fieldMenuUI=w2c_hg32_CheckNativeFieldMenuUI(&first);
+    if (fieldMenuUI) fprintf(stderr,"Native field menu UI qualification check line %u\n",fieldMenuUI);
+    CHECK(!fieldMenuUI && !w2c_hg32_CheckNativeFieldMenuUI(&second));
     u32 ballPocket=w2c_hg32_CheckOriginalBallPocket(&first);
     if (ballPocket) fprintf(stderr,"Original ball pocket check line %u\n",ballPocket);
     CHECK(!ballPocket && !w2c_hg32_CheckOriginalBallPocket(&second));

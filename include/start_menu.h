@@ -81,6 +81,9 @@ void StartMenu_InitColosseum(FieldSystem *fieldSystem);
 void StartMenu_ReopenAfterScript(FieldSystem *fieldSystem);
 BOOL FieldSystem_ShouldDrawStartMenuIcon(FieldSystem *fieldSystem, StartMenuIcon icon);
 void StartMenu_SetExitTaskFunc(StartMenuTaskData *env, TaskFunc func);
+#ifdef HEARTGOLD_NATIVE
+void StartMenu_PublishNativeUI(FieldSystem *fieldSystem);
+#endif
 BOOL Task_StartMenu_HandleReturn_Pokemon(TaskManager *taskManager);
 BOOL Task_ReturnToMenuFromAppItem(TaskManager *taskManager);
 BOOL Task_UseFlyInField(TaskManager *taskManager);

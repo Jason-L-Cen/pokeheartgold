@@ -522,7 +522,7 @@ def main():
         raise RuntimeError('Run check_abi32.py --audit first; strict engine link is unavailable')
     listing=subprocess.run([str(WABT/'bin/wasm-objdump'),'-x',str(module)],capture_output=True,text=True,timeout=15)
     shipping_exports=set(re.findall(r'-> "([^"\n]+)"',listing.stdout))
-    if listing.returncode or not {'HGNativePokedexUIGetState','HGNativeFieldChoiceUIGetState'}<=shipping_exports:
+    if listing.returncode or not {'HGNativePokedexUIGetState','HGNativeFieldChoiceUIGetState','HGNativeTrainerCardUIGetState','HGNativeFieldMenuUIGetState'}<=shipping_exports:
         raise RuntimeError('Shipping engine is missing an original public UI getter; run the current Full first')
     pack=verify(link.get('nativeContent')); header=read_boot_header(pack)
     destination=BUILD/f'app-{args.sdk}'; destination.mkdir(exist_ok=True)
@@ -568,7 +568,7 @@ def main():
     selected_listing=subprocess.run([str(WABT/'bin/wasm-objdump'),'-x',str(module)],capture_output=True,text=True,timeout=15)
     (destination/'selected-module-exports.log').write_text(selected_listing.stdout+selected_listing.stderr)
     selected_exports=set(re.findall(r'-> "([^"\n]+)"',selected_listing.stdout))
-    if selected_listing.returncode or not {'HGNativePokedexUIGetState','HGNativeCaptureUIGetState','HGNativeNamingUIGetState','HGNativeOptionsUIGetState','HGNativePCBoxUIGetState','HGNativeFieldChoiceUIGetState'}<=selected_exports:
+    if selected_listing.returncode or not {'HGNativePokedexUIGetState','HGNativeCaptureUIGetState','HGNativeNamingUIGetState','HGNativeOptionsUIGetState','HGNativePCBoxUIGetState','HGNativeFieldChoiceUIGetState','HGNativeTrainerCardUIGetState','HGNativeFieldMenuUIGetState'}<=selected_exports:
         raise RuntimeError('Selected module lacks a current public UI getter; require a matching actual native proof, not rewritten approval hashes')
     if args.check_case=='pc-box' and selected_exports!=shipping_exports|set(QA_NAMES):
         raise RuntimeError('PC CHECK requires exactly the current public exports plus the two approved private PC QA exports')

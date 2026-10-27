@@ -105,6 +105,8 @@ def link_engine(link,listing,destination,native_content=None):
              '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth','-Wl,--export=HGNativeGeometryFrame',
              '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativeCaptureUIGetState','-Wl,--export=HGNativeNamingUIGetState','-Wl,--export=HGNativeOptionsUIGetState','-Wl,--export=HGNativePCBoxUIGetState','-Wl,--export=HGNativePartyUIGetState','-Wl,--export=HGNativePartyUIGetStats',
              '-Wl,--export=HGNativeFieldChoiceUIGetState',
+             '-Wl,--export=HGNativeTrainerCardUIGetState',
+             '-Wl,--export=HGNativeFieldMenuUIGetState',
              '-Wl,--export=HGNativeBagUIGetState','-Wl,--export=HGNativeSummaryUIGetState','-Wl,--export=HGNativeEvolutionUIGetState','-Wl,--export=HGNativePokedexUIGetState',
              '-Wl,--export=HGNativeBattleBagUIGetState','-Wl,--export=HGNativeBattlePartyUIGetState',
              '-Wl,--export=HGNativeFieldMap','-Wl,--export=HGNativeFieldMenuIcons','-Wl,--error-limit=0',
@@ -592,6 +594,8 @@ def main():
     sources.append('ios/Original/tests/options_ui_check.c')
     sources.append('ios/Original/tests/pc_box_ui_check.c')
     sources.append('ios/Original/tests/field_choice_ui_check.c')
+    sources.append('ios/Original/tests/trainer_card_ui_check.c')
+    sources.append('ios/Original/tests/field_menu_ui_check.c')
     sources.append('src/pokedex.c')
     sources += ['src/mail.c', 'src/seal_case.c', 'src/move.c', 'src/msgdata.c', 'src/pm_string.c', 'src/item.c']
     sources.append('ios/Original/tests/ball_pocket_check.c')
@@ -1021,6 +1025,8 @@ def main():
     exports.append('CheckNativeOptionsUI')
     exports.append('CheckNativePCBoxUI')
     exports.append('CheckNativeFieldChoiceUI')
+    exports.append('CheckNativeTrainerCardUI')
+    exports.append('CheckNativeFieldMenuUI')
     exports.append('CheckOriginalBallPocket')
     exports.append('CheckOriginalItemReply')
     exports.append('HGSoundMusicAction')
@@ -1047,8 +1053,8 @@ def main():
             '-Wl,--wrap=malloc','-Wl,--wrap=free',
             '-Wl,--allow-undefined-file='+str(native_imports),
             '-Wl,--gc-sections', '-Wl,--fatal-warnings','-Wl,--error-limit=0','-Wl,--stack-first','-Wl,-z,stack-size=65536',
-            # Preserve the existing heap headroom after adding the canonical 192 KiB RGB surface.
-            '-Wl,--initial-memory=16973824', '-Wl,--max-memory=16973824']
+            # Preserve heap headroom for the canonical 192 KiB RGB surface and native 512 KiB raw ADC mirror.
+            '-Wl,--initial-memory=17498112', '-Wl,--max-memory=17498112']
     link+=['-fwasm-exceptions','-lc++','-lc++abi','-lunwind']
     link_command = [*link, *['-Wl,--export=' + name for name in exports], *objects, '-o', BUILD / 'hg32.wasm']
     (BUILD/'probe-link-command.json').write_text(json.dumps(list(map(str,link_command)),indent=2)+'\n')

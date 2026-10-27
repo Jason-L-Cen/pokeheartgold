@@ -99,15 +99,15 @@ def wasm_exports(data):
 
 
 def shipping_exports_passed(exports, actual):
-    return isinstance(exports, list) and len(exports) == 28 and all(isinstance(name, str) for name in exports) \
-        and len(set(exports)) == 28 and not any('QA' in name for name in exports) \
-        and {'HGNativePCBoxUIGetState', 'HGNativeFieldChoiceUIGetState'}.issubset(exports) and sorted(exports) == actual
+    return isinstance(exports, list) and len(exports) == 30 and all(isinstance(name, str) for name in exports) \
+        and len(set(exports)) == 30 and not any('QA' in name for name in exports) \
+        and {'HGNativePCBoxUIGetState', 'HGNativeFieldChoiceUIGetState', 'HGNativeTrainerCardUIGetState', 'HGNativeFieldMenuUIGetState'}.issubset(exports) and sorted(exports) == actual
 
 
 def normal_checks_passed(checks, count):
     return isinstance(checks, list) and bool(checks) and all(isinstance(name, str) for name in checks) \
         and len(checks) == len(set(checks)) == count \
-        and {'CheckNativePCBoxUI', 'CheckOriginalSummaryUI', 'CheckNativeFieldChoiceUI'}.issubset(checks)
+        and {'CheckNativePCBoxUI', 'CheckOriginalSummaryUI', 'CheckNativeFieldChoiceUI', 'CheckNativeTrainerCardUI', 'CheckNativeFieldMenuUI'}.issubset(checks)
 
 
 def current_input_paths():
@@ -205,7 +205,7 @@ def validate_full(full_receipt):
             or shipping.get('shippingQaExportCount', 0) != 0 \
             or shipping.get('undefinedSymbols', []) != [] or shipping.get('strictLinkExit', 0) != 0 \
             or shipping.get('sha256') != file_sha(paths['engine.wasm']):
-        raise RuntimeError('Full shipping module must contain exactly the actual 28 public exports, including Field Choice, and no private QA')
+        raise RuntimeError('Full shipping module must contain exactly the actual 30 public exports, including Field Menu, and no private QA')
     checks = formal.get('actualNormalChecks', [])
     if not normal_checks_passed(checks, formal.get('actualNormalCheckKinds')):
         raise RuntimeError('Full must include current registered PC Box, Summary and Field Choice checks')
@@ -559,13 +559,15 @@ def self_check():
         body = leb(len(names)) + b''.join(leb(len(name)) + name.encode() + b'\0\0' for name in names)
         return b'\0asm\x01\0\0\0\x07' + leb(len(body)) + body
     assert wasm_exports(module(['memory', 'NitroMain', *QA_EXPORTS])) == sorted(['memory', 'NitroMain', *QA_EXPORTS])
-    shipping = ['HGNativePCBoxUIGetState', 'HGNativeFieldChoiceUIGetState', *('public' + str(index) for index in range(26))]
+    shipping = ['HGNativePCBoxUIGetState', 'HGNativeFieldChoiceUIGetState', 'HGNativeTrainerCardUIGetState', 'HGNativeFieldMenuUIGetState', *('public' + str(index) for index in range(26))]
     assert shipping_exports_passed(shipping, sorted(shipping))
     for invalid in (shipping[:-1], [*shipping[:-1], shipping[0]], [name.replace('HGNativeFieldChoiceUIGetState', 'missingChoice') for name in shipping],
+            [name.replace('HGNativeTrainerCardUIGetState', 'missingTrainerCard') for name in shipping],
+            [name.replace('HGNativeFieldMenuUIGetState', 'missingFieldMenu') for name in shipping],
             [*shipping[:-1], QA_EXPORTS[0]]):
         assert not shipping_exports_passed(invalid, sorted(invalid))
     assert not shipping_exports_passed(shipping, sorted([*shipping, 'extra']))
-    checks = ['CheckNativePCBoxUI', 'CheckOriginalSummaryUI', 'CheckNativeFieldChoiceUI']
+    checks = ['CheckNativePCBoxUI', 'CheckOriginalSummaryUI', 'CheckNativeFieldChoiceUI', 'CheckNativeTrainerCardUI', 'CheckNativeFieldMenuUI']
     assert normal_checks_passed(checks, len(checks)) and not normal_checks_passed(checks[:-1], len(checks) - 1)
     assert not normal_checks_passed(checks, len(checks) + 1)
     for data in (b'', module(['x', 'x']), module(['x'])[:-1], b'\0asm\x01\0\0\0\x07\xff\xff\xff\xff\xff'):
@@ -670,7 +672,7 @@ def self_check():
         subprocess.run(['xcrun','clang','-std=c11','-O2','-fsanitize=address,undefined','-fno-sanitize-recover=all',
             '-iquote',str(ROOT/'ios/tests'),'-iquote',str(ROOT/'include'),str(source),'-o',str(binary)],check=True,timeout=30)
         subprocess.run([str(binary)],check=True,timeout=10)
-    print('PASS: PC formal28/FieldChoice gates, QA3/1416, typed boot lifecycle, scoped message leases and exact fixture/ledger checks; no build or game run.')
+    print('PASS: PC formal30/FieldMenu gates, QA3/1416, typed boot lifecycle, scoped message leases and exact fixture/ledger checks; no build or game run.')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

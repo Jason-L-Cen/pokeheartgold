@@ -1,4 +1,9 @@
 #include "start_menu.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_field_menu_ui.h"
+_Static_assert(START_MENU_STATE_HANDLE_INPUT==3 && START_MENU_STATE_WAIT_APP==5
+    && START_MENU_STATE_RETURN==15 && START_MENU_STATE_CLOSE==16 && START_MENU_STATE_RETURN_WAIT_FADE==17,"original StartMenu phases");
+#endif
 
 #include "global.h"
 
@@ -282,6 +287,9 @@ static StartMenuTaskData *StartMenu_Create(void) {
     ret->state = 0;
     ret->lastButtonSelected = 0;
     ret->exitTaskEnvironment = NULL;
+#ifdef HEARTGOLD_NATIVE
+    NativeFieldMenuUIBegin(ret);
+#endif
     return ret;
 }
 
@@ -401,6 +409,9 @@ static BOOL Task_StartMenu(TaskManager *taskManager) {
     case START_MENU_STATE_11:
         if (IsPaletteFadeFinished()) {
             StartMenu_ResumeUnionRoomSearch(startMenu, fieldSystem);
+#ifdef HEARTGOLD_NATIVE
+            NativeFieldMenuUIRetire(startMenu);
+#endif
             Heap_Free(startMenu);
             MapObjectManager_UnpauseAllMovement(fieldSystem->mapObjectManager);
             return TRUE;
@@ -415,6 +426,9 @@ static BOOL Task_StartMenu(TaskManager *taskManager) {
         break;
     case START_MENU_STATE_13:
         if (IsPaletteFadeFinished()) {
+#ifdef HEARTGOLD_NATIVE
+            NativeFieldMenuUIRetire(startMenu);
+#endif
             TaskManager_Jump(taskManager, startMenu->exitTaskFunc, startMenu->exitTaskEnvironment);
             Heap_Free(startMenu);
         }
@@ -423,10 +437,16 @@ static BOOL Task_StartMenu(TaskManager *taskManager) {
         startMenu->exitTaskFunc(taskManager);
         break;
     case START_MENU_STATE_18:
+#ifdef HEARTGOLD_NATIVE
+        NativeFieldMenuUIRetire(startMenu);
+#endif
         Heap_Free(startMenu);
         MapObjectManager_UnpauseAllMovement(fieldSystem->mapObjectManager);
         return TRUE;
     case START_MENU_STATE_CLOSE:
+#ifdef HEARTGOLD_NATIVE
+        NativeFieldMenuUIRetire(startMenu);
+#endif
         StartMenu_ResumeUnionRoomSearch(startMenu, fieldSystem);
         StartMenu_RemoveCursorAndIcons(startMenu, fieldSystem);
         fieldSystem->startMenuState = 2;
@@ -469,6 +489,9 @@ static void Task_StartMenu_DrawCursor(TaskManager *taskManager) {
     GfGfxLoader_GXLoadPal(NARC_a_0_1_4, 15, GF_PAL_LOCATION_MAIN_BG, (enum GFPalSlotOffset)0x1C0, 0x20, HEAP_ID_FIELD2);
     GfGfxLoader_LoadScrnData(NARC_a_0_1_4, 13, fieldSystem->bgConfig, GF_BG_LYR_MAIN_3, 0, 0, TRUE, HEAP_ID_FIELD2);
     StartMenu_CreateCursor(startMenu, startMenu->insertionOrder, numActiveButtons, PlayerProfile_GetTrainerGender(Save_PlayerData_GetProfile(fieldSystem->saveData)));
+#ifdef HEARTGOLD_NATIVE
+    NativeFieldMenuUIBeginView(startMenu);
+#endif
 }
 
 static void StartMenuButton_Insert(u8 *insertionOrderDest, u8 *displayOrderDest, u32 *pLength, u8 item, vu32 position) {
@@ -523,6 +546,9 @@ static u32 StartMenu_BuildActionLists(StartMenuTaskData *startMenu, u8 *insertio
 }
 
 static void StartMenu_RemoveCursorAndIcons(StartMenuTaskData *startMenu, FieldSystem *fieldSystem) {
+#ifdef HEARTGOLD_NATIVE
+    NativeFieldMenuUIEndView(startMenu);
+#endif
     StartMenu_DestroyCursor(startMenu);
     FillBgTilemapRect(fieldSystem->bgConfig, GF_BG_LYR_MAIN_3, 0, 0, 0, 0x20, 0x18, 0);
     startMenu->cursorActive = FALSE;
@@ -1252,6 +1278,9 @@ static BOOL Task_StartMenu_HandleReturn_RemovedEasyChatThing(TaskManager *taskMa
 static BOOL Task_StartMenu_HandleSelection_Retire(TaskManager *taskManager) {
     FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
     StartMenuTaskData *startMenu = (StartMenuTaskData *)TaskManager_GetEnvironment(taskManager);
+#ifdef HEARTGOLD_NATIVE
+    NativeFieldMenuUIRetire(startMenu);
+#endif
 
     StartMenu_RemoveCursorAndIcons(startMenu, fieldSystem);
     fieldSystem->startMenuState = 0;
@@ -1500,3 +1529,23 @@ static void Task_StartMenu_WaitEvolution(TaskManager *taskManager) {
         StartMenu_SetExitTaskFunc(startMenu, Task_StartMenu_HandleReturn);
     }
 }
+
+#ifdef HEARTGOLD_NATIVE
+void StartMenu_PublishNativeUI(FieldSystem *fieldSystem) {
+    TaskManager *ownerTask=fieldSystem->taskman;
+    while(ownerTask && ownerTask->func!=Task_StartMenu)ownerTask=ownerTask->prev;
+    if(!ownerTask || !TaskManager_GetEnvironment(ownerTask)) {NativeFieldMenuUIReset();return;}
+    StartMenuTaskData *startMenu=TaskManager_GetEnvironment(ownerTask);
+    HGNativeFieldMenuUIState facts={.phase=startMenu->state,
+        .childActive=FieldSystem_IsChildAppRunning(fieldSystem),
+        .inputMode=MenuInputStateMgr_GetState(&fieldSystem->menuInputState)};
+    facts.viewActive=startMenu->cursorActive && FieldSystem_IsFieldMapRunning(fieldSystem) && !facts.childActive
+        && fieldSystem->bgConfig && fieldSystem->bgConfig->bgs[GF_BG_LYR_MAIN_3].tilemapBuffer
+        && startMenu->spriteList && startMenu->cursorSprite;
+    facts.controlActive=ownerTask==fieldSystem->taskman && startMenu->state==START_MENU_STATE_HANDLE_INPUT
+        && !FieldSystem_GetBottomScreenAppId(fieldSystem) && FieldSystem_GetBottomScreenAppState(fieldSystem)==TRUE;
+    facts.ready=facts.viewActive && facts.controlActive && !facts.childActive && fieldSystem->startMenuState==2
+        && !fieldSystem->processManager->isPaused && !fieldSystem->lastTouchMenuInput && IsPaletteFadeFinished();
+    NativeFieldMenuUIPublish(startMenu,&facts);
+}
+#endif
