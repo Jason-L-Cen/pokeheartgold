@@ -29,13 +29,17 @@
 #include "text.h"
 #include <string.h>
 
-_Static_assert(sizeof(HGPCBoxQAState)==1372 && offsetof(HGPCBoxQAState,messageAwaitInput)==1368,"private PC QA version 2 append-only ABI");
+_Static_assert(sizeof(HGPCBoxQAState)==1416 && offsetof(HGPCBoxQAState,messageAwaitInput)==1368
+    && offsetof(HGPCBoxQAState,boot)==1372 && sizeof(HGYNBootFacts)==44,
+    "private PC QA version 3 append-only ABI");
 static HGPCBoxQAState sPCQA={.version=HG_PC_QA_VERSION,.byteSize=sizeof(HGPCBoxQAState)};
 static FieldSystem *sPCQAField;
+static const void *sPCQABootOwner;
 static uint32_t sPCQARequest,sPCQAOrigin[4],sPCQAMenuWasReady;
 static Bag sPCQABag;
 static SaveVarsFlags sPCQAFlags;
 static u32 sPCQAMoney,sPCQASeen,sPCQACaught,sPCQABoxName;
+static u32 PCQANextNonzero(u32 value) { return value==UINT32_MAX ? 1 : value+1; }
 static const int sPCQAAttrs[]={MON_DATA_PERSONALITY,MON_DATA_OT_ID,MON_DATA_SPECIES,MON_DATA_FORM,MON_DATA_IS_EGG,
     MON_DATA_EXPERIENCE,MON_DATA_FRIENDSHIP,MON_DATA_ABILITY,MON_DATA_LANGUAGE,MON_DATA_POKEBALL,
     MON_DATA_OT_GENDER,MON_DATA_MET_GAME,MON_DATA_FATEFUL_ENCOUNTER,MON_DATA_MARKINGS,
@@ -139,6 +143,20 @@ static void PCBoxQAPrepare(void) {
 }
 
 const HGPCBoxQAState *HGNativePCBoxQAGetState(void) { return &sPCQA; }
+void NPCYNBootPublish(const void *owner,const HGYNBootFacts *facts) {
+    if (!owner || !facts) return;
+    u32 generation=sPCQA.boot.ownerGeneration,revision=PCQANextNonzero(sPCQA.boot.revision);
+    if (sPCQABootOwner!=owner || !sPCQA.boot.active) generation=PCQANextNonzero(generation);
+    sPCQABootOwner=owner; sPCQA.boot=*facts;
+    sPCQA.boot.active=1; sPCQA.boot.ownerGeneration=generation; sPCQA.boot.revision=revision;
+    sPCQA.revision=PCQANextNonzero(sPCQA.revision);
+}
+void NPCYNBootRetire(const void *owner) {
+    if (!owner || owner!=sPCQABootOwner || !sPCQA.boot.active) return;
+    sPCQA.boot.active=0; sPCQA.boot.ready=0; sPCQA.boot.revision=PCQANextNonzero(sPCQA.boot.revision);
+    sPCQA.revision=PCQANextNonzero(sPCQA.revision);
+    sPCQABootOwner=NULL;
+}
 u32 HGNativePCBoxQARequest(u32 revision,u32 kind) {
     if (!revision || revision!=sPCQA.revision || sPCQA.error || sPCQARequest) return FALSE;
     if (kind==HG_PC_QA_START ? sPCQA.stage!=0 || !sPCQA.fieldReady
@@ -182,7 +200,7 @@ BOOL __wrap_PCBox_Main(OverlayManager *manager,int *state) {
     if (sPCQARequest==HG_PC_QA_CHECKPOINT && sPCQA.pc.ready && !sPCQA.pc.cursorHolding) {
         sPCQARequest=0; PCBoxQASnapshot(FALSE);
     }
-    ++sPCQA.revision;
+    sPCQA.revision=PCQANextNonzero(sPCQA.revision);
     return result;
 }
 
@@ -205,7 +223,7 @@ static BOOL PCBoxQAMessageAwaitInput(FieldSystem *field) {
 }
 
 static void PCBoxQAFieldTick(FieldSystem *field) {
-    sPCQAField=field; ++sPCQA.revision; sPCQA.frame=OS_GetVBlankCount();
+    sPCQAField=field; sPCQA.revision=PCQANextNonzero(sPCQA.revision); sPCQA.frame=OS_GetVBlankCount();
     sPCQA.messageAwaitInput=0;
     sPCQA.mapId=field->location ? field->location->mapId : UINT32_MAX;
     sPCQA.fieldReady=FieldSystem_IsFieldMapLoaded(field) && FieldSystem_IsFieldMapRunning(field)

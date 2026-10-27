@@ -60,7 +60,7 @@ enum TrainerCardSignatureState {
 
 typedef int (*TrainerCardSignatureStateFunc)(TrainerCardSignature *signature, int state);
 
-static void TrainerCardSignature_VBlankCB(BgConfig *bgConfig);
+static void TrainerCardSignature_VBlankCB(void *data);
 static void TrainerCardSignature_SetGfxBanks(void);
 static void TrainerCardSignature_InitBgLayers(BgConfig *bgConfig);
 static void TrainerCardSignature_InitStrings(TrainerCardSignature *signature);
@@ -279,7 +279,7 @@ int TrainerCardSignature_Init(OverlayManager *manager, int *state) {
         TrainerCardSignature_LoadBgGraphics(signature, narc);
         GF_TouchpadResetSampling();
         GF_TouchpadStartSampling(1);
-        Main_SetVBlankIntrCB((GFIntrCB)TrainerCardSignature_VBlankCB, signature->bgConfig);
+        Main_SetVBlankIntrCB(TrainerCardSignature_VBlankCB, signature->bgConfig);
         FontID_Alloc(2, HEAP_ID_39);
         TrainerCardSignature_InitStrings(signature);
         TrainerCardSignature_InitObjTransfer();
@@ -360,7 +360,9 @@ int TrainerCardSignature_Exit(OverlayManager *manager, int *state) {
     return TRUE;
 }
 
-static void TrainerCardSignature_VBlankCB(BgConfig *bgConfig) {
+static void TrainerCardSignature_VBlankCB(void *data) {
+    BgConfig *bgConfig = data;
+
     GF_RunVramTransferTasks();
     OamManager_ApplyAndResetBuffers();
     DoScheduledBgGpuUpdates(bgConfig);
@@ -653,7 +655,7 @@ static void TrainerCardSignature_UpdateCanvas(TrainerCardSignature *signature) {
 }
 
 static void TrainerCardSignature_ShowYesNoPrompt(BgConfig *bgConfig, YesNoPrompt *yesNoPrompt) {
-    YesNoPromptTemplate template;
+    YesNoPromptTemplate template = { 0 };
     template.bgConfig = bgConfig;
     template.bgId = GF_BG_LYR_MAIN_0;
     template.tileStart = 0xb4;
@@ -940,7 +942,7 @@ static void TrainerCardSignature_PackCanvas(u8 *signature, const u8 *pixels) {
             *signature |= 1 << (bit + 1);
         }
         bit += 2;
-        if (bit == 8) {
+        if (bit == 8 && i + 1 < 6144) {
             signature++;
             n++;
             *signature = 0;

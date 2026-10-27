@@ -18,7 +18,7 @@ from prepare_native_content import verify
 from import_original_content import read_boot_header
 
 # Set only after review of the exact actually passed native PC report.
-APPROVED_PC_NATIVE_REPORT_SHA256 = 'f1162c6265b5c07a1f17ef9080210660c7c3108a01c641de891b54741480071b'
+APPROVED_PC_NATIVE_REPORT_SHA256 = 'd9d4cd159c7ca4222ba71bcf5475f5dcf6329835f8d93fb3be3e346a49567eac'
 
 
 def party_action_names(move_names):

@@ -84,7 +84,7 @@ static void TrainerCardMain_ApplyFlipScale(TrainerCardMain *cardMain);
 static int TrainerCardMain_HandleKeys(TrainerCardMain *cardMain);
 static int TrainerCardMain_HandleTouch(TrainerCardMain *cardMain, int *touched);
 static int TrainerCardMain_HandleInput(TrainerCardMain *cardMain);
-static void TrainerCardMain_VBlankCB(TrainerCardMain *cardMain);
+static void TrainerCardMain_VBlankCB(void *data);
 static void TrainerCardMain_ResetBgAffine(void);
 static void TrainerCardMain_DrawFrontPicture(TrainerCardMain *cardMain);
 static void TrainerCardMain_ClearBackSideRect(TrainerCardMain *cardMain);
@@ -369,7 +369,7 @@ int TrainerCardMainApp_Init(OverlayManager *manager, int *state) {
     TrainerCardMain_ResetBgAffine();
     TrainerCardMain_DrawCard(cardMain);
     TrainerCardMain_PrintCancelButton(cardMain, 0);
-    Main_SetVBlankIntrCB((GFIntrCB)TrainerCardMain_VBlankCB, cardMain);
+    Main_SetVBlankIntrCB(TrainerCardMain_VBlankCB, cardMain);
     WirelessStatusIcon_CreateIfConnected();
     GF_SndHandleSetPlayerVolume(1, 0x2a);
     BeginNormalPaletteFade(FADE_SUB_THEN_MAIN, FADE_TYPE_DOWNWARD_IN, FADE_TYPE_DOWNWARD_IN, RGB_BLACK, 6, 1, HEAP_ID_25);
@@ -891,7 +891,8 @@ static int TrainerCardMain_HandleInput(TrainerCardMain *cardMain) {
     }
 }
 
-static void TrainerCardMain_VBlankCB(TrainerCardMain *cardMain) {
+static void TrainerCardMain_VBlankCB(void *data) {
+    TrainerCardMain *cardMain = data;
     int pos = -cardMain->scrollOffset;
     BgSetPosTextAndCommit(cardMain->bgConfig, GF_BG_LYR_SUB_1, BG_POS_OP_SET_X, pos);
     BgSetPosTextAndCommit(cardMain->bgConfig, GF_BG_LYR_SUB_1, BG_POS_OP_SET_Y, pos);

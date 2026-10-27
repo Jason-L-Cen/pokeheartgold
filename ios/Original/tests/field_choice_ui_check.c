@@ -15,9 +15,11 @@ uint32_t CheckNativeFieldChoiceUI(void) {
         && offsetof(HGNativeFieldChoiceUIState, ready) == 12 && offsetof(HGNativeFieldChoiceUIState, phase) == 16
         && offsetof(HGNativeFieldChoiceUIState, rowCount) == 20 && offsetof(HGNativeFieldChoiceUIState, selectedIndex) == 24
         && offsetof(HGNativeFieldChoiceUIState, cancelEnabled) == 28 && offsetof(HGNativeFieldChoiceUIState, viewActive) == 32);
-    for (uint32_t phase = 0; phase <= 12; ++phase)
+    for (uint32_t phase = 0; phase <= 12; ++phase) {
         CHECK(HGNativeFieldChoiceUIIsListPhase(phase) == (phase >= 7 && phase <= 10));
-    CHECK(!HGNativeFieldChoiceUIIsListPhase(UINT32_MAX));
+        CHECK(HGNativeFieldChoiceUIIsViewPhase(phase) == ((phase >= 3 && phase <= 5) || (phase >= 7 && phase <= 10)));
+    }
+    CHECK(!HGNativeFieldChoiceUIIsListPhase(UINT32_MAX) && !HGNativeFieldChoiceUIIsViewPhase(UINT32_MAX));
     HGNativeFieldChoiceUIState local = {1, 7, 9, 1, HG_FIELD_CHOICE_UI_LIST_INPUT, 8, 7, 1, 1}, before = local;
     uint32_t output = 123;
     const uint32_t keys[] = {1, 2, 16, 32, 64, 128};
@@ -63,6 +65,39 @@ uint32_t CheckNativeFieldChoiceUI(void) {
     local.ownerGeneration = local.revision = UINT32_MAX;
     CHECK(HGNativeFieldChoiceUIResolveInput(&local, UINT32_MAX, UINT32_MAX, 1, &output) && output == 1);
 
+    local = (HGNativeFieldChoiceUIState){1, 7, 9, 1, HG_FIELD_CHOICE_UI_YES_NO_INPUT, 2, 0, 1, 1};
+    before = local;
+    const uint32_t yesNoKeys[] = {1, 2, 64, 128};
+    for (uint32_t selection = 0; selection < 2; ++selection) {
+        local.selectedIndex = selection;
+        CHECK(HGNativeFieldChoiceUIIsYesNoInput(&local));
+        for (size_t i = 0; i < sizeof(yesNoKeys) / sizeof(yesNoKeys[0]); ++i)
+            CHECK(HGNativeFieldChoiceUIResolveInput(&local, 7, 9, yesNoKeys[i], &output) && output == yesNoKeys[i]);
+        output = 123;
+        CHECK(!HGNativeFieldChoiceUIResolveInput(&local, 7, 9, 16, &output)
+            && !HGNativeFieldChoiceUIResolveInput(&local, 7, 9, 32, &output) && output == 123);
+        before.selectedIndex = selection;
+        CHECK(!memcmp(&local, &before, sizeof(local)));
+    }
+    CHECK(!HGNativeFieldChoiceUIIsYesNoInput(NULL)
+        && !HGNativeFieldChoiceUIResolveInput(&local, 6, 9, 1, &output)
+        && !HGNativeFieldChoiceUIResolveInput(&local, 7, 8, 2, &output));
+    const struct { size_t offset; uint32_t value; } invalidYesNo[] = {
+        {offsetof(HGNativeFieldChoiceUIState, rowCount), 1}, {offsetof(HGNativeFieldChoiceUIState, rowCount), 3},
+        {offsetof(HGNativeFieldChoiceUIState, selectedIndex), 2}, {offsetof(HGNativeFieldChoiceUIState, cancelEnabled), 0},
+        {offsetof(HGNativeFieldChoiceUIState, cancelEnabled), 2}, {offsetof(HGNativeFieldChoiceUIState, ready), 0},
+        {offsetof(HGNativeFieldChoiceUIState, viewActive), 0}, {offsetof(HGNativeFieldChoiceUIState, phase), 3},
+        {offsetof(HGNativeFieldChoiceUIState, phase), 5}, {offsetof(HGNativeFieldChoiceUIState, phase), 6},
+        {offsetof(HGNativeFieldChoiceUIState, phase), 11}
+    };
+    for (size_t i = 0; i < sizeof(invalidYesNo) / sizeof(invalidYesNo[0]); ++i) {
+        local = before;
+        memcpy((unsigned char *)&local + invalidYesNo[i].offset, &invalidYesNo[i].value, sizeof(uint32_t));
+        HGNativeFieldChoiceUIState invalidBefore = local;
+        CHECK(!HGNativeFieldChoiceUIResolveInput(&local, 7, 9, 1, &output) && output == 123);
+        CHECK(!memcmp(&local, &invalidBefore, sizeof(local)));
+    }
+
 #ifdef HG_NATIVE_FIELD_CHOICE_UI_STATE_CHECK
     const HGNativeFieldChoiceUIState *state = HGNativeFieldChoiceUIGetState();
     before = *state;
@@ -106,7 +141,27 @@ uint32_t CheckNativeFieldChoiceUI(void) {
     local.cancelEnabled = 1; local.phase = HG_FIELD_CHOICE_UI_LIST_END; NativeFieldChoiceUIPublish(&owner, &local);
     CHECK(!state->ready && state->viewActive == 1);
     local.phase = 4; NativeFieldChoiceUIPublish(&owner, &local);
-    CHECK(!state->ready && !state->viewActive && state->active == 1);
+    CHECK(!state->ready && state->viewActive == 1 && state->active == 1); // A list-shaped fact cannot qualify YES/NO.
+    local = (HGNativeFieldChoiceUIState){ .ready = 1, .phase = HG_FIELD_CHOICE_UI_YES_NO_INPUT,
+        .rowCount = 2, .selectedIndex = 0, .cancelEnabled = 1, .viewActive = 1 };
+    local.phase = HG_FIELD_CHOICE_UI_SHOW_YES_NO; NativeFieldChoiceUIPublish(&owner, &local);
+    CHECK(state->viewActive == 1 && !state->ready);
+    local.phase = HG_FIELD_CHOICE_UI_YES_NO_INPUT;
+    NativeFieldChoiceUIPublish(&owner, &local);
+    CHECK(state->ready == 1 && state->viewActive == 1 && HGNativeFieldChoiceUIResolveInput(state, generation, state->revision, 2, &output));
+    before = *state; local.selectedIndex = 1; NativeFieldChoiceUIPublish(&owner, &local);
+    CHECK(state->selectedIndex == 1 && state->revision != before.revision
+        && !HGNativeFieldChoiceUIResolveInput(state, generation, before.revision, 1, &output)
+        && HGNativeFieldChoiceUIResolveInput(state, generation, state->revision, 1, &output));
+    before = *state; NativeFieldChoiceUIPublish(&owner, &local);
+    CHECK(!memcmp(state, &before, sizeof(before)));
+    local.phase = HG_FIELD_CHOICE_UI_YES_NO_END; NativeFieldChoiceUIPublish(&owner, &local);
+    CHECK(state->active == 1 && state->viewActive == 1 && !state->ready
+        && !HGNativeFieldChoiceUIResolveInput(state, generation, state->revision, 1, &output));
+    local.phase = 6; NativeFieldChoiceUIPublish(&owner, &local);
+    CHECK(state->active == 1 && !state->viewActive && !state->ready);
+    local.phase = 11; local.selectedIndex = 0; NativeFieldChoiceUIPublish(&owner, &local);
+    CHECK(state->active == 1 && !state->viewActive && !state->ready && state->selectedIndex == 0);
     local.phase = 1; NativeFieldChoiceUIPublish(&owner, &local);
     CHECK(!state->ready && !state->viewActive && state->active == 1); // Idle ownership must leave dialogue to the field.
     local.phase = HG_FIELD_CHOICE_UI_LIST_INPUT; NativeFieldChoiceUIPublish(&owner, &local);
@@ -148,7 +203,7 @@ int main(void) {
 #ifdef HG_NATIVE_FIELD_CHOICE_UI_STATE_CHECK
     puts("PASS: field choice36 ABI, resident lifetimes, same-phase selection and synchronous invalidation, nonzero counter wrap.");
 #else
-    puts("PASS: field choice36 ABI, list-only ownership and strict/read-only original key qualification.");
+    puts("PASS: field choice36 ABI, YES/NO and list ownership and strict/read-only original key qualification.");
 #endif
     return 0;
 }

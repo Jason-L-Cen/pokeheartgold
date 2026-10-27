@@ -3,9 +3,10 @@
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
 #include "pc_box_qa.h"
 #import <CommonCrypto/CommonDigest.h>
-_Static_assert(sizeof(HGPCBoxQAState)==1372 && offsetof(HGPCBoxQAState,pc)==212
+_Static_assert(sizeof(HGPCBoxQAState)==1416 && offsetof(HGPCBoxQAState,pc)==212
     && offsetof(HGPCBoxQAState,summary)==264 && offsetof(HGPCBoxQAState,naming)==1068
-    && offsetof(HGPCBoxQAState,messageAwaitInput)==1368,"Private PC QA v2 ABI");
+    && offsetof(HGPCBoxQAState,messageAwaitInput)==1368 && offsetof(HGPCBoxQAState,boot)==1372,
+    "Private PC QA v3 ABI");
 
 static NSString *PCBoxCheckHash(NSData *data) {
     unsigned char hash[CC_SHA256_DIGEST_LENGTH]; CC_SHA256(data.bytes,(CC_LONG)data.length,hash);
@@ -42,6 +43,98 @@ static BOOL PCBoxCheckSemanticOwner(const HGPCBoxQAState *a,const HGPCBoxQAState
         && a->checkpointSerial==b->checkpointSerial && a->fieldReady==b->fieldReady
         && !memcmp(&a->pc,&b->pc,sizeof(a->pc)) && !memcmp(&a->summary,&b->summary,sizeof(a->summary))
         && !memcmp(&a->naming,&b->naming,sizeof(a->naming));
+}
+static NSDictionary *PCBoxCheckBootDictionary(const HGYNBootFacts *boot) {
+    return @{ @"kind":@(boot->kind), @"active":@(boot->active), @"generation":@(boot->ownerGeneration),
+        @"revision":@(boot->revision), @"ready":@(boot->ready), @"phase":@(boot->phase),
+        @"inputMode":@(boot->inputMode), @"option":@(boot->option), @"notice":@(boot->notice),
+        @"exit":@(boot->exit), @"progress":@(boot->progressFlags) };
+}
+static BOOL PCBoxCheckUIntObject(id value,uint32_t *out) {
+    if (![value isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)value)==CFBooleanGetTypeID()) return NO;
+    const char *type=[value objCType]; char c=type ? type[0] : 0;
+    if (!(c=='c' || c=='i' || c=='s' || c=='l' || c=='q' || c=='C' || c=='I' || c=='S' || c=='L' || c=='Q')) return NO;
+    long long signedValue=[value longLongValue]; unsigned long long unsignedValue=[value unsignedLongLongValue];
+    if (signedValue<0 || unsignedValue>UINT32_MAX || [value doubleValue]!=(double)unsignedValue) return NO;
+    if (out) *out=(uint32_t)unsignedValue;
+    return YES;
+}
+static BOOL PCBoxCheckBootNumber(NSDictionary *boot,NSString *key,uint32_t value) {
+    uint32_t actual=0; return PCBoxCheckUIntObject(boot[key],&actual) && actual==value;
+}
+static BOOL PCBoxCheckBootRow(NSDictionary *event,const HGPCBoxQAState *qa,NSMutableDictionary *run) {
+    NSString *role=event[@"role"]; if (![role isKindOfClass:NSString.class]) return NO;
+    if ([role isEqual:@"start"]) {
+        uint32_t ordinal=0,keys=0,frame=0;
+        return PCBoxCheckUIntObject(event[@"ordinal"],&ordinal) && PCBoxCheckUIntObject(event[@"keys"],&keys)
+            && PCBoxCheckUIntObject(event[@"frame"],&frame) && ordinal==0 && keys==8 && frame>=450
+            && qa->stage==0 && !qa->baselinePrepared && !qa->pc.active;
+    }
+    NSDictionary *expected=event[@"boot"]; if (![expected isKindOfClass:NSDictionary.class]) return NO;
+    uint32_t expectedGeneration=0,expectedRevision=0;
+    if (!PCBoxCheckUIntObject(expected[@"generation"],&expectedGeneration) || !expectedGeneration
+        || !PCBoxCheckUIntObject(expected[@"revision"],&expectedRevision) || !expectedRevision) return NO;
+    const HGYNBootFacts *boot=&qa->boot; BOOL title=[role isEqual:@"title"];
+    BOOL modeSwitch=[role isEqual:@"mode_switch"]; BOOL continuation=[role isEqual:@"continue"];
+    if (!title && !modeSwitch && !continuation) return NO;
+    uint32_t kind=title ? HG_YN_BOOT_TITLE : HG_YN_BOOT_MAIN_MENU;
+    uint32_t phase=title ? 2 : 5, inputMode=title ? 0 : modeSwitch ? 1 : 0;
+    uint32_t progress=title ? 0xF : 0xFF;
+    uint32_t expectedProgress=0;
+    if (!PCBoxCheckUIntObject(expected[@"progress"],&expectedProgress) || (expectedProgress&progress)!=progress) return NO;
+    if (boot->kind!=kind || boot->active!=1 || boot->ready!=1 || !boot->ownerGeneration || !boot->revision
+        || boot->phase!=phase || boot->inputMode!=inputMode || boot->notice!=(title ? 0 : 15)
+        || boot->exit!=0 || (boot->progressFlags&progress)!=progress || (title && boot->option!=0) || (!title && boot->option>=9)
+        || !PCBoxCheckBootNumber(expected,@"kind",kind) || !PCBoxCheckBootNumber(expected,@"active",1)
+        || !PCBoxCheckBootNumber(expected,@"ready",1) || !PCBoxCheckBootNumber(expected,@"phase",phase)
+        || !PCBoxCheckBootNumber(expected,@"inputMode",inputMode) || !PCBoxCheckBootNumber(expected,@"notice",title ? 0 : 15)
+        || !PCBoxCheckBootNumber(expected,@"exit",0)) return NO;
+    if (title && !PCBoxCheckBootNumber(expected,@"option",0)) return NO;
+    if (!title && !PCBoxCheckBootNumber(expected,@"option",boot->option)) return NO;
+    if (continuation) {
+        NSNumber *previousRevision=run[@"bootModeSwitchRevision"],*previousGeneration=run[@"bootModeSwitchGeneration"];
+        if (previousRevision && previousRevision.unsignedIntValue==boot->revision) return NO;
+        if (previousGeneration && previousGeneration.unsignedIntValue!=boot->ownerGeneration) return NO;
+    }
+    NSDictionary *admitted=event[@"bootAdmitted"];
+    if (admitted) {
+        uint32_t admittedGeneration=0;
+        if (!PCBoxCheckUIntObject(admitted[@"generation"],&admittedGeneration) || admittedGeneration!=boot->ownerGeneration) return NO;
+    }
+    return YES;
+}
+static BOOL PCBoxCheckBootExit(const HGPCBoxQAState *qa,NSMutableDictionary *run) {
+    NSNumber *continueGeneration=run[@"bootContinueGeneration"];
+    return qa->fieldReady && qa->boot.kind==HG_YN_BOOT_MAIN_MENU && qa->boot.active==0 && qa->boot.ready==0
+        && qa->boot.phase==8 && qa->boot.ownerGeneration && qa->boot.revision && qa->boot.exit==1
+        && continueGeneration && continueGeneration.unsignedIntValue==qa->boot.ownerGeneration;
+}
+static BOOL PCBoxCheckBootPlan(NSArray *boot) {
+    if (![boot isKindOfClass:NSArray.class] || boot.count<2 || boot.count>4) return NO;
+    NSArray *bootKeys=@[@"kind",@"active",@"generation",@"revision",@"ready",@"phase",@"inputMode",@"option",@"notice",@"exit",@"progress"];
+    NSDictionary *start=boot.firstObject;
+    uint32_t ordinal=0,keys=0,frame=0;
+    if (![start isKindOfClass:NSDictionary.class] || ![start[@"role"] isEqual:@"start"]
+        || !PCBoxCheckUIntObject(start[@"ordinal"],&ordinal) || !PCBoxCheckUIntObject(start[@"keys"],&keys)
+        || !PCBoxCheckUIntObject(start[@"frame"],&frame) || ordinal!=0 || keys!=8 || frame<450) return NO;
+    NSUInteger index=1;
+    while (index<boot.count) {
+        NSDictionary *row=boot[index]; NSString *role=row[@"role"];
+        if (![row isKindOfClass:NSDictionary.class] || ![role isKindOfClass:NSString.class]
+            || !PCBoxCheckUIntObject(row[@"ordinal"],&ordinal) || !PCBoxCheckUIntObject(row[@"keys"],&keys)
+            || ordinal!=index || keys!=1) return NO;
+        if (!([role isEqual:@"title"] || [role isEqual:@"mode_switch"] || [role isEqual:@"continue"])) return NO;
+        if ([role isEqual:@"title"] && index!=1) return NO;
+        if ([role isEqual:@"mode_switch"] && index!=1 && ![boot[index-1][@"role"] isEqual:@"title"]) return NO;
+        if ([role isEqual:@"continue"] && index!=boot.count-1) return NO;
+        if (![row[@"boot"] isKindOfClass:NSDictionary.class]) return NO;
+        uint32_t expectedMode=0;
+        if (!PCBoxCheckUIntObject(row[@"boot"][@"inputMode"],&expectedMode)
+            || expectedMode!=([role isEqual:@"mode_switch"] ? 1 : 0)) return NO;
+        for (NSString *key in bootKeys) { uint32_t ignored=0; if (!PCBoxCheckUIntObject(row[@"boot"][key],&ignored)) return NO; }
+        ++index;
+    }
+    return index==boot.count && [boot.lastObject[@"role"] isEqual:@"continue"];
 }
 
 @implementation OriginalController (PCBoxUIKitCheck)
@@ -95,6 +188,20 @@ static BOOL PCBoxCheckSemanticOwner(const HGPCBoxQAState *a,const HGPCBoxQAState
         _keys=_pendingKeys=_submittedKeys=0; *keys=0; _pcBoxQAPulseError=5; return;
     }
     if (_pcBoxQAPulseStage==1 && *keys==_pcBoxQAPulseKey) {
+        NSDictionary *pending=_pcBoxCheckRuntime[@"pendingEvent"];
+        if ([pending[@"owner"] isEqual:@"boot"] && !PCBoxCheckBootRow(pending,qa,_pcBoxCheckRuntime)) {
+            _keys=_pendingKeys=_submittedKeys=0; *keys=0; _pcBoxQAPulseError=6; return;
+        }
+        if ([pending[@"owner"] isEqual:@"boot"]) {
+            NSString *role=pending[@"role"];
+            if ([role isEqual:@"mode_switch"]) {
+                _pcBoxCheckRuntime[@"bootModeSwitchGeneration"]=@(qa->boot.ownerGeneration);
+                _pcBoxCheckRuntime[@"bootModeSwitchRevision"]=@(qa->boot.revision);
+            } else if ([role isEqual:@"continue"]) {
+                _pcBoxCheckRuntime[@"bootContinueGeneration"]=@(qa->boot.ownerGeneration);
+                _pcBoxCheckRuntime[@"bootContinueRevision"]=@(qa->boot.revision);
+            }
+        }
         _pcBoxQAPulseStage=2; _pcBoxQAPulseReads=reads;
     }
     if (_pcBoxQAPulseStage==2) {
@@ -113,7 +220,8 @@ static BOOL PCBoxCheckSemanticOwner(const HGPCBoxQAState *a,const HGPCBoxQAState
 - (BOOL)pcBoxCheckPacket:(HGPCBoxQAState *)qa {
     if (_displayedPCBoxQAState.length!=sizeof(*qa)) return NO;
     memcpy(qa,_displayedPCBoxQAState.bytes,sizeof(*qa));
-    if (qa->version!=2 || qa->byteSize!=sizeof(*qa) || qa->error || qa->messageAwaitInput>1) return NO;
+    if (qa->version!=HG_PC_QA_VERSION || qa->byteSize!=sizeof(*qa) || qa->error || qa->messageAwaitInput>1
+        || qa->boot.active>1 || qa->boot.ready>1 || (qa->boot.active && (!qa->boot.ownerGeneration || !qa->boot.revision))) return NO;
     return _displayedPCBoxUIState.length==sizeof(qa->pc) && !memcmp(_displayedPCBoxUIState.bytes,&qa->pc,sizeof(qa->pc))
         && _displayedSummaryUIState.length==sizeof(qa->summary) && !memcmp(_displayedSummaryUIState.bytes,&qa->summary,sizeof(qa->summary))
         && _displayedNamingUIState.length==sizeof(qa->naming) && !memcmp(_displayedNamingUIState.bytes,&qa->naming,sizeof(qa->naming));
@@ -140,7 +248,7 @@ static BOOL PCBoxCheckSemanticOwner(const HGPCBoxQAState *a,const HGPCBoxQAState
     if ([owner isEqual:@"field_message"]) return [event[@"keys"] unsignedIntValue]==1 && qa->messageAwaitInput==1 && !qa->scriptMenuReady
         && !qa->pc.active && !qa->summary.active && !qa->naming.active && choice
         && !(choice->active && (choice->ready || choice->viewActive || HGNativeFieldChoiceUIIsListPhase(choice->phase)));
-    return [owner isEqual:@"boot"] ? qa->stage==0 && !qa->baselinePrepared && !qa->pc.active
+    return [owner isEqual:@"boot"] ? PCBoxCheckBootRow(event,qa,_pcBoxCheckRuntime)
         : [owner isEqual:@"field"] && !qa->pc.active && !qa->summary.active && !qa->naming.active && qa->fieldReady;
 }
 - (BOOL)pcBoxCheckSend:(NSDictionary *)event qa:(const HGPCBoxQAState *)qa {
@@ -166,7 +274,13 @@ static BOOL PCBoxCheckSemanticOwner(const HGPCBoxQAState *a,const HGPCBoxQAState
         && !_pcBoxChoicePending && !_pcBoxInputActive && (![owner isEqual:@"pc"] || !_pcBoxInputCooling) && !_summaryChoicePending && !_summaryInputActive
         && !_fieldChoiceChoicePending && !_fieldChoiceInputActive && !_fieldChoiceInputCooling
         && !_namingChoicePending && !_namingInputActive && !_namingInputCooling;
-    if (idle) {_pcBoxQAPulseStage=1;_pcBoxQAPulseKey=key;_pcBoxQAPulseGeneric=generic;_pcBoxQAPulseMessage=[owner isEqual:@"field_message"];_pcBoxQAPulseError=0;_pcBoxQAPulseHeld=0;}
+    if (idle) {
+        NSMutableDictionary *admitted=[event mutableCopy];
+        if ([owner isEqual:@"boot"]) admitted[@"bootAdmitted"]=PCBoxCheckBootDictionary(&qa->boot);
+        _pcBoxCheckRuntime[@"pendingControl"]=control; _pcBoxCheckRuntime[@"pendingDirection"]=@(direction);
+        _pcBoxCheckRuntime[@"pendingEvent"]=admitted;
+        _pcBoxQAPulseStage=1;_pcBoxQAPulseKey=key;_pcBoxQAPulseGeneric=generic;_pcBoxQAPulseMessage=[owner isEqual:@"field_message"];_pcBoxQAPulseError=0;_pcBoxQAPulseHeld=0;
+    }
     [_condition unlock]; if (!idle) return NO;
     if (direction) {
         CGPoint center=CGPointMake(CGRectGetMidX(_joystick.bounds),CGRectGetMidY(_joystick.bounds));
@@ -175,8 +289,6 @@ static BOOL PCBoxCheckSemanticOwner(const HGPCBoxQAState *a,const HGPCBoxQAState
         [_joystick checkPCBoxEventAt:point pressed:YES];
     } else if ([owner isEqual:@"summary"]) [control sendActionsForControlEvents:UIControlEventTouchUpInside];
     else [control sendActionsForControlEvents:UIControlEventTouchDown];
-    _pcBoxCheckRuntime[@"pendingControl"]=control; _pcBoxCheckRuntime[@"pendingDirection"]=@(direction);
-    _pcBoxCheckRuntime[@"pendingEvent"]=event;
     return YES;
 }
 - (BOOL)pcBoxCheckCapture:(NSString *)name {
@@ -253,7 +365,9 @@ static BOOL PCBoxCheckSemanticOwner(const HGPCBoxQAState *a,const HGPCBoxQAState
     gates[@"nativeReceipt"]=@(bytes && [PCBoxCheckHash(bytes) isEqual:@HG_PC_BOX_REPLAY_SHA256]
         && [plan[@"sourceReportSha256"] isEqual:@HG_PC_BOX_NATIVE_REPORT_SHA256]
         && [plan[@"privateModuleSha256"] isEqual:@HG_PC_BOX_NATIVE_MODULE_SHA256]
-        && [plan[@"qaVersion"] unsignedIntValue]==2 && [plan[@"qaBytes"] unsignedIntValue]==1372 && [plan[@"actions"] count] && [plan[@"checkpoints"] count]>=10);
+        && [plan[@"version"] unsignedIntValue]==HG_PC_QA_VERSION && [plan[@"qaVersion"] unsignedIntValue]==HG_PC_QA_VERSION
+        && [plan[@"qaBytes"] unsignedIntValue]==sizeof(HGPCBoxQAState) && PCBoxCheckBootPlan(plan[@"boot"])
+        && [plan[@"actions"] count] && [plan[@"checkpoints"] count]>=10);
     if (![gates[@"caseBinding"] boolValue] || ![gates[@"nativeReceipt"] boolValue]) [self finishPCBoxUIKitCheck:@"binding_failed"];
     else if (privateFiles.count!=4) [self finishPCBoxUIKitCheck:@"private_fixture_missing"];
 }
@@ -304,6 +418,9 @@ static BOOL PCBoxCheckSemanticOwner(const HGPCBoxQAState *a,const HGPCBoxQAState
         if ([run[@"pendingDirection"] boolValue]) [_joystick checkPCBoxEventAt:CGPointZero pressed:NO];
         else if (![run[@"pendingEvent"][@"owner"] isEqual:@"summary"]) [control sendActionsForControlEvents:UIControlEventTouchUpInside];
         NSMutableDictionary *done=[run[@"pendingEvent"] mutableCopy]; done[@"hostHeldPadReads"]=@(held); done[@"releasePadReads"]=@2;
+        if ([done[@"owner"] isEqual:@"boot"]) {
+            done[@"bootLive"]=PCBoxCheckBootDictionary(&qa.boot);
+        }
         [run[@"actions"] addObject:done]; gates[@"releaseObserved"]=@YES;
         if ([done[@"owner"] isEqual:@"naming"]) {
             NSUInteger count=[run[@"namingCount"] unsignedIntegerValue];
@@ -353,11 +470,13 @@ static BOOL PCBoxCheckSemanticOwner(const HGPCBoxQAState *a,const HGPCBoxQAState
     if ([phase isEqual:@"boot"]) {
         NSArray *boot=plan[@"boot"]; NSUInteger index=[run[@"boot"] unsignedIntegerValue];
         if (index<boot.count) {
-            NSDictionary *row=boot[index]; if (_displayedPCBoxQAOwnerFrame<[row[@"frame"] unsignedIntValue]) return;
+            NSDictionary *row=boot[index]; NSString *role=row[@"role"];
+            if ([role isEqual:@"start"] && _displayedPCBoxQAOwnerFrame<[row[@"frame"] unsignedIntValue]) return;
+            if (![role isEqual:@"start"] && !PCBoxCheckBootRow(row,&qa,run)) return;
             NSMutableDictionary *event=[row mutableCopy]; event[@"owner"]=@"boot";
             if ([self pcBoxCheckSend:event qa:&qa]) gates[@"attachedTargets"]=@YES; return;
         }
-        if (qa.fieldReady && qa.mapId==33 && [self queuePCBoxQARequest:HG_PC_QA_START]) {
+        if (PCBoxCheckBootExit(&qa,run) && qa.mapId==33 && [self queuePCBoxQARequest:HG_PC_QA_START]) {
             run[@"request"]=@(_pcBoxQARequestSerial); run[@"phase"]=@"prepare"; run[@"advanced"]=@(now);
         }
         return;

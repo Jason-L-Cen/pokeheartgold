@@ -2018,7 +2018,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)updateFieldChoiceControls:(NSData *)data preview:(UIImage *)preview blocked:(BOOL)blocked paused:(BOOL)paused {
     const HGNativeFieldChoiceUIState *state=data.bytes;
-    BOOL scene=data.length==sizeof(*state) && state->active==1 && HGNativeFieldChoiceUIIsListPhase(state->phase) && !blocked;
+    BOOL scene=data.length==sizeof(*state) && state->active==1 && HGNativeFieldChoiceUIIsViewPhase(state->phase) && !blocked;
     BOOL was=_fieldChoiceScene,changed=was!=scene || (scene && (_displayedFieldChoiceUIState.length!=sizeof(*state)
         || memcmp(_displayedFieldChoiceUIState.bytes,state,sizeof(*state))));
     _fieldChoiceScene=scene; _displayedFieldChoiceUIState=data;
@@ -2051,13 +2051,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     for (UIButton *button in _summaryNavigation) button.hidden=YES;
     [_condition lock]; BOOL idle=!_stopping && !_failure && !_fieldChoiceChoicePending && !_fieldChoiceInputActive && !_fieldChoiceInputCooling;
     BOOL resume=_interrupted && _interruptionEnded && !_inactive; [_condition unlock];
-    NSArray *keys=@[@0x40,@0x80,@0x20,@0x10,@1,@2],*titles=@[@"↑",@"↓",@"←",@"→",@"选择",@"返回"];
-    NSArray *labels=@[@"向上选择",@"向下选择",@"向左选择",@"向右选择",@"A：选择当前项目",@"B：返回"];
+    BOOL yesNo=!HGNativeFieldChoiceUIIsListPhase(state->phase);
+    NSArray *keys=@[@0x40,@0x80,@0x20,@0x10,@1,@2],*titles=@[@"↑",@"↓",@"←",@"→",@"选择",yesNo ? @"否" : @"返回"];
+    NSArray *labels=@[@"向上选择",@"向下选择",@"向左选择",@"向右选择",@"A：选择当前项目",yesNo ? @"B：选择否" : @"B：返回"];
     for (NSUInteger i=0;i<keys.count;i++) {
         UIButton *button=_buttons[keys[i]]; uint32_t resolved; button.hidden=NO; button.configuration=nil;
         button.enabled=!paused && idle && HGNativeFieldChoiceUIResolveInput(state,state->ownerGeneration,state->revision,[keys[i] unsignedIntValue],&resolved);
         button.alpha=button.enabled ? 1 : 0.5; [button setTitle:titles[i] forState:UIControlStateNormal]; button.accessibilityLabel=labels[i];
-        button.accessibilityHint=i==5 && !state->cancelEnabled ? @"当前选项不能取消" : @"使用原版方向键和A选择";
+        button.accessibilityHint=i==5 && yesNo ? @"选择否并确认" : i==5 && !state->cancelEnabled ? @"当前选项不能取消" : @"使用原版方向键和A选择";
     }
     _buttons[@0x400].hidden=_buttons[@0x800].hidden=YES;
     _buttons[@8].hidden=!resume; _buttons[@8].enabled=resume;
@@ -2636,7 +2637,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     const HGNativeFieldChoiceUIState *fieldChoice=fieldChoiceUI.length==sizeof(HGNativeFieldChoiceUIState) ? fieldChoiceUI.bytes : NULL;
     BOOL fieldChoiceBlocked=optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene
         || (pokedexUI.length==sizeof(HGNativePokedexUIState) && ((const HGNativePokedexUIState *)pokedexUI.bytes)->active);
-    BOOL fieldChoiceContext=fieldChoice && fieldChoice->active==1 && HGNativeFieldChoiceUIIsListPhase(fieldChoice->phase) && !fieldChoiceBlocked;
+    BOOL fieldChoiceContext=fieldChoice && fieldChoice->active==1 && HGNativeFieldChoiceUIIsViewPhase(fieldChoice->phase) && !fieldChoiceBlocked;
     if (!fieldChoiceContext) [self updateFieldChoiceControls:fieldChoiceUI preview:nil blocked:fieldChoiceBlocked paused:paused];
     BOOL pokedexBlocked=optionsContext || namingContext || captureContext || summaryContext || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene || pcBoxActive || fieldChoiceContext;
     [self updatePokedexControls:pokedexUI pictures:pokedexPictures blocked:pokedexBlocked paused:paused];
@@ -3106,8 +3107,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL pcBoxActive=currentPCBox->active==1;
     BOOL pcBoxContext=pcBoxActive && !optionsContext && !namingContext && !captureContext && !currentSummary->active
         && !currentBag->active && !currentParty->active && !currentEvolution->active && !battleChild && !currentBattle->active;
-    BOOL fieldChoiceList=currentFieldChoice->active==1 && HGNativeFieldChoiceUIIsListPhase(currentFieldChoice->phase);
-    BOOL fieldChoiceContext=fieldChoiceList && !optionsContext && !namingContext && !captureContext && !summaryContext && !pcBoxActive
+    BOOL fieldChoiceView=currentFieldChoice->active==1 && HGNativeFieldChoiceUIIsViewPhase(currentFieldChoice->phase);
+    BOOL fieldChoiceContext=fieldChoiceView && !optionsContext && !namingContext && !captureContext && !summaryContext && !pcBoxActive
         && !currentBag->active && !currentParty->active && !currentEvolution->active && !battleChild && !currentBattle->active && !currentPokedex->active;
     BOOL pokedexBlocked=optionsContext || namingContext || captureContext || summaryContext || currentEvolution->active || battleChild || currentBattle->active || currentParty->active || currentBag->active || pcBoxActive || fieldChoiceContext;
     BOOL pokedexContext=currentPokedex->active && !pokedexBlocked;
@@ -3410,7 +3411,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     if (pcBoxActive && memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox))) return;
     if (memcmp(fieldChoiceUI.bytes,currentFieldChoice,sizeof(*currentFieldChoice))) return;
-    if (!fieldChoiceList || _fieldChoiceFrameGeneration!=currentFieldChoice->ownerGeneration) {
+    if (!fieldChoiceView || _fieldChoiceFrameGeneration!=currentFieldChoice->ownerGeneration) {
         _fieldChoiceOwnerFrame=nil; _fieldChoiceOwnerPreview=nil; _fieldChoiceFrameGeneration=0;
     }
     BOOL frozenChoice=fieldChoiceContext && !currentFieldChoice->viewActive && _fieldChoiceOwnerFrame.length==256*192*4;

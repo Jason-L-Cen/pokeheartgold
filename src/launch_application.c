@@ -785,7 +785,7 @@ void NativeFieldChoiceUIPublish(const void *owner, const HGNativeFieldChoiceUISt
     next.active = 1;
     next.ownerGeneration = gNativeFieldChoiceUIState.ownerGeneration;
     next.revision = gNativeFieldChoiceUIState.revision;
-    next.viewActive = next.viewActive == 1 && HGNativeFieldChoiceUIIsListPhase(next.phase);
+    next.viewActive = next.viewActive == 1 && HGNativeFieldChoiceUIIsViewPhase(next.phase);
     next.ready = HGNativeFieldChoiceUIInputAllowed(&next, next.ownerGeneration, next.revision);
     if (memcmp(&next, &gNativeFieldChoiceUIState, sizeof(next)) == 0) return;
     gNativeFieldChoiceUIState = next;

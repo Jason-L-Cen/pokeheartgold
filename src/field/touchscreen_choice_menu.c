@@ -149,7 +149,10 @@ BOOL TouchscreenChoiceMenu_State_ListWriteResult(TouchscreenChoiceMenuData *data
 BOOL TouchscreenChoiceMenu_State_CancelYesNo(TouchscreenChoiceMenuData *data);
 
 #ifdef HEARTGOLD_NATIVE
-_Static_assert(TOUCHSCREEN_CHOICE_MENU_STATE_SHOW_LIST == HG_FIELD_CHOICE_UI_SHOW_LIST
+_Static_assert(TOUCHSCREEN_CHOICE_MENU_STATE_SHOW_YES_NO == HG_FIELD_CHOICE_UI_SHOW_YES_NO
+    && TOUCHSCREEN_CHOICE_MENU_STATE_YES_NO_INPUT == HG_FIELD_CHOICE_UI_YES_NO_INPUT
+    && TOUCHSCREEN_CHOICE_MENU_STATE_YES_NO_END == HG_FIELD_CHOICE_UI_YES_NO_END
+    && TOUCHSCREEN_CHOICE_MENU_STATE_SHOW_LIST == HG_FIELD_CHOICE_UI_SHOW_LIST
     && TOUCHSCREEN_CHOICE_MENU_STATE_LIST_INPUT == HG_FIELD_CHOICE_UI_LIST_INPUT
     && TOUCHSCREEN_CHOICE_MENU_STATE_LIST_END == HG_FIELD_CHOICE_UI_LIST_END
     && TOUCHSCREEN_CHOICE_MENU_STATE_LIST_WRITE_RESULT == HG_FIELD_CHOICE_UI_LIST_WRITE_RESULT, "native field choice phases");
@@ -157,23 +160,33 @@ _Static_assert(TOUCHSCREEN_CHOICE_MENU_STATE_SHOW_LIST == HG_FIELD_CHOICE_UI_SHO
 static void TouchscreenChoiceMenu_PublishNativeUI(TouchscreenChoiceMenuData *data) {
     HGNativeFieldChoiceUIState next = {0};
     next.phase = data->state;
-    next.viewActive = HGNativeFieldChoiceUIIsListPhase(next.phase);
-    if (next.viewActive) {
+    next.viewActive = HGNativeFieldChoiceUIIsViewPhase(next.phase);
+    BOOL ownerReady = next.viewActive && data->fieldSystem && data->bgConfig && data->result && data->cursorSprite
+        && FieldSystem_GetBottomScreenAppId(data->fieldSystem) == BOTTOM_SCREEN_APP_CHOICE_MENU
+        && FieldSystem_GetBottomScreenAppState(data->fieldSystem) == BOTTOM_SCREEN_APP_STATE_RUNNING
+        && FieldSystem_TaskIsRunning(data->fieldSystem) && FieldSystem_IsFieldMapRunning(data->fieldSystem)
+        && !FieldSystem_IsChildAppRunning(data->fieldSystem) && IsPaletteFadeFinished()
+        && !((data->bgConfig->scrollScheduled | data->bgConfig->bufferTransferScheduled) & 0x78);
+    if (HGNativeFieldChoiceUIIsListPhase(next.phase)) {
         next.rowCount = data->itemCount;
         next.selectedIndex = data->selection;
         if (data->state == TOUCHSCREEN_CHOICE_MENU_STATE_LIST_INPUT && data->menu && data->result && data->cursorSprite
             && data->bgConfig && data->itemCount >= 2 && data->itemCount <= 8
             && ScriptMenu_GetCount(data->menu) == data->itemCount && data->selection >= 0 && data->selection < data->itemCount) {
             next.cancelEnabled = ScriptMenu_IsCancellable(data->menu) != 0;
-            next.ready = FieldSystem_GetBottomScreenAppId(data->fieldSystem) == BOTTOM_SCREEN_APP_CHOICE_MENU
-                && FieldSystem_GetBottomScreenAppState(data->fieldSystem) == BOTTOM_SCREEN_APP_STATE_RUNNING
-                && FieldSystem_TaskIsRunning(data->fieldSystem) && FieldSystem_IsFieldMapRunning(data->fieldSystem)
-                && !FieldSystem_IsChildAppRunning(data->fieldSystem) && IsPaletteFadeFinished() && *data->result == 0xEEEE
-                && !((data->bgConfig->scrollScheduled | data->bgConfig->bufferTransferScheduled) & 0x78);
+            next.ready = ownerReady && *data->result == 0xEEEE;
             for (int i = 0; i < data->itemCount; ++i) {
                 if (data->listWindows[i].bgConfig != data->bgConfig || !data->listWindows[i].pixelBuffer) next.ready = 0;
             }
         }
+    } else if (next.viewActive) {
+        next.rowCount = 2;
+        next.selectedIndex = data->selection;
+        next.cancelEnabled = 1;
+        next.ready = ownerReady && data->state == TOUCHSCREEN_CHOICE_MENU_STATE_YES_NO_INPUT
+            && data->selection >= 0 && data->selection < 2
+            && data->yesWindow.bgConfig == data->bgConfig && data->yesWindow.pixelBuffer
+            && data->noWindow.bgConfig == data->bgConfig && data->noWindow.pixelBuffer;
     }
     NativeFieldChoiceUIPublish(data->task, &next);
 }

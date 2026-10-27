@@ -11,6 +11,7 @@ import shlex
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 
 sys.dont_write_bytecode = True
@@ -18,25 +19,13 @@ ROOT = Path(__file__).resolve().parents[2]
 PROTECTED_MAIN = ROOT.parent.parent / 'pokeheartgold/sourceCode'
 QA_EXPORTS = ('HGNativePCBoxQAGetState', 'HGNativePCBoxQARequest')
 QA_FILES = tuple(ROOT / name for name in ('ios/tests/pc_box_qa.h', 'ios/tests/pc_box_guest.inc',
-    'ios/Original/abi32/pc_box_scenario_check.c', 'ios/tools/check_native_pc_box.py'))
+    'ios/Original/abi32/pc_box_scenario_check.c', 'ios/tools/check_native_pc_box.py',
+    'ios/tests/npc_yesno_qa.h', 'ios/tests/npc_yesno_boot.inc', 'ios/tools/npc_yesno_boot_sources.py'))
 POST_FULL_PRIVATE_HARNESS = frozenset(str(ROOT / name) for name in ('ios/tests/pc_box_guest.inc',
     'ios/Original/abi32/pc_box_scenario_check.c', 'ios/tools/check_native_pc_box.py'))
 REQUIRED_COVERAGE = 0x3FF
-QA_VERSION, QA_BYTES = 2, 1372
+QA_VERSION, QA_BYTES = 3, 1416
 SHA256 = re.compile(r'[0-9a-f]{64}')
-BOOT_PRIVATE_MODULE_SHA256 = '5df7c5ae3086b155566f964a83f0d6b0c223c5d8697ab8162816a7230babab91'
-BOOT_SCENARIO_SHA256 = '75b1e84a9a5c50721bf6ccc35530efbd1f938dc846e98863404a88f264c811de'
-
-
-def boot_argument(module_sha256, scenario_source):
-    if module_sha256 != BOOT_PRIVATE_MODULE_SHA256:
-        raise RuntimeError('The host boot layout requires its exact validated private module')
-    tokens = re.findall(r'^#define PC_BOOT_TOKEN "(--pc-boot-binding=[0-9a-f]{64})"$', scenario_source, re.M)
-    if len(tokens) != 1:
-        raise RuntimeError('The host scenario must declare exactly one valid boot binding token')
-    if hashlib.sha256(scenario_source.encode()).hexdigest() != BOOT_SCENARIO_SHA256:
-        raise RuntimeError('The host boot layout requires its exact validated scenario source')
-    return tokens[0]
 
 
 def helpers():
@@ -340,9 +329,24 @@ def prepare_pc_box_guest(destination, run, full_receipt, context=None):
         flags += ['-I', path]
     if context['link'].get('nativeContent'):
         flags.append('-DHG_NATIVE_ROM_TABLES')
+    flags += ['-I', ROOT / 'ios/tests']
     private_object = source.with_suffix('.o')
     run([h['SDK'] / 'bin/clang', *flags, '-c', source, '-o', private_object], destination / 'field-compile.log')
     objects[objects.index(str(formal_field))] = str(private_object)
+    from npc_yesno_boot_sources import build_candidates
+    from prepare_overlay_state import compile_unit
+    title,menu=build_candidates(ROOT,destination/'source')
+    replaced=[str(formal_field)]; private_objects=[str(private_object)]; boot_sources=[]
+    for relative,copy in zip(('src/title_screen.c','src/application/main_menu/main_menu.c'),(title,menu)):
+        unit,=[row for row in context['audited']['units'] if row['file']==relative]
+        old=context['audit']/'objects'/Path(relative).with_suffix('.o'); target=copy.with_suffix('.o')
+        if unit['exitCode'] or objects.count(str(old))!=1: raise RuntimeError('Exactly one audited original boot owner is required: '+relative)
+        code,diagnostics,state=compile_unit(str(h['SDK']/'bin/clang'),flags,copy,target,relative,ROOT)
+        (destination/(Path(relative).stem+'-compile.log')).write_text(diagnostics)
+        expected=unit['overlayStates']
+        if code or 'error' in state or (state.get('getter') or None)!=(expected[0]['getter'] if expected else None):
+            raise RuntimeError('Private boot source-copy compile/ownership failed: '+relative)
+        objects[objects.index(str(old))]=str(target);replaced.append(str(old));private_objects.append(str(target));boot_sources.append(copy)
     listing = destination / 'objects.rsp'; listing.write_text('\n'.join('"' + path + '"' for path in objects) + '\n')
     command = context['link']['command'].copy(); command[command.index(context['rsp'])] = '@' + str(listing)
     module = destination / 'engine.wasm'; command[command.index('-o') + 1] = str(module)
@@ -354,7 +358,7 @@ def prepare_pc_box_guest(destination, run, full_receipt, context=None):
     if wasm_exports(module.read_bytes()) != expected:
         raise RuntimeError('Private module exports differ beyond the two bounded PC QA getters')
     assert_unchanged(context)
-    artifacts = h['hashes']([source, private_object, listing, module, runtime_bank_file, *QA_FILES])
+    artifacts = h['hashes']([source, listing, module, runtime_bank_file, *map(Path,private_objects), *boot_sources, *QA_FILES])
     report = dict(passed=True, scope='isolated private PC observer build only; gameplay not executed',
         fullReceipt=str(context['receipt']), fullReceiptSha256=file_sha(context['receipt']), shippingModuleSha256=context['link']['outputSha256'],
         privateModuleSha256=file_sha(module), headersSha256=context['audited']['headersSha256'],
@@ -364,7 +368,9 @@ def prepare_pc_box_guest(destination, run, full_receipt, context=None):
         currentQAHashes=context['currentQAHashes'],
         sourceInputCount=len(context['sourceBank']), auditedUnitCount=len(context['audited']['units']),
         shippingExports=context['formal']['shipping']['exports'], privateQAExports=list(QA_EXPORTS),
-        replacedFormalObjects=[str(formal_field)], privateObjects=[str(private_object)], originalSourceSha256=file_sha(original),
+        replacedFormalObjects=replaced, privateObjects=private_objects, originalSourceSha256=file_sha(original),
+        bootSourceCopies=[dict(original=relative,originalSha256=file_sha(ROOT/relative),source=str(copy),sourceSha256=file_sha(copy))
+            for relative,copy in zip(('src/title_screen.c','src/application/main_menu/main_menu.c'),boot_sources)],
         originalBodyPreserved=True, postOriginalFieldHookCount=1, wrappers=['PCBox_Main'], artifactHashes=artifacts,
         protectedInputsUnchanged=True, productionApiAdded=False)
     (destination / 'preparation.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -525,13 +531,15 @@ def source_plumbing_check(header, guest, host):
     for name in ('START', 'CHECKPOINT', 'RETURN'):
         assert re.search(r'\b(?:w2c_hgengine_)?HGNativePCBoxQARequest\s*\([^;]*\bHG_PC_QA_' + name + r'\b', host), 'Missing owner request: ' + name
     assert re.search(r'\bHG_PC_QA_REQUIRED\s*=\s*0x3ff\b', header, re.I), 'Required coverage mask drifted'
-    assert re.search(r'\bHG_PC_QA_VERSION\s*=\s*2\b', header), 'Private PC protocol must be version 2'
+    assert re.search(r'\bHG_PC_QA_VERSION\s*=\s*3\b', header), 'Private PC protocol must be version 3'
     state = re.search(r'\btypedef\s+struct\s+HGPCBoxQAState\s*\{', header)
     assert state, 'Missing private PC state'
     state_body, _, _ = region(header, state.end() - 1)
-    assert re.search(r'\buint32_t\s+messageAwaitInput\s*;\s*$', state_body), 'Message wait fact must be the final appended u32'
-    assert re.search(r'\bsizeof\s*\(\s*HGPCBoxQAState\s*\)\s*==\s*1372\b', guest + host) \
-        and re.search(r'\boffsetof\s*\(\s*HGPCBoxQAState\s*,\s*messageAwaitInput\s*\)\s*==\s*1368\b', guest + host), 'Private PC protocol size/append offset must remain pinned'
+    assert re.search(r'\buint32_t\s+messageAwaitInput\s*;\s*HGYNBootFacts\s+boot\s*;\s*$', state_body), 'Typed boot facts must append to the unchanged message prefix'
+    assert re.search(r'\bsizeof\s*\(\s*HGPCBoxQAState\s*\)\s*==\s*1416\b', guest + host) \
+        and re.search(r'\boffsetof\s*\(\s*HGPCBoxQAState\s*,\s*messageAwaitInput\s*\)\s*==\s*1368\b', guest + host) \
+        and re.search(r'\boffsetof\s*\(\s*HGPCBoxQAState\s*,\s*boot\s*\)\s*==\s*1372\b', guest+host), 'Private PC protocol size/append offsets must remain pinned'
+    assert 'NPCYNBootPublish' in guest and 'pcBootEligible' in host and 'pcBootExitWitness' in host and 'PC_BOOT_TOKEN' not in host, 'Typed boot owner/exit plumbing changed'
     assert re.search(r'\bHGNativeFieldChoiceUIState\b', host) \
         and re.search(r'\bw2c_hgengine_HGNativeFieldChoiceUIGetState\s*\(', host), 'Host must read the existing public Field Choice state'
     assert re.search(r'\bmessageAwaitInput\s*=', guest), 'Guest must publish the original message wait fact'
@@ -587,7 +595,7 @@ def self_check():
     rejected_banks = [(old_bank, {name: value for name, value in new_bank.items() if name != str(QA_FILES[1])}),
         (old_bank, {**new_bank, str(ROOT / 'ios/tests/new_private_case.c'): source_hash}),
         ({name: value for name, value in old_bank.items() if name != str(QA_FILES[1])}, new_bank)]
-    for path in (QA_FILES[0], ROOT / 'src/application/pc_box/pc_box.c', ROOT / 'include/native_pc_box_ui.h',
+    for path in (QA_FILES[0], *QA_FILES[4:], ROOT / 'src/application/pc_box/pc_box.c', ROOT / 'include/native_pc_box_ui.h',
             ROOT / 'ios/OriginalApp/main.m', ROOT / 'ios/tools/build_original_app.py', ROOT.parent / 'abi32-tools/compiler'):
         rejected_banks.append(({**old_bank, str(path): source_hash}, {**new_bank, str(path): 'b' * 64}))
     for historical, current in rejected_banks:
@@ -637,9 +645,9 @@ def self_check():
         assert not snapshot_evidence_passed([{**field_snapshot, flag: 1}])
     header, guest, host = (path.read_text() for path in QA_FILES[:3])
     source_plumbing_check(header, guest, host)
-    for broken_header, broken_guest, broken_host in [(re.sub(r'\b(HG_PC_QA_VERSION\s*=\s*)2\b', r'\g<1>1', header, count=1), guest, host),
+    for broken_header, broken_guest, broken_host in [(re.sub(r'\b(HG_PC_QA_VERSION\s*=\s*)3\b', r'\g<1>2', header, count=1), guest, host),
             (header.replace('uint32_t messageAwaitInput;', 'uint32_t missingMessageFact;'), guest, host),
-            (header, re.sub(r'\b1372\b', '1368', guest), re.sub(r'\b1372\b', '1368', host)),
+            (header, re.sub(r'\b1416\b', '1372', guest), re.sub(r'\b1416\b', '1372', host)),
             (header, guest, host.replace('w2c_hgengine_HGNativeFieldChoiceUIGetState', 'missingPublicFieldChoiceGetter')),
             (header, guest + '\nSetMonData(&mon,0,0);', host),
             (header, guest.replace('return result;', 'return TRUE;'), host),
@@ -652,19 +660,17 @@ def self_check():
             pass
         else:
             raise AssertionError('Broken scenario plumbing accepted')
-    token_source = QA_FILES[2].read_text()
-    assert boot_argument(BOOT_PRIVATE_MODULE_SHA256, token_source).startswith('--pc-boot-binding=')
-    token_definition = re.search(r'^#define PC_BOOT_TOKEN ".*"$', token_source, re.M)[0]
-    for module_sha, source in (('0' * 64, token_source), (BOOT_PRIVATE_MODULE_SHA256, token_source + '\n'),
-            (BOOT_PRIVATE_MODULE_SHA256, ''), (BOOT_PRIVATE_MODULE_SHA256, token_source + '\n' + token_definition)):
-        try:
-            boot_argument(module_sha, source)
-        except RuntimeError:
-            pass
-        else:
-            raise AssertionError('Invalid boot module/token binding was accepted')
-    print('PASS: PC formal28/FieldChoice gates, QA2/1372, scoped original field-message leases, exact private delta, fixture/snapshot/action/conservation evidence and boot binding; no build or game run.')
-
+    from check_pc_box_uikit_binding import self_check as binding_self_check
+    binding_self_check()
+    block=host[host.index('typedef HGYNBootFacts PCBootFacts;'):host.index('// Pure boot predicate end.')]
+    with tempfile.TemporaryDirectory(prefix='pc-boot-contract-') as directory:
+        temporary=Path(directory); source=temporary/'check.c'; binary=temporary/'check'
+        source.write_text('#include <stddef.h>\n#include <stdint.h>\n#include "npc_yesno_qa.h"\ntypedef uint32_t u32;\ntypedef int BOOL;\nenum {FALSE=0,TRUE=1};\n'
+            +block+'\nint main(void){return !pcBootSelfCheck();}\n')
+        subprocess.run(['xcrun','clang','-std=c11','-O2','-fsanitize=address,undefined','-fno-sanitize-recover=all',
+            '-iquote',str(ROOT/'ios/tests'),'-iquote',str(ROOT/'include'),str(source),'-o',str(binary)],check=True,timeout=30)
+        subprocess.run([str(binary)],check=True,timeout=10)
+    print('PASS: PC formal28/FieldChoice gates, QA3/1416, typed boot lifecycle, scoped message leases and exact fixture/ledger checks; no build or game run.')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -704,7 +710,6 @@ def main():
             postFullPrivateHarnessDelta=context['postFullPrivateHarnessDelta'], currentQAHashes=context['currentQAHashes'], sourceInputCount=len(context['sourceBank']),
             sourceMapSha256=context['sourceMapSha256'], fixtureHashes=fixture_hashes, head=context['head'])
         module, preparation = prepare_pc_box_guest(destination / 'guest', runner, args.full_receipt, context=context)
-        token = boot_argument(file_sha(module), QA_FILES[2].read_text())
         report['privateGuest'] = preparation
         h = context['helpers']; native = destination / 'native'; native.mkdir()
         generated, writes, restores = h['generate_engine'](native, module, lambda argv, log: runner(argv, native / log))
@@ -727,7 +732,7 @@ def main():
         assert_unchanged(context); require_hashes(fixture_hashes, 'Original private fixture')
         report.update(status='running', gameRuntimeExecuted=True, privateModuleSha256=file_sha(module),
             checkedStackWrites=writes, exceptionDepthRestores=restores, nativeBinarySha256=file_sha(binary))
-        row, output = runner([binary, context['pack'] / 'files', boot, destination / 'scenario.sav', frames, token],
+        row, output = runner([binary, context['pack'] / 'files', boot, destination / 'scenario.sav', frames],
             destination / 'runtime.log', timeout=300, check=False)
         for line in output.splitlines():
             if line.startswith('PC Box boot: '):
@@ -743,6 +748,11 @@ def main():
                 report['evidence'].append(json.loads(line.removeprefix('PC Box evidence: ')))
         evidence = report['evidence']
         report['privateSaveHashesAfter'] = h['hashes'](copies)
+        from check_pc_box_uikit_binding import approved_boot, validate_boot_pixels
+        legacy_boot=[dict(ordinal=int(a),frame=int(b),keys=int(c)) for a,b,c in re.findall(
+            r'Native test input: step=(\d+) frame=(\d+) keys=(\d+) touch=0,0/0',output)]
+        validated_boot=approved_boot(legacy_boot,report['typedBootTrace'])
+        validate_boot_pixels(destination,validated_boot)
         if row['terminalReturnCode'] or row['timedOut'] or not row['allChildrenWaited'] or len(evidence) != 1 \
                 or not evidence_passed(evidence[0]) or not action_trace_passed(report['actionTrace']) \
                 or not field_message_evidence_passed(report['actionTrace'], evidence[0].get('fieldMessageAcks')) \

@@ -64,7 +64,8 @@ static u32 pcOldGeneration,pcOldRevision,pcOldSummaryRevision;
 static u32 pcFieldMessageAcks,pcMessageAckLatched;
 static const char *pcLeaseOwner;
 static HGPCBoxQAState pcFinal;
-_Static_assert(sizeof(HGPCBoxQAState)==1372 && offsetof(HGPCBoxQAState,messageAwaitInput)==1368,"private PC QA version 2 append-only ABI");
+_Static_assert(sizeof(HGPCBoxQAState)==1416 && offsetof(HGPCBoxQAState,messageAwaitInput)==1368
+    && offsetof(HGPCBoxQAState,boot)==1372,"private PC QA version 3 append-only ABI");
 
 void HGEngineTrap(wasm_rt_trap_t code) {
     if (code==WASM_RT_TRAP_UNREACHABLE && pcResetExpected && pcCapture && pcCapture->env->resetRequested) longjmp(pcResetLanding,1);
@@ -83,101 +84,95 @@ static const void *pcGuest(u32 address,size_t size) {
     PC_CHECK(address && address<=pcCapture->env->memory->size && size<=pcCapture->env->memory->size-address);
     return pcCapture->env->memory->data+address;
 }
-// Host boot gate begin.
-// shortcut: these original layouts/addresses apply only to binding.json's exact module; use a private RO getter when that module changes.
-#define PC_BOOT_TOKEN "--pc-boot-binding=20f89567f5b4b73d9986ecb4b1b14072029d950962916475357c5a3ea966d284"
-typedef struct PCBootFacts {
-    u32 kind,outer,manager,exec,proc,data,bg,windowBg,pixels,option,optionId,selectedApp;
-    u32 notice,noticeDelay,noSave,inputMode,optionTimer,titleDelay,fade,pending,rendered,varied;
-} PCBootFacts;
-static BOOL pcBootBindingValid;
-static u32 pcBootStart,pcBootLease,pcBootReads,pcBootRelease,pcBootTitleSent,pcBootSwitchSent,pcBootConfirmSent,pcBootExited;
+// Host boot gate begin. The typed values are private source-observer facts, not production exports.
+typedef HGYNBootFacts PCBootFacts;
+enum { PC_BOOT_TITLE_READY_PHASE=2,PC_BOOT_MAIN_READY_PHASE=5,PC_BOOT_CONTINUE_APP=1,
+    PC_BOOT_TERMINAL_PHASE=8,PC_BOOT_TITLE_PROGRESS_REQUIRED=0xF,PC_BOOT_MAIN_PROGRESS_REQUIRED=0xFF,
+    PC_BOOT_START_FRAME=450,PC_BOOT_TIMEOUT_FRAMES=2400 };
+static u32 pcBootStart,pcBootLease,pcBootReads,pcBootRelease,pcBootTitleSent,pcBootSwitchSent,pcBootConfirmSent,pcBootExited,pcBootFieldReady;
+static u32 pcBootSwitchGeneration,pcBootSwitchRevision,pcBootContinueGeneration;
+static u32 pcBootRendered,pcBootVaried;
 static const char *pcBootRole;
-static BOOL pcBootCopy(const u8 *memory,size_t size,u32 address,void *target,size_t count) {
-    if (!memory || !address || (address&3) || address>size || count>size-address) return FALSE;
-    memcpy(target,memory+address,count); return TRUE;
-}
-static BOOL pcBootInspect(const u8 *memory,size_t size,BOOL bound,PCBootFacts *facts) {
-    if (!facts || !bound) return FALSE;
-    *facts=(PCBootFacts){0};
-    u32 outer[7],manager[10],expected[4];
-    if (!pcBootCopy(memory,size,1146888,outer,sizeof(outer))) return FALSE;
-    facts->outer=outer[0]; facts->manager=outer[1];
-    u32 templateAddress=outer[0]==74 ? 422728 : outer[0]==60 ? 399088 : 0;
-    if (!templateAddress || !pcBootCopy(memory,size,outer[1],manager,sizeof(manager))
-        || !pcBootCopy(memory,size,templateAddress,expected,sizeof(expected)) || memcmp(manager,expected,sizeof(expected))) return FALSE;
-    facts->exec=manager[4]; facts->proc=manager[5]; facts->data=manager[7];
-    u32 data[190]; size_t bytes=outer[0]==74 ? 440 : 760;
-    if (!pcBootCopy(memory,size,manager[7],data,bytes)) return FALSE;
-    facts->kind=outer[0]==74 ? 2 : 1; facts->bg=data[facts->kind==2 ? 0 : 1];
-    u32 background[2]; if (!pcBootCopy(memory,size,facts->bg,background,sizeof(background))) return FALSE;
-    facts->pending=background[1]&0x00070007;
-    if (facts->kind==1) {facts->titleDelay=data[740/4]; return TRUE;}
-    facts->option=data[84/4]&0xFFFF; facts->selectedApp=data[88/4];
-    facts->notice=data[324/4]; facts->noticeDelay=data[328/4]; facts->noSave=data[388/4];
-    facts->inputMode=data[428/4]; facts->optionTimer=data[436/4];
-    if (facts->option>=9) return FALSE;
-    facts->optionId=data[236/4+facts->option];
-    facts->windowBg=data[92/4+facts->option*4]; facts->pixels=data[104/4+facts->option*4];
-    const u8 *window=(const u8 *)data+92+facts->option*16;
-    u32 pixelBytes=(u32)window[7]*window[8]*32;
-    if (!facts->pixels || (facts->pixels&3) || facts->pixels>size || !pixelBytes || pixelBytes>size-facts->pixels) return FALSE;
-    return TRUE;
-}
 static BOOL pcBootEligible(const PCBootFacts *facts) {
-    if (!facts || !facts->manager || !facts->data || !facts->bg || facts->exec!=2 || facts->fade!=1 || facts->pending) return FALSE;
-    if (facts->kind==1) return facts->outer==60 && facts->proc==2 && !facts->titleDelay;
-    return facts->kind==2 && facts->outer==74 && facts->proc==5 && facts->option<9 && facts->optionId==1
-        && facts->notice==15 && !facts->noticeDelay && !facts->noSave && !facts->optionTimer
-        && facts->inputMode<=1 && facts->windowBg==facts->bg && facts->pixels;
+    if (!facts || facts->active!=1 || !facts->ownerGeneration || !facts->revision || facts->ready!=1) return FALSE;
+    if (facts->kind==HG_YN_BOOT_TITLE)
+        return facts->phase==PC_BOOT_TITLE_READY_PHASE && !facts->inputMode && !facts->option && !facts->notice && !facts->exit
+            && (facts->progressFlags&PC_BOOT_TITLE_PROGRESS_REQUIRED)==PC_BOOT_TITLE_PROGRESS_REQUIRED;
+    return facts->kind==HG_YN_BOOT_MAIN_MENU && facts->phase==PC_BOOT_MAIN_READY_PHASE && facts->inputMode<=1
+        && facts->option<9 && facts->notice==15 && facts->exit==0
+        && (facts->progressFlags&PC_BOOT_MAIN_PROGRESS_REQUIRED)==PC_BOOT_MAIN_PROGRESS_REQUIRED;
+}
+static BOOL pcBootContinuationAllowed(const PCBootFacts *facts,u32 generation,u32 revision) {
+    return pcBootEligible(facts) && facts->kind==HG_YN_BOOT_MAIN_MENU && !facts->inputMode
+        && (!generation || (facts->ownerGeneration==generation && facts->revision!=revision));
+}
+static BOOL pcBootExitWitness(const PCBootFacts *facts,u32 generation) {
+    return facts && facts->kind==HG_YN_BOOT_MAIN_MENU && facts->active==0 && facts->ready==0
+        && facts->phase==PC_BOOT_TERMINAL_PHASE && generation && facts->ownerGeneration==generation && facts->revision
+        && facts->exit==PC_BOOT_CONTINUE_APP;
 }
 static BOOL pcBootSelfCheck(void) {
-    enum { manager=0x2000,data=0x3000,bg=0x4000,pixels=0x5000 };
-    const size_t size=1146888+0x100;
-    u8 *memory=calloc(1,size); if (!memory) return FALSE;
-#define PC_BOOT_REQUIRE(value) do { if (!(value)) { free(memory); return FALSE; } } while (0)
-    const u32 template[]={0x11223344,0x55667788,0x99aabbcc,0xddeeff00};
-    u32 *outer=(u32 *)(memory+1146888),*managerData=(u32 *)(memory+manager),*menu=(u32 *)(memory+data),*background=(u32 *)(memory+bg);
-    outer[0]=74; outer[1]=manager; memcpy(memory+422728,template,sizeof(template)); memcpy(managerData,template,sizeof(template));
-    managerData[4]=2; managerData[5]=5; managerData[7]=data; menu[0]=bg; menu[21]=0; menu[22]=1; menu[59]=1;
-    menu[81]=15; menu[82]=0; menu[97]=0; menu[107]=0; menu[109]=0; menu[23]=bg; menu[26]=pixels; memory[data+99]=1; memory[data+100]=1;
-    background[1]=0; *(u32 *)(memory+pixels)=0x12345678;
-    PCBootFacts facts;
-    PC_BOOT_REQUIRE(pcBootInspect(memory,size,TRUE,&facts)); facts.fade=1; PC_BOOT_REQUIRE(pcBootEligible(&facts));
-    PC_BOOT_REQUIRE(!pcBootInspect(memory,size,FALSE,&facts)); PC_BOOT_REQUIRE(!pcBootInspect(memory,size,TRUE,NULL));
-    managerData[0]^=1; PC_BOOT_REQUIRE(!pcBootInspect(memory,size,TRUE,&facts)); managerData[0]^=1;
-    managerData[5]=4; PC_BOOT_REQUIRE(pcBootInspect(memory,size,TRUE,&facts)); facts.fade=1; PC_BOOT_REQUIRE(!pcBootEligible(&facts)); managerData[5]=5;
-    menu[107]=2; PC_BOOT_REQUIRE(pcBootInspect(memory,size,TRUE,&facts)); facts.fade=1; PC_BOOT_REQUIRE(!pcBootEligible(&facts)); menu[107]=0;
-    menu[21]=9; PC_BOOT_REQUIRE(!pcBootInspect(memory,size,TRUE,&facts)); menu[21]=0;
-    PC_BOOT_REQUIRE(pcBootInspect(memory,size,TRUE,&facts)); facts.fade=0; PC_BOOT_REQUIRE(!pcBootEligible(&facts));
-    u32 value; PC_BOOT_REQUIRE(!pcBootCopy(memory,size,(u32)size-4,&value,sizeof(value)+4)); PC_BOOT_REQUIRE(!pcBootCopy(memory,size,manager+1,&value,sizeof(value)));
+#define PC_BOOT_REQUIRE(value) do { if (!(value)) return FALSE; } while (0)
+    PCBootFacts title={HG_YN_BOOT_TITLE,1,1,1,1,PC_BOOT_TITLE_READY_PHASE,0,0,0,0,PC_BOOT_TITLE_PROGRESS_REQUIRED};
+    PCBootFacts menu={HG_YN_BOOT_MAIN_MENU,1,2,1,1,PC_BOOT_MAIN_READY_PHASE,0,0,15,0,PC_BOOT_MAIN_PROGRESS_REQUIRED};
+    PC_BOOT_REQUIRE(pcBootEligible(&title) && pcBootEligible(&menu));
+    PC_BOOT_REQUIRE(!pcBootEligible(NULL));
+    title.active=0; PC_BOOT_REQUIRE(!pcBootEligible(&title)); title.active=1;
+    title.active=2; PC_BOOT_REQUIRE(!pcBootEligible(&title)); title.active=1;
+    title.ownerGeneration=0; PC_BOOT_REQUIRE(!pcBootEligible(&title)); title.ownerGeneration=1;
+    title.ready=0; PC_BOOT_REQUIRE(!pcBootEligible(&title)); title.ready=1;
+    title.ready=2; PC_BOOT_REQUIRE(!pcBootEligible(&title)); title.ready=1;
+    title.revision=0; PC_BOOT_REQUIRE(!pcBootEligible(&title)); title.revision=1;
+    title.phase=PC_BOOT_TITLE_READY_PHASE+1; PC_BOOT_REQUIRE(!pcBootEligible(&title)); title.phase=PC_BOOT_TITLE_READY_PHASE;
+    for (u32 bit=1;bit<=PC_BOOT_TITLE_PROGRESS_REQUIRED;bit<<=1) {
+        title.progressFlags=PC_BOOT_TITLE_PROGRESS_REQUIRED&~bit; PC_BOOT_REQUIRE(!pcBootEligible(&title));
+    }
+    title.progressFlags=PC_BOOT_TITLE_PROGRESS_REQUIRED;
+    menu.inputMode=2; PC_BOOT_REQUIRE(!pcBootEligible(&menu)); menu.inputMode=1;
+    menu.option=9; PC_BOOT_REQUIRE(!pcBootEligible(&menu)); menu.option=0;
+    menu.notice=14; PC_BOOT_REQUIRE(!pcBootEligible(&menu)); menu.notice=15;
+    for (u32 bit=1;bit<=PC_BOOT_MAIN_PROGRESS_REQUIRED;bit<<=1) {
+        menu.progressFlags=PC_BOOT_MAIN_PROGRESS_REQUIRED&~bit; PC_BOOT_REQUIRE(!pcBootEligible(&menu));
+    }
+    menu.progressFlags=PC_BOOT_MAIN_PROGRESS_REQUIRED;
+    menu.kind=99; PC_BOOT_REQUIRE(!pcBootEligible(&menu)); menu.kind=HG_YN_BOOT_MAIN_MENU;
+    menu.inputMode=0;
+    PCBootFacts retired=menu; retired.active=0; retired.ready=0; retired.phase=PC_BOOT_TERMINAL_PHASE; retired.exit=PC_BOOT_CONTINUE_APP;
+    PC_BOOT_REQUIRE(pcBootContinuationAllowed(&menu,0,0) && pcBootContinuationAllowed(&menu,2,2));
+    PC_BOOT_REQUIRE(!pcBootContinuationAllowed(&menu,3,2) && !pcBootContinuationAllowed(&menu,2,1));
+    PC_BOOT_REQUIRE(pcBootExitWitness(&retired,2) && !pcBootExitWitness(&retired,3) && !pcBootExitWitness(&retired,0));
+    retired.active=1; PC_BOOT_REQUIRE(!pcBootExitWitness(&retired,2));
+    retired.active=0; retired.phase=PC_BOOT_TERMINAL_PHASE-1; PC_BOOT_REQUIRE(!pcBootExitWitness(&retired,2)); retired.phase=PC_BOOT_TERMINAL_PHASE;
+    retired.phase=PC_BOOT_TERMINAL_PHASE+1; PC_BOOT_REQUIRE(!pcBootExitWitness(&retired,2)); retired.phase=PC_BOOT_TERMINAL_PHASE;
+    retired.ready=1; PC_BOOT_REQUIRE(!pcBootExitWitness(&retired,2)); retired.ready=0;
+    retired.ownerGeneration=0; PC_BOOT_REQUIRE(!pcBootExitWitness(&retired,2)); retired.ownerGeneration=2;
+    retired.revision=0; PC_BOOT_REQUIRE(!pcBootExitWitness(&retired,2)); retired.revision=1;
+    retired.exit=0; PC_BOOT_REQUIRE(!pcBootExitWitness(&retired,2));
 #undef PC_BOOT_REQUIRE
-    free(memory); return TRUE;
+    return TRUE;
 }
 // Pure boot predicate end.
 static PCBootFacts pcBootObserve(void) {
-    PCBootFacts facts;
-    if (pcBootInspect(pcCapture->env->memory->data,pcCapture->env->memory->size,pcBootBindingValid,&facts)) {
-        PC_CHECK(w2c_hgengine_OverlayManager_GetData(pcCapture->game,facts.manager)==facts.data);
-        facts.fade=w2c_hgengine_IsPaletteFadeFinished(pcCapture->game);
-    }
-    return facts;
+    return pcFinal.boot;
 }
 static void pcBootEvidence(const char *event,const PCBootFacts *facts) {
-    printf("PC Box boot: {\"event\":\"%s\",\"owner\":\"boot\",\"role\":\"%s\",\"frame\":%u,\"padReads\":%u,\"legacyStep\":%u,"
-        "\"kind\":%u,\"outer\":%u,\"manager\":%u,\"exec\":%u,\"proc\":%u,\"data\":%u,\"option\":%u,\"optionId\":%u,\"selectedApp\":%u,"
-        "\"notice\":%u,\"noticeDelay\":%u,\"noSave\":%u,\"inputMode\":%u,\"optionTimer\":%u,\"titleDelay\":%u,\"fade\":%u,\"pending\":%u,\"requiredMask\":1,\"renderedMask\":%u,\"variedMask\":%u}\n",
+    printf("PC Box boot: {\"event\":\"%s\",\"owner\":\"boot\",\"role\":\"%s\",\"frame\":%u,\"padReads\":%u,\"inputStep\":%u,"
+        "\"boot\":{\"kind\":%u,\"active\":%u,\"generation\":%u,\"revision\":%u,\"ready\":%u,\"phase\":%u,"
+        "\"inputMode\":%u,\"option\":%u,\"notice\":%u,\"exit\":%u,\"progress\":%u},"
+        "\"rendered\":%u,\"varied\":%u}\n",
         event,pcBootRole ? pcBootRole : "waiting",OS_GetVBlankCount(),HGNativeInputPadReads(pcCapture->env),pcCapture->inputStep,
-        facts->kind,facts->outer,facts->manager,facts->exec,facts->proc,facts->data,facts->option,facts->optionId,facts->selectedApp,
-        facts->notice,facts->noticeDelay,facts->noSave,facts->inputMode,facts->optionTimer,facts->titleDelay,facts->fade,facts->pending,facts->rendered,facts->varied);
+        facts->kind,facts->active,facts->ownerGeneration,facts->revision,facts->ready,facts->phase,facts->inputMode,facts->option,
+        facts->notice,facts->exit,facts->progressFlags,pcBootRendered,pcBootVaried);
 }
-static BOOL pcBootPixels(PCBootFacts *facts) {
+static BOOL pcBootPixels(const PCBootFacts *facts) {
+    PC_CHECK(facts && pcBootEligible(facts));
+    pcBootRendered=pcBootVaried=0;
     if (!pcCapture->buffer) pcCapture->buffer=w2c_hgengine_HGNativeFrameBuffer(pcCapture->game);
-    facts->rendered=w2c_hgengine_HGNativeRender2D(pcCapture->game,0,pcCapture->buffer,256*192*4) ? 1 : 0;
-    if (!facts->rendered) return FALSE;
+    pcBootRendered=w2c_hgengine_HGNativeRender2D(pcCapture->game,0,pcCapture->buffer,256*192*4) ? 1 : 0;
+    if (!pcBootRendered) return FALSE;
     const u8 *pixels=pcGuest(pcCapture->buffer,256*192*4);
-    for (u32 i=1;i<256*192;++i) if (memcmp(pixels,pixels+i*4,4)) {facts->varied=1; break;}
-    if (!facts->varied) return FALSE;
+    for (u32 i=1;i<256*192;++i) if (memcmp(pixels,pixels+i*4,4)) {pcBootVaried=1; break;}
+    if (!pcBootVaried) return FALSE;
     char path[4096]; PC_CHECK(snprintf(path,sizeof(path),"%s/boot-%s-main.ppm",pcCapture->folder,pcBootRole)<sizeof(path));
     FILE *file=fopen(path,"wbx"); PC_CHECK(file && fprintf(file,"P6\n256 192\n255\n")>0);
     for (u32 y=0;y<192;++y) {u8 row[256*3]; for (u32 x=0;x<256;++x) memcpy(row+x*3,pixels+(y*256+x)*4,3); PC_CHECK(fwrite(row,1,sizeof(row),file)==sizeof(row));}
@@ -185,10 +180,10 @@ static BOOL pcBootPixels(PCBootFacts *facts) {
 }
 static void pcBootTick(void) {
     u32 frame=OS_GetVBlankCount(),reads=HGNativeInputPadReads(pcCapture->env);
-    if (!pcBootStart) pcBootStart=frame;
-    if (frame-pcBootStart>2400) pcFinish("boot_ready_timeout",FALSE);
+    if (!pcBootStart) { if (frame<PC_BOOT_START_FRAME) return; pcBootStart=frame; }
+    if (frame-pcBootStart>=PC_BOOT_TIMEOUT_FRAMES) pcFinish("boot_ready_timeout",FALSE);
     PCBootFacts facts=pcBootObserve();
-    if (pcBootConfirmSent && !pcBootExited && facts.kind==2 && facts.exec==2 && facts.proc==8 && facts.selectedApp==1) {
+    if (pcBootConfirmSent && !pcBootExited && pcBootExitWitness(&facts,pcBootContinueGeneration)) {
         pcBootExited=1; pcBootEvidence("continue_selected",&facts);
     }
     if (pcBootLease) {
@@ -197,14 +192,16 @@ static void pcBootTick(void) {
         return;
     }
     if (pcBootConfirmSent || !pcBootEligible(&facts)) return;
-    if (facts.kind==1) {if (pcBootTitleSent) return; pcBootRole="title";}
+    if (facts.kind==HG_YN_BOOT_TITLE) {if (pcBootTitleSent) return; pcBootRole="title";}
     else if (facts.inputMode==1) {if (pcBootSwitchSent) return; pcBootRole="mode_switch";}
-    else pcBootRole="continue";
+    else {PC_CHECK(pcBootContinuationAllowed(&facts,pcBootSwitchGeneration,pcBootSwitchRevision));pcBootRole="continue";}
     if (!pcBootPixels(&facts)) return;
-    PCBootFacts live=pcBootObserve(),expected=facts; expected.rendered=expected.varied=0;
-    PC_CHECK(pcBootEligible(&live) && !memcmp(&live,&expected,sizeof(live)));
+    PCBootFacts live=pcBootObserve();
+    PC_CHECK(pcBootEligible(&live) && !memcmp(&live,&facts,sizeof(live)));
     pcBootEvidence("ready",&facts);
-    if (facts.kind==1) pcBootTitleSent=1; else if (facts.inputMode==1) pcBootSwitchSent=1; else pcBootConfirmSent=1;
+    if (facts.kind==HG_YN_BOOT_TITLE) pcBootTitleSent=1;
+    else if (facts.inputMode==1) {pcBootSwitchSent=1;pcBootSwitchGeneration=facts.ownerGeneration;pcBootSwitchRevision=facts.revision;}
+    else {pcBootConfirmSent=1;pcBootContinueGeneration=facts.ownerGeneration;}
     PC_CHECK(HGNativeSetInput(pcCapture->env,1,FALSE,0,0,FALSE)); pcBootReads=reads; pcBootLease=1; pcBootEvidence("press",&facts);
 }
 // Host boot gate end.
@@ -212,7 +209,8 @@ static HGPCBoxQAState pcRead(void) {
     u32 address=w2c_hgengine_HGNativePCBoxQAGetState(pcCapture->game);
     HGPCBoxQAState state; memcpy(&state,pcGuest(address,sizeof(state)),sizeof(state));
     PC_CHECK(state.version==HG_PC_QA_VERSION && state.byteSize==sizeof(state));
-    PC_CHECK(state.messageAwaitInput<=1);
+    PC_CHECK(state.messageAwaitInput<=1 && state.boot.active<=1 && state.boot.ready<=1
+        && (!state.boot.active || (state.boot.ownerGeneration && state.boot.revision)));
     PC_CHECK(w2c_hgengine_HGNativePCBoxQAGetState(pcCapture->game)==address && !memcmp(&state,pcGuest(address,sizeof(state)),sizeof(state)));
     pcFinal=state;
     if (state.error) { fprintf(stderr,"PC Box guest first error line %u\n",state.error); pcFinish("guest_observer_failed",FALSE); }
@@ -385,10 +383,11 @@ static void PCBoxPresent(void *argument) {
         if (pcCapture->inputStep>=1 && !pcCapture->inputFrame) {pcCapture->noInput=TRUE; pcBootTick();}
         present(argument); return;
     }
-    if (!pcStep && pcBootConfirmSent && qa.fieldReady && !pcBootExited) {
-        PCBootFacts facts=pcBootObserve(); pcBootExited=1; pcBootEvidence("field_ready",&facts);
+    if (!pcStep && pcBootConfirmSent && qa.fieldReady && !pcBootFieldReady) {
+        PCBootFacts facts=pcBootObserve();
+        PC_CHECK(pcBootExited && pcBootExitWitness(&facts,pcBootContinueGeneration)); pcBootFieldReady=1; pcBootEvidence("field_ready",&facts);
     }
-    if (!pcStep) PC_CHECK(pcBootConfirmSent && pcBootExited && !pcBootLease);
+    if (!pcStep) PC_CHECK(pcBootConfirmSent && pcBootExited && pcBootFieldReady && !pcBootLease);
     if (!pcStepFrame) { pcStepFrame=frame; pcCapture->noInput=TRUE; PC_CHECK(HGNativeSetInput(pcCapture->env,0,FALSE,0,0,FALSE)); }
     if (frame-pcStepFrame>2400) {
         fprintf(stderr,"PC Box timeout step=%u map=%u phase=%u mode=%u ready=%u cursor=%u menu=%u/%u child=%u/%u\n",
@@ -483,9 +482,8 @@ static void PCBoxPresent(void *argument) {
 
 int main(int argc,char **argv) {
     setvbuf(stdout,NULL,_IONBF,0);
-    if (argc!=6 || strcmp(argv[5],PC_BOOT_TOKEN) || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) return 2;
+    if (argc!=5 || !HGNativeFSSetRoot(argv[1]) || !HGNativeBackupSetPath(argv[3])) return 2;
     if (!pcBootSelfCheck()) { fputs("PC Box boot predicate self-check failed\n",stderr); return 2; }
-    pcBootBindingValid=TRUE;
     u8 header[0x160]; FILE *input=fopen(argv[2],"rb"); if (!input) return 2;
     BOOL valid=fread(header,1,sizeof(header),input)==sizeof(header) && fgetc(input)==EOF && !ferror(input); fclose(input); if (!valid) return 2;
     wasm_rt_init();

@@ -10,11 +10,13 @@ import json
 from pathlib import Path
 import re
 import struct
+import tempfile
 
 QA_NAMES = ('HGNativePCBoxQAGetState', 'HGNativePCBoxQARequest')
-QA_VERSION, QA_BYTES = 2, 1372
+QA_VERSION, QA_BYTES = 3, 1416
 QA_RELATIVE = ('ios/tests/pc_box_qa.h', 'ios/tests/pc_box_guest.inc',
-    'ios/Original/abi32/pc_box_scenario_check.c', 'ios/tools/check_native_pc_box.py')
+    'ios/Original/abi32/pc_box_scenario_check.c', 'ios/tools/check_native_pc_box.py',
+    'ios/tests/npc_yesno_qa.h','ios/tests/npc_yesno_boot.inc','ios/tools/npc_yesno_boot_sources.py')
 BITS = dict(PHYSICAL=1, DEPOSIT=2, WITHDRAW=4, MOVE=8, SWAP=16, LAST=32,
     RELEASE_CANCEL=64, ITEMS=128, SUMMARY=256, NAMING=512)
 SHA256 = re.compile('[0-9a-f]{64}')
@@ -45,10 +47,10 @@ def runtime_bank_provenance(report, preparation, historical, runtime, root, hist
         require(all(isinstance(name, str) and Path(name).is_absolute() and isinstance(value, str)
             and SHA256.fullmatch(value) for name, value in bank.items()), 'Invalid historical/runtime input hash bank')
     delta = {name: dict(before=before, after=runtime[name]) for name, before in historical.items() if runtime[name] != before}
-    allowed = {str(root / relative) for relative in QA_RELATIVE[1:]}
+    allowed = {str(root / relative) for relative in QA_RELATIVE[1:4]}
     require(not set(delta) - allowed, 'Only the three approved private harness files may differ after Full')
     qa_hashes = {str(root / relative): runtime.get(str(root / relative)) for relative in QA_RELATIVE}
-    require(all(isinstance(value, str) and SHA256.fullmatch(value) for value in qa_hashes.values()), 'Runtime bank must bind all four QA files')
+    require(all(isinstance(value, str) and SHA256.fullmatch(value) for value in qa_hashes.values()), 'Runtime bank must bind all PC/shared boot QA files')
     for evidence in (report, preparation):
         require(type(evidence.get('fullSourceBankCurrent')) is bool and evidence['fullSourceBankCurrent'] is (not delta)
             and evidence.get('historicalFullInputBankSha256') == historical_sha
@@ -61,8 +63,8 @@ def runtime_bank_provenance(report, preparation, historical, runtime, root, hist
 
 
 def decode_qa_snapshot(data):
-    require(len(data) == QA_BYTES, 'Native checkpoint must use the actual QA2/1372 PC ABI')
-    words = struct.unpack('<343I', data)
+    require(len(data) == QA_BYTES, 'Native checkpoint must use the actual QA3/1416 PC ABI')
+    words = struct.unpack(f'<{QA_BYTES//4}I', data)
     require(words[0] == QA_VERSION and words[1] == QA_BYTES and not words[3] and words[342] in (0, 1),
         'Invalid native checkpoint ABI/error/message-wait fact')
     return dict(qaVersion=words[0], qaBytes=words[1], stage=words[4], baselinePrepared=words[6], preparationSetterCalls=words[7],
@@ -75,7 +77,8 @@ def decode_qa_snapshot(data):
         summary=dict(active=words[66], revision=words[67], mode=words[68], phase=words[69], ready=words[70],
             monDataType=words[73], partySlot=words[74], partyCount=words[75], previousMonEnabled=words[105],
             previousMonSlot=words[106], nextMonEnabled=words[107], nextMonSlot=words[108]),
-        naming=dict(zip(('active', 'ownerGeneration', 'revision', 'ready'), words[267:271])), messageAwaitInput=words[342])
+        naming=dict(zip(('active', 'ownerGeneration', 'revision', 'ready'), words[267:271])), messageAwaitInput=words[342],
+        boot=dict(zip(('kind','active','generation','revision','ready','phase','inputMode','option','notice','exit','progress'),words[343:354])))
 
 
 def qa_snapshot(path):
@@ -102,45 +105,75 @@ def native_steps(source):
 
 
 def approved_boot(legacy, rows):
-    """Bind the approved finite Title/Continue presses to their original readiness evidence."""
-    require(isinstance(legacy, list) and len(legacy) == 1 and isinstance(legacy[0], dict)
-        and type(legacy[0].get('ordinal')) is int and legacy[0]['ordinal'] == 0
-        and type(legacy[0].get('keys')) is int and legacy[0]['keys'] == 8
-        and type(legacy[0].get('frame')) is int and legacy[0]['frame'] >= 450,
-        'Only the original START skip may use its source frame threshold')
-    sequence = [('ready', 'title'), ('press', 'title'), ('released', 'title'), ('settled', 'title'),
-        ('ready', 'continue'), ('press', 'continue'), ('continue_selected', 'continue'), ('released', 'continue'), ('settled', 'continue')]
-    require(isinstance(rows, list) and len(rows) == len(sequence)
-        and all(isinstance(row, dict) and (row.get('event'), row.get('role')) == expected
-            and row.get('owner') == 'boot' for row, expected in zip(rows, sequence)), 'Typed boot event/role ordering changed')
-    require(all(type(row.get(name)) is int and 0 <= row[name] <= 0xFFFFFFFF
-        for row in rows for name in ('frame', 'padReads', 'kind', 'outer', 'manager', 'exec', 'proc', 'data', 'option', 'optionId',
-            'selectedApp', 'notice', 'noticeDelay', 'noSave', 'inputMode', 'optionTimer', 'titleDelay', 'fade', 'pending',
-            'requiredMask', 'renderedMask', 'variedMask')), 'Boot facts must be actual u32 values')
-    require([row['frame'] for row in rows] == sorted(row['frame'] for row in rows), 'Boot frame ordering changed')
-    result = list(legacy)
-    for ready, press, release, settled in ((rows[0], rows[1], rows[2], rows[3]), (rows[4], rows[5], rows[7], rows[8])):
-        require({key: value for key, value in ready.items() if key != 'event'}
-            == {key: value for key, value in press.items() if key != 'event'}, 'Boot readiness differs from the admitted press')
-        require(press['manager'] and press['data'] and not ((press['manager'] | press['data']) & 3)
-            and press['exec'] == 2 and press['fade'] == 1 and press['pending'] == 0
-            and press['requiredMask'] == press['renderedMask'] == press['variedMask'] == 1,
-            'Boot press requires an original ready owner and visible source pixels')
-        require(press['frame'] > result[-1]['frame'] and release['frame'] >= press['frame'] and settled['frame'] >= release['frame']
-            and release['padReads'] - press['padReads'] == settled['padReads'] - release['padReads'] == 2,
-            'Boot input/release lease changed')
-        if press['role'] == 'title':
-            require(press['kind'] == 1 and press['outer'] == 60 and press['proc'] == 2 and not press['titleDelay'], 'Title was not ready')
+    """Original finite roles; retired phase 8 is the last observed exit milestone."""
+    require(isinstance(legacy,list) and len(legacy)==1 and isinstance(legacy[0],dict)
+        and type(legacy[0].get('ordinal')) is int and legacy[0]['ordinal']==0
+        and type(legacy[0].get('keys')) is int and legacy[0]['keys']==8
+        and type(legacy[0].get('frame')) is int and legacy[0]['frame']>=450,
+        'Exactly one original START at/after its source threshold is required')
+    require(isinstance(rows,list) and rows and all(isinstance(row,dict) and row.get('owner')=='boot'
+        and isinstance(row.get('boot'),dict) for row in rows),'Typed boot owner/facts are missing')
+    for row in rows:
+        require(all(type(row.get(name)) is int and 0<=row[name]<=0xFFFFFFFF
+            for name in ('frame','padReads','inputStep','rendered','varied'))
+            and all(type(row['boot'].get(name)) is int and 0<=row['boot'][name]<=0xFFFFFFFF for name in
+                ('kind','active','generation','revision','ready','phase','inputMode','option','notice','exit','progress')),
+            'Typed boot facts must be genuine u32 fields')
+    require(all(a['frame']<=b['frame'] and a['padReads']<=b['padReads'] for a,b in zip(rows,rows[1:])),
+        'Boot frames/input reads regressed')
+    exits=[row for row in rows if row.get('event') in ('continue_selected','field_ready')]
+    require([row['event'] for row in exits]==['continue_selected','field_ready'] and rows[-1] is exits[-1],
+        'Continue selection and field-ready witnesses are required exactly once')
+    leases=[row for row in rows if row not in exits]
+    require(len(leases)%4==0,'Typed boot leases must have ready/press/released/settled rows')
+    roles=[row.get('role') for row in leases[::4]]
+    require(roles in (['title','continue'],['title','mode_switch','continue'],['continue'],['mode_switch','continue']),
+        'Finite typed boot role ordering changed')
+    result=[{**legacy[0],'role':'start'}]
+    previous=None
+    for index in range(0,len(leases),4):
+        ready,press,release,settled=leases[index:index+4]; role=ready['role']; facts=press['boot']
+        require([row.get('event') for row in (ready,press,release,settled)]==['ready','press','released','settled']
+            and all(row.get('role')==role for row in (ready,press,release,settled)),
+            'Typed role lease event order changed')
+        require({k:v for k,v in ready.items() if k!='event'}=={k:v for k,v in press.items() if k!='event'},
+            'Readiness differs from admitted physical input')
+        require(facts['active']==facts['ready']==1 and facts['generation'] and facts['revision']
+            and press['rendered']==press['varied']==1 and facts['exit']==0,
+            'Boot A requires a live ready owner and measured original source pixels')
+        require(press['frame']>result[-1]['frame'] and release['padReads']-press['padReads']>=2
+            and settled['padReads']-release['padReads']>=2,'Boot held/released two-read lease changed')
+        if role=='title':
+            require(facts['kind']==1 and facts['phase']==2 and not any(facts[n] for n in ('inputMode','option','notice'))
+                and facts['progress']&15==15,'Original Title is not ready')
         else:
-            require(press['kind'] == 2 and press['outer'] == 74 and press['proc'] == 5 and press['option'] < 9
-                and press['optionId'] == 1 and press['notice'] == 15 and not any(press[name]
-                    for name in ('noticeDelay', 'noSave', 'inputMode', 'optionTimer')), 'Continue was not ready in button mode')
-        result.append(dict(ordinal=len(result), frame=press['frame'], keys=1))
-    selected = rows[6]
-    require(selected['manager'] == rows[5]['manager'] and selected['outer'] == 74 and selected['exec'] == 2
-        and selected['proc'] == 8 and selected['selectedApp'] == 1
-        and rows[5]['frame'] <= selected['frame'] <= rows[7]['frame'], 'Original Continue exit was not observed')
+            require(facts['kind']==2 and facts['phase']==5 and facts['option']<9 and facts['notice']==15
+                and facts['inputMode']==(1 if role=='mode_switch' else 0) and facts['progress']&255==255,
+                'Original Continue or explicit mode-switch is not ready')
+            if previous and previous['role']=='mode_switch':
+                require(previous['boot']['generation']==facts['generation'] and previous['boot']['revision']!=facts['revision'],
+                    'Mode switch needs a fresh BUTTONS publication from the same owner')
+        result.append(dict(ordinal=len(result),frame=press['frame'],keys=1,role=role,boot=facts));previous=press
+    confirm=leases[-3]
+    for row in exits:
+        facts=row['boot']
+        require(row['role']=='continue' and facts['kind']==2 and facts['active']==facts['ready']==0
+            and facts['generation']==confirm['boot']['generation'] and facts['generation'] and facts['revision']
+            and facts['phase']==8 and facts['exit']==1 and row['frame']>=confirm['frame'],
+            'Genuine retired Continue milestone is missing')
+    require(rows.index(exits[0])>rows.index(confirm) and exits[0]['boot']==exits[1]['boot'],'Retired owner facts changed before field ready')
     return result
+
+
+def validate_boot_pixels(folder, boot, captures=None):
+    for role in (row['role'] for row in boot if row['role']!='start'):
+        name=f'frames/boot-{role}-main.ppm'; path=Path(folder)/name
+        require(not path.is_symlink() and path.is_file() and (captures is None or name in captures),
+            'Actual original boot image is missing: '+name)
+        data=path.read_bytes(); header=b'P6\n256 192\n255\n'
+        require(data.startswith(header) and len(data)==len(header)+256*192*3,'Invalid original boot PPM dimensions')
+        pixels=data[len(header):]
+        require(any(pixels[i:i+3]!=pixels[:3] for i in range(3,len(pixels),3)),'Original boot image is uniform')
 
 
 def typed_boot_trace(report, runtime):
@@ -212,7 +245,7 @@ def pc_box_guest(report_path, audit, link, approved_report_sha256):
     """
     from audit_original import digest
     from check_native_pc_box import (evidence_passed, wasm_exports, field_message_evidence_passed,
-        snapshot_evidence_passed, shipping_exports_passed, normal_checks_passed, boot_argument)
+        snapshot_evidence_passed, shipping_exports_passed, normal_checks_passed)
     from check_native_rainy_field import INCLUDES
     from check_abi32 import ROOT
     requested = Path(report_path)
@@ -233,7 +266,7 @@ def pc_box_guest(report_path, audit, link, approved_report_sha256):
         ('step', 'guestError', 'qaVersion', 'qaBytes', 'fieldMessageAcks', 'baselinePrepared', 'preparationSetterCalls', 'noSettersAfterBaseline', 'conservationChecks',
             'coverageMask', 'requiredCoverageMask', 'staleRejected', 'busyRejected', 'snapshots'))
         and evidence[0]['guestError'] == 0 and evidence[0]['qaVersion'] == QA_VERSION and evidence[0]['qaBytes'] == QA_BYTES,
-        'Native numeric evidence must use exact QA2/u32 values, not Boolean coercions')
+        'Native numeric evidence must use exact QA3/u32 values, not Boolean coercions')
     require(report.get('noAutomaticRetry') is True and report.get('commands')
         and all(type(row.get('terminalReturnCode')) is int and row['terminalReturnCode'] == 0
             and row.get('timedOut') is False and row.get('allChildrenWaited') is True
@@ -307,7 +340,9 @@ def pc_box_guest(report_path, audit, link, approved_report_sha256):
         'Current public headers differ from the actual passed native guest')
     artifacts = preparation.get('artifactHashes', {})
     guest_files = {str(folder / 'guest' / name) for name in
-        ('field-pc-box.c', 'field-pc-box.o', 'objects.rsp', 'engine.wasm', 'runtime-input-bank.json')}
+        ('field-pc-box.c', 'field-pc-box.o', 'objects.rsp', 'engine.wasm', 'runtime-input-bank.json',
+        'source/src/title_screen.c','source/src/title_screen.o',
+        'source/src/application/main_menu/main_menu.c','source/src/application/main_menu/main_menu.o')}
     require(isinstance(artifacts, dict) and set(artifacts) == guest_files | set(qa_hashes)
         and all(Path(name).is_file() and not Path(name).is_symlink() and sha(name) == expected for name, expected in artifacts.items()),
         'Private native source/object/module artifact changed')
@@ -321,9 +356,20 @@ def pc_box_guest(report_path, audit, link, approved_report_sha256):
         + body.replace(anchor, anchor + '\n    PCBoxQAFieldTick(fieldSystem);')
     require((folder / 'guest/field-pc-box.c').read_text() == private_source
         and preparation.get('originalSourceSha256') == sha(original) == cmap['src/field_system.c']
-        and preparation.get('replacedFormalObjects') == [str(audit / 'objects/src/field_system.o')]
-        and preparation.get('privateObjects') == [str(folder / 'guest/field-pc-box.o')],
-        'Private guest must replace exactly the unchanged original resident field owner')
+        and preparation.get('replacedFormalObjects') == [str(audit / ('objects/'+name)) for name in
+            ('src/field_system.o','src/title_screen.o','src/application/main_menu/main_menu.o')]
+        and preparation.get('privateObjects') == [str(folder / ('guest/'+name)) for name in
+            ('field-pc-box.o','source/src/title_screen.o','source/src/application/main_menu/main_menu.o')],
+        'Private guest must replace exactly the unchanged resident and two typed boot source owners')
+    from npc_yesno_boot_sources import build_candidates
+    with tempfile.TemporaryDirectory(prefix='pc-boot-binding-') as temporary:
+        generated=build_candidates(ROOT,Path(temporary)); expected_copies=[]
+        for relative,path in zip(('src/title_screen.c','src/application/main_menu/main_menu.c'),generated):
+            actual=folder/'guest/source'/relative
+            require(actual.read_text()==path.read_text() and sha(ROOT/relative)==cmap[relative],
+                'Typed boot copy altered the original source body or declared read-only hook')
+            expected_copies.append(dict(original=relative,originalSha256=sha(ROOT/relative),source=str(actual),sourceSha256=sha(actual)))
+        require(preparation.get('bootSourceCopies')==expected_copies,'Typed boot source-copy provenance changed')
     fixture = ROOT.parent / 'native-ios-route29-save/heartgold.sav'
     originals = {str(Path(str(fixture) + suffix)) for suffix in ('', '.console', '.wifi', '.lock')}
     copies = {str(folder / ('scenario.sav' + suffix)) for suffix in ('', '.console', '.wifi', '.lock')}
@@ -352,7 +398,7 @@ def pc_box_guest(report_path, audit, link, approved_report_sha256):
         actual = dict(mapId=snapshot['mapId'], ownerGeneration=snapshot['pc']['ownerGeneration'], phase=snapshot['pc']['phase'],
             pcActive=snapshot['pc']['active'], summaryActive=snapshot['summary']['active'], namingActive=snapshot['naming']['active'],
             scriptMenuReady=snapshot['scriptMenuReady'])
-        require(all(row[name] == value for name, value in actual.items()), 'Typed snapshot metadata differs from its actual QA2 state')
+        require(all(row[name] == value for name, value in actual.items()), 'Typed snapshot metadata differs from its actual QA3 state')
         for engine in range(2):
             if row['renderedMask'] & (1 << engine):
                 require(prefix + f'-engine-{engine}.ppm' in captures, 'Actual typed snapshot engine pixels are not archived')
@@ -381,27 +427,16 @@ def pc_box_guest(report_path, audit, link, approved_report_sha256):
         r'Native test input: step=(\d+) frame=(\d+) keys=(\d+) touch=0,0/0', runtime)]
     typed_boot = typed_boot_trace(report, runtime)
     boot = approved_boot(legacy_boot, typed_boot)
-    token = boot_argument(sha(module), (ROOT / QA_RELATIVE[2]).read_text())
-    require({'frames/boot-title-main.ppm', 'frames/boot-continue-main.ppm'} <= set(captures), 'Original boot source witnesses are missing')
+    validate_boot_pixels(folder,boot,captures)
     runtime_commands = [row['argv'] for row in report['commands'] if row['argv'][0] == str(folder / 'native/pc-box-check')]
-    require(len(runtime_commands) == 1 and len(runtime_commands[0]) == 6 and runtime_commands[0][-1] == token
-        and runtime_commands[0].count(token) == 1, 'Canonical runtime boot token is missing or duplicated')
-    boot_binding = report.get('extra', {}).get('nativeObjectReuse', {}).get('bootBinding')
-    if boot_binding is not None:
-        require(isinstance(boot_binding, dict) and sha(boot_binding['path']) == boot_binding['sha256'] == token.removeprefix('--pc-boot-binding=')
-            and read(boot_binding['path']) == boot_binding['manifest']
-            and boot_binding['manifest']['privateModuleSha256'] == sha(module)
-            and boot_binding['manifest']['shippingModuleSha256'] == shipping_sha256, 'Optional boot layout provenance changed')
-        layout_full = Path(boot_binding.get('layoutFullReceipt', full_path))
-        layout_proof = read(layout_full)
-        require(sha(layout_full) == boot_binding['manifest']['fullReceiptSha256'] and layout_proof.get('passed') is True
-            and layout_proof.get('freshAuditPassed') is True and layout_proof.get('inputsUnchanged') is True
-            and layout_proof['shipping']['sha256'] == shipping_sha256
-            and layout_proof['shipping']['headersSha256'] == audited['headersSha256']
-            and layout_proof['auditedSources']['sourceMapSha256'] == report['sourceMapSha256'], 'Optional historical boot layout Full changed')
-        require(all(sha(ROOT / name) == value for name, value in boot_binding['manifest']['sourceHashes'].items()),
-            'Optional original boot layout source changed')
-    resource = dict(version=2, qaVersion=QA_VERSION, qaBytes=QA_BYTES, sourceReportSha256=sha(report_path), privateModuleSha256=sha(module),
+    from prepare_native_content import verify
+    from import_original_content import read_boot_header
+    pack=verify(link.get('nativeContent'))
+    require((folder/'boot-header.bin').read_bytes()==read_boot_header(pack),'Actual original boot header changed')
+    require(len(runtime_commands) == 1 and runtime_commands[0]==[str(folder/'native/pc-box-check'),
+        str(pack/'files'),str(folder/'boot-header.bin'),
+        str(folder/'scenario.sav'),str(folder/'frames')], 'Canonical typed-boot runtime argument contract changed')
+    resource = dict(version=3, qaVersion=QA_VERSION, qaBytes=QA_BYTES, sourceReportSha256=sha(report_path), privateModuleSha256=sha(module),
         shippingModuleSha256=shipping_sha256, actions=actions, checkpoints=checkpoints, snapshots=snapshots,
         typedSnapshotEvidence=observed_snapshots, typedBootEvidence=typed_boot, entry=entry, boot=boot,
         scope='same approved native input trace through attached UIKit controls; physicalGestures=false')
@@ -422,7 +457,7 @@ def self_check():
     """Pure helper checks only: no source inventory, archive approval, build, or game run."""
     root = Path('/tmp/pc-box-binding-self-check')
     historical = {str(root / name): 'a' * 64 for name in (*QA_RELATIVE, 'ios/OriginalApp/main.m')}
-    runtime = {**historical, **{str(root / name): 'b' * 64 for name in QA_RELATIVE[1:]}}
+    runtime = {**historical, **{str(root / name): 'b' * 64 for name in QA_RELATIVE[1:4]}}
     delta = {name: dict(before=value, after=runtime[name]) for name, value in historical.items() if runtime[name] != value}
     qa_hashes = {str(root / name): runtime[str(root / name)] for name in QA_RELATIVE}
     evidence = dict(fullSourceBankCurrent=False, historicalFullInputBankSha256='c' * 64, actualRuntimeInputBankSha256='d' * 64,
@@ -434,6 +469,9 @@ def self_check():
     bad_bank = {**runtime, str(root / 'ios/OriginalApp/main.m'): 'e' * 64}
     rejected = [lambda: runtime_bank_provenance(evidence, evidence, historical, bad_bank, root, 'c' * 64, 'd' * 64),
         lambda: runtime_bank_provenance(evidence, evidence, historical, {**runtime, '/tmp/extra': 'a' * 64}, root, 'c' * 64, 'd' * 64)]
+    for name in QA_RELATIVE[4:]:
+        rejected.append(lambda name=name: runtime_bank_provenance(evidence,evidence,historical,
+            {**runtime,str(root/name):'e'*64},root,'c'*64,'d'*64))
     for key, value in [('fullSourceBankCurrent', 0), ('historicalFullInputBankSha256', 'e' * 64),
             ('actualRuntimeInputBankSha256', 'e' * 64), ('postFullPrivateHarnessDelta', {}), ('currentQAHashes', {}), ('sourceInputCount', True)]:
         rejected.append(lambda key=key, value=value: runtime_bank_provenance({**evidence, key: value}, evidence,
@@ -463,11 +501,11 @@ def self_check():
             [{**message_press, 'messageAwaitInput': True}, *message[1:]]):
         rejected.append(lambda malformed=malformed: approved_actions(malformed))
     words = [0] * (QA_BYTES // 4); words[0] = QA_VERSION; words[1] = QA_BYTES; words[342] = 1
-    decoded = decode_qa_snapshot(struct.pack('<343I', *words))
-    assert decoded['qaVersion'] == 2 and decoded['qaBytes'] == 1372 and decoded['messageAwaitInput'] == 1
+    decoded = decode_qa_snapshot(struct.pack(f'<{QA_BYTES//4}I', *words))
+    assert decoded['qaVersion'] == 3 and decoded['qaBytes'] == 1416 and decoded['messageAwaitInput'] == 1
     bad_words = words.copy(); bad_words[342] = 2
     rejected.extend([lambda: decode_qa_snapshot(b'\0' * 1368),
-        lambda: decode_qa_snapshot(struct.pack('<343I', *bad_words))])
+        lambda: decode_qa_snapshot(struct.pack(f'<{QA_BYTES//4}I', *bad_words))])
     for operation in rejected:
         try:
             operation()
@@ -478,48 +516,70 @@ def self_check():
     assert native_steps('static const PCBoxStep steps[]={\n{OP_ENTRY},CHECKPOINT(0,0,2,1,29,14),\n};') == \
         ['{OP_ENTRY}', 'CHECKPOINT(0,0,2,1,29,14)']
     assert native_steps('static const PCBoxStep steps[]={\n{OP_ENTRY},{OP_FINISH}\n};') == ['{OP_ENTRY}', '{OP_FINISH}']
-    boot_names = ('frame', 'padReads', 'kind', 'outer', 'manager', 'exec', 'proc', 'data', 'option', 'optionId', 'selectedApp',
-        'notice', 'noticeDelay', 'noSave', 'inputMode', 'optionTimer', 'titleDelay', 'fade', 'pending', 'requiredMask', 'renderedMask', 'variedMask')
-    title = dict.fromkeys(boot_names, 0)
-    title.update(event='ready', role='title', owner='boot', frame=500, padReads=10, kind=1, outer=60, manager=4, data=8,
-        exec=2, proc=2, fade=1, requiredMask=1, renderedMask=1, variedMask=1)
-    continuing = {**title, 'role': 'continue', 'frame': 600, 'padReads': 20, 'kind': 2, 'outer': 74, 'proc': 5, 'optionId': 1, 'notice': 15}
-    typed_boot = [title, {**title, 'event': 'press'}, {**title, 'event': 'released', 'frame': 504, 'padReads': 12},
-        {**title, 'event': 'settled', 'frame': 508, 'padReads': 14}, continuing, {**continuing, 'event': 'press'},
-        {**continuing, 'event': 'continue_selected', 'frame': 602, 'padReads': 21, 'proc': 8, 'selectedApp': 1},
-        {**continuing, 'event': 'released', 'frame': 604, 'padReads': 22}, {**continuing, 'event': 'settled', 'frame': 608, 'padReads': 24}]
-    legacy = [dict(ordinal=0, frame=450, keys=8)]
-    assert [row['frame'] for row in approved_boot(legacy, typed_boot)] == [450, 500, 600]
-    assert approved_boot([dict(ordinal=0, frame=451, keys=8)], typed_boot)[0]['frame'] == 451
-    for invalid_legacy in ([dict(ordinal=0, frame=449, keys=8)], [dict(ordinal=0, frame=450.0, keys=8)],
-            [dict(ordinal=0, frame=500, keys=8)], legacy + legacy):
-        try:
-            approved_boot(invalid_legacy, typed_boot)
-        except RuntimeError:
-            pass
-        else:
-            raise AssertionError('An early, mistyped, out-of-order or duplicate START skip was accepted')
-    boot_log = '\n'.join('PC Box boot: ' + json.dumps(row) for row in typed_boot)
-    assert typed_boot_trace(dict(typedBootTrace=typed_boot), boot_log) == typed_boot
-    assert typed_boot_trace(dict(extra=dict(typedBootTrace=typed_boot)), boot_log) == typed_boot
-    for invalid_report, invalid_log in (({}, boot_log), (dict(typedBootTrace=[]), boot_log),
-            (dict(typedBootTrace=typed_boot), 'PC Box boot: {')):
-        try:
-            typed_boot_trace(invalid_report, invalid_log)
-        except (RuntimeError, json.JSONDecodeError):
-            pass
-        else:
-            raise AssertionError('Missing or malformed canonical boot trace was accepted')
-    for index, change in ((5, {'inputMode': 1}), (5, {'fade': 0}), (5, {'requiredMask': True}),
-            (6, {'selectedApp': 0}), (7, {'padReads': 21})):
-        invalid = [dict(row) for row in typed_boot]; invalid[index].update(change)
-        try:
-            approved_boot(legacy, invalid)
-        except RuntimeError:
-            pass
-        else:
-            raise AssertionError('Invalid typed boot evidence was accepted')
-    print('PASS: pure PC binding unchanged/delta banks, QA2/1372, exact scoped field-message/action trace, and step parser; no archive approved or game run.')
+    def lease(role,frame,reads,facts):
+        row=dict(event='ready',role=role,owner='boot',frame=frame,padReads=reads,inputStep=1,boot=facts,rendered=1,varied=1)
+        return [row,{**row,'event':'press'},{**row,'event':'released','frame':frame+4,'padReads':reads+2},
+            {**row,'event':'settled','frame':frame+8,'padReads':reads+4}]
+    title=dict(kind=1,active=1,generation=1,revision=2,ready=1,phase=2,inputMode=0,option=0,notice=0,exit=0,progress=15)
+    menu=dict(kind=2,active=1,generation=2,revision=5,ready=1,phase=5,inputMode=0,option=0,notice=15,exit=0,progress=255)
+    retired={**menu,'active':0,'ready':0,'phase':8,'exit':1,'revision':9}
+    exits=[dict(event='continue_selected',role='continue',owner='boot',frame=620,padReads=40,inputStep=1,boot=retired,rendered=1,varied=1),
+        dict(event='field_ready',role='continue',owner='boot',frame=640,padReads=50,inputStep=1,boot=retired,rendered=1,varied=1)]
+    typed_boot=[*lease('title',500,10,title),*lease('continue',600,30,menu),*exits]
+    legacy=[dict(ordinal=0,frame=450,keys=8)]
+    assert [row['frame'] for row in approved_boot(legacy,typed_boot)]==[450,500,600]
+    assert approved_boot([dict(ordinal=0,frame=451,keys=8)],typed_boot)[0]['frame']==451
+    switched=[*lease('title',500,10,title),*lease('mode_switch',560,20,{**menu,'inputMode':1,'revision':4}),
+        *lease('continue',600,30,menu),*exits]
+    assert [row['role'] for row in approved_boot(legacy,switched)]==['start','title','mode_switch','continue']
+    assert [row['role'] for row in approved_boot(legacy,typed_boot[4:])]==['start','continue']
+    assert [row['role'] for row in approved_boot(legacy,switched[4:])]==['start','mode_switch','continue']
+    rejected_boot=[typed_boot[:-1],typed_boot+exits,typed_boot[:4],[]]
+    for index,change in ((5,{'boot':{**menu,'inputMode':1}}),(5,{'boot':{**menu,'active':2}}),
+            (5,{'boot':{**menu,'ready':True}}),(5,{'boot':{**menu,'generation':0}}),
+            (5,{'boot':{**menu,'revision':0}}),(5,{'boot':{**menu,'option':9}}),
+            (5,{'boot':{**menu,'notice':14}}),(5,{'varied':0}),(5,{'owner':'field'}),
+            (8,{'boot':{**retired,'phase':7}}),(8,{'boot':{**retired,'active':1}}),
+            (8,{'boot':{**retired,'exit':0}}),(6,{'padReads':31})):
+        rejected_boot.append([{**row,**change} if i==index else row for i,row in enumerate(typed_boot)])
+    for bit in range(4):
+        rejected_boot.append([{**row,'boot':{**title,'progress':15^(1<<bit)}} if i<2 else row for i,row in enumerate(typed_boot)])
+    for bit in range(8):
+        rejected_boot.append([{**row,'boot':{**menu,'progress':255^(1<<bit)}} if 4<=i<6 else row for i,row in enumerate(typed_boot)])
+    for field,value in (('generation',3),('revision',4)):
+        rejected_boot.append([{**row,'boot':{**menu,field:value}} if 8<=i<10 else row for i,row in enumerate(switched)])
+    for invalid in rejected_boot:
+        try: approved_boot(legacy,invalid)
+        except RuntimeError: pass
+        else: raise AssertionError('Invalid typed boot owner/mode/phase/progress/lease accepted')
+    for invalid in ([dict(ordinal=0,frame=449,keys=8)],[dict(ordinal=0,frame=True,keys=8)],
+            [dict(ordinal=0,frame=500,keys=8)],legacy+legacy):
+        try: approved_boot(invalid,typed_boot)
+        except RuntimeError: pass
+        else: raise AssertionError('Invalid original START threshold/order/count accepted')
+    boot_log='\n'.join('PC Box boot: '+json.dumps(row) for row in typed_boot)
+    assert typed_boot_trace(dict(typedBootTrace=typed_boot),boot_log)==typed_boot
+    assert typed_boot_trace(dict(extra=dict(typedBootTrace=typed_boot)),boot_log)==typed_boot
+    for report,log in (({},boot_log),(dict(typedBootTrace=[]),boot_log),(dict(typedBootTrace=typed_boot),'PC Box boot: {')):
+        try: typed_boot_trace(report,log)
+        except (RuntimeError,json.JSONDecodeError): pass
+        else: raise AssertionError('Missing/malformed canonical typed boot log accepted')
+    with tempfile.TemporaryDirectory(prefix='pc-boot-pixels-') as temporary:
+        folder=Path(temporary);(folder/'frames').mkdir();boot=approved_boot(legacy,switched)
+        header=b'P6\n256 192\n255\n';pixels=b'\0\1\2'+bytes(256*192*3-3)
+        for role in ('title','mode_switch','continue'): (folder/f'frames/boot-{role}-main.ppm').write_bytes(header+pixels)
+        validate_boot_pixels(folder,boot)
+        target=folder/'frames/boot-continue-main.ppm'
+        for invalid in (header+bytes(256*192*3),header+pixels[:-1],b'P6\n1 1\n255\n'+pixels):
+            target.write_bytes(invalid)
+            try: validate_boot_pixels(folder,boot)
+            except RuntimeError: pass
+            else: raise AssertionError('Uniform/truncated/wrong-size boot image accepted')
+        target.unlink()
+        try: validate_boot_pixels(folder,boot)
+        except RuntimeError: pass
+        else: raise AssertionError('Missing boot image accepted')
+    print('PASS: PC QA3/1416, exact source/QA banks, typed boot lifecycle/finite input/PPM negatives and scoped field-message/action parser; no archive approved or game run.')
 
 
 if __name__ == '__main__':

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #ifndef HG_PRIVATE_PC_BOX_QA_H
 #define HG_PRIVATE_PC_BOX_QA_H
+#include <stddef.h>
 #include <stdint.h>
+#include "npc_yesno_qa.h"
 #include "native_pc_box_ui.h"
 #include "native_summary_ui.h"
 #include "native_naming_ui.h"
 
-enum { HG_PC_QA_VERSION=2, HG_PC_QA_MONS=4, HG_PC_QA_GRID=64,
+enum { HG_PC_QA_VERSION=3, HG_PC_QA_MONS=4, HG_PC_QA_GRID=64,
     HG_PC_QA_START=1, HG_PC_QA_CHECKPOINT=2, HG_PC_QA_RETURN=3,
     HG_PC_QA_PARTY_LOCATION=0x10000, HG_PC_QA_REQUIRED=0x3ff };
 enum { HG_PC_QA_PHYSICAL=1, HG_PC_QA_DEPOSIT=2, HG_PC_QA_WITHDRAW=4,
@@ -29,7 +31,12 @@ typedef struct HGPCBoxQAState {
     uint32_t gridCount,gridCursor,gridReturn,gridButtons,gridEnabled[2],yesNoHandler;
     uint8_t neighbors[HG_PC_QA_GRID][4];
     uint32_t messageAwaitInput;
+    HGYNBootFacts boot;
 } HGPCBoxQAState;
+
+_Static_assert(offsetof(HGPCBoxQAState,messageAwaitInput)==1368
+    && offsetof(HGPCBoxQAState,boot)==1372 && sizeof(HGPCBoxQAState)==1416,
+    "private PC QA version 3 append-only ABI");
 
 // Private scenario exports only; requests queue an owner task or a read-only checkpoint.
 const HGPCBoxQAState *HGNativePCBoxQAGetState(void);

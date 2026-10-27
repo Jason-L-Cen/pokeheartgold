@@ -2,6 +2,20 @@
 
 This target runs the compiled original C/C++ engine in UIKit. The earlier Swift/Metal target in `App/`, its JSON save and screenshots are retained prototype work; they do not describe the current original-engine target. The executable contains native arm64 code generated at build time; it does not load a DS CPU interpreter, JIT or WebAssembly module at runtime.
 
+## Original YES/NO and typed-boot checkpoint (2026-10-27)
+
+Original field YES/NO windows now use the landscape choice bridge, including their opening, pressed and closing states. Original A/Up/Down input is retained; B chooses No, and horizontal input is disabled. The existing 36-byte shipping packet and 28-export interface are unchanged. Dialogues resume through the original printer and WaitButton code after the choice view releases ownership.
+
+The native Route 16 house case runs four real NPC interactions: No through B from Yes, No through Down+A, Yes through A, and the original daily-repeat response. Both No choices preserve the complete Party, PCStorage, Bag, persistent VarsFlags, EasyChat and money ledger. Yes observes result zero before the original unlock command overwrites it, then allows exactly one previously locked trendy word and the original daily flag; the fourth conversation permits no additional mutation. Five conservation checks, six checkpoints, four original WaitButton acknowledgements and return to the origin passed. The private save files stay unchanged.
+
+PC regression now uses private typed Title/Main Menu source observers instead of a fixed-module memory-address inspector. Its append-only QA3 packet preserves the existing PC fields. Source copies retain original bodies and overlay ownership; input admission, touch-to-buttons switching, release and Continue exit are qualified against the same owner. A fresh native build passed all 62 PC steps, ten coverage bits and eleven conservation checks. The latest strict audit passed 99 checks, 1,592 compiled units plus 8 explicit exclusions, 136 data proofs and the 28-export shipping interface.
+
+Trainer Card signature packing no longer clears a byte past its 1,536-byte save payload; its confirmation template is initialized, and both Trainer Card VBlank callbacks use the actual platform callback type. The portable source check verifies exact save bounds, guards, 38 patterns, the original unpack roundtrip, all prompt fields and callback order under ASan/UBSan. This is a safety correction, not a completed Trainer Card interface port.
+
+The current PC CHECK and production iPhoneOS arm64 Apps both built and passed static verification. Neither was installed or launched during the user's meeting. The earlier UIKit results below are historical; current QA3/YES-NO UIKit playback and the shared runtime regression remain deferred. Headless tests use software PCM and synthetic microphone buffers only, with no audio-device or microphone access and no system audio-setting changes.
+
+Source snapshots were reviewed for all four NPC interactions. They prove the sampled original-engine output, not all animation frames or DS parity. Physical gestures, audible stability, disk-save persistence of these new flows, the Trainer Card interface, remaining menus and full-story completion remain unverified. The intermittent audio stall remains unresolved; the full-game goal is still in progress.
+
 ## Original PC Box and script-list checkpoint (2026-10-27)
 
 PC Box now arranges the original workspace, action rail, complete information card and messages in one landscape scene. Original portraits, text, move windows, item details and naming keyboard are reused. Native controls submit short original A/B/D-pad/Y leases. Resident ownership survives Summary, Bag and Naming child overlays; the parent hides as soon as a child becomes active, before its controls are ready. Original field-script lists appear automatically with their dialogue. YES/NO and the remaining menu ports are still pending.
