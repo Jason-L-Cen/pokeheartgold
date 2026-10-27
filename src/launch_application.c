@@ -3,6 +3,8 @@
 #include "global.h"
 #ifdef HEARTGOLD_NATIVE
 #include "native_options_ui.h"
+#include "native_pc_box_ui.h"
+#include "native_field_choice_ui.h"
 #endif
 
 #include "constants/flags.h"
@@ -698,6 +700,111 @@ void NativeOptionsUIRetire(const void *owner) {
     gNativeOptionsUIState.active = gNativeOptionsUIState.ready = 0;
     if (!++gNativeOptionsUIState.revision) ++gNativeOptionsUIState.revision;
 }
+
+// Native PC Box resident state begin.
+// OVY_14 restores all PC overlay data/BSS whenever it loads, including after a child app.
+HGNativePCBoxUIState gNativePCBoxUIState;
+static const void *sNativePCBoxOwner;
+static NativePCBoxUISelection sNativePCBoxSelection;
+
+const HGNativePCBoxUIState *HGNativePCBoxUIGetState(void) { return &gNativePCBoxUIState; }
+
+void NativePCBoxUIBegin(const void *owner) {
+    if (!owner || owner == sNativePCBoxOwner) return;
+    uint32_t generation = gNativePCBoxUIState.ownerGeneration + 1;
+    uint32_t revision = gNativePCBoxUIState.revision + 1;
+    sNativePCBoxOwner = owner;
+    sNativePCBoxSelection = (NativePCBoxUISelection){0};
+    gNativePCBoxUIState = (HGNativePCBoxUIState){ .active = 1,
+        .ownerGeneration = generation ? generation : 1, .revision = revision ? revision : 1, .selectedSlot = 255 };
+}
+
+void NativePCBoxUIBeginView(const void *owner) {
+    if (!owner || owner != sNativePCBoxOwner || gNativePCBoxUIState.active != 1 || gNativePCBoxUIState.viewActive) return;
+    gNativePCBoxUIState.viewActive = 1;
+    gNativePCBoxUIState.ready = 0;
+    sNativePCBoxSelection = (NativePCBoxUISelection){0};
+    if (!++gNativePCBoxUIState.ownerGeneration) ++gNativePCBoxUIState.ownerGeneration;
+    if (!++gNativePCBoxUIState.revision) ++gNativePCBoxUIState.revision;
+}
+
+void NativePCBoxUIEndView(const void *owner) {
+    if (!owner || owner != sNativePCBoxOwner || gNativePCBoxUIState.active != 1 || !gNativePCBoxUIState.viewActive) return;
+    gNativePCBoxUIState.viewActive = gNativePCBoxUIState.ready = 0;
+    gNativePCBoxUIState.actionMenuOpen = gNativePCBoxUIState.cursorHolding = 0;
+    sNativePCBoxSelection = (NativePCBoxUISelection){0};
+    if (!++gNativePCBoxUIState.revision) ++gNativePCBoxUIState.revision;
+}
+
+void NativePCBoxUIPublish(const void *owner, const HGNativePCBoxUIState *facts, const NativePCBoxUISelection *selection) {
+    if (!owner || owner != sNativePCBoxOwner || !facts || !selection || gNativePCBoxUIState.active != 1) return;
+    HGNativePCBoxUIState next = *facts;
+    NativePCBoxUISelection nextSelection = {0};
+    next.active = 1;
+    next.ownerGeneration = gNativePCBoxUIState.ownerGeneration;
+    next.revision = gNativePCBoxUIState.revision;
+    next.viewActive = gNativePCBoxUIState.viewActive;
+    next.ready = next.ready == 1 && next.viewActive && HGNativePCBoxUIIsInputPhase(next.phase);
+    if (!next.viewActive) next.actionMenuOpen = next.cursorHolding = 0;
+    else nextSelection = *selection;
+    if (memcmp(&next, &gNativePCBoxUIState, sizeof(next)) == 0
+        && memcmp(&nextSelection, &sNativePCBoxSelection, sizeof(nextSelection)) == 0) return;
+    gNativePCBoxUIState = next;
+    sNativePCBoxSelection = nextSelection;
+    if (!++gNativePCBoxUIState.revision) ++gNativePCBoxUIState.revision;
+}
+
+void NativePCBoxUIRetire(const void *owner) {
+    if (!owner || owner != sNativePCBoxOwner) return;
+    sNativePCBoxOwner = NULL;
+    sNativePCBoxSelection = (NativePCBoxUISelection){0};
+    gNativePCBoxUIState.active = gNativePCBoxUIState.ready = gNativePCBoxUIState.viewActive = 0;
+    if (!++gNativePCBoxUIState.revision) ++gNativePCBoxUIState.revision;
+}
+// Native PC Box resident state end.
+
+// Native field choice resident state begin.
+// OVY_27 is restored on reload; the original SysTask owner and lease counters must stay resident.
+HGNativeFieldChoiceUIState gNativeFieldChoiceUIState;
+static const void *sNativeFieldChoiceOwner;
+
+const HGNativeFieldChoiceUIState *HGNativeFieldChoiceUIGetState(void) { return &gNativeFieldChoiceUIState; }
+
+void NativeFieldChoiceUIBegin(const void *owner) {
+    if (!owner || owner == sNativeFieldChoiceOwner) return;
+    uint32_t generation = gNativeFieldChoiceUIState.ownerGeneration + 1;
+    uint32_t revision = gNativeFieldChoiceUIState.revision + 1;
+    sNativeFieldChoiceOwner = owner;
+    gNativeFieldChoiceUIState = (HGNativeFieldChoiceUIState){ .active = 1,
+        .ownerGeneration = generation ? generation : 1, .revision = revision ? revision : 1 };
+}
+
+void NativeFieldChoiceUIPublish(const void *owner, const HGNativeFieldChoiceUIState *facts) {
+    if (!owner || owner != sNativeFieldChoiceOwner || !facts || gNativeFieldChoiceUIState.active != 1) return;
+    HGNativeFieldChoiceUIState next = *facts;
+    next.active = 1;
+    next.ownerGeneration = gNativeFieldChoiceUIState.ownerGeneration;
+    next.revision = gNativeFieldChoiceUIState.revision;
+    next.viewActive = next.viewActive == 1 && HGNativeFieldChoiceUIIsListPhase(next.phase);
+    next.ready = HGNativeFieldChoiceUIInputAllowed(&next, next.ownerGeneration, next.revision);
+    if (memcmp(&next, &gNativeFieldChoiceUIState, sizeof(next)) == 0) return;
+    gNativeFieldChoiceUIState = next;
+    if (!++gNativeFieldChoiceUIState.revision) ++gNativeFieldChoiceUIState.revision;
+}
+
+void NativeFieldChoiceUIInvalidate(const void *owner) {
+    if (!owner || owner != sNativeFieldChoiceOwner || gNativeFieldChoiceUIState.active != 1) return;
+    gNativeFieldChoiceUIState.ready = gNativeFieldChoiceUIState.viewActive = 0;
+    if (!++gNativeFieldChoiceUIState.revision) ++gNativeFieldChoiceUIState.revision;
+}
+
+void NativeFieldChoiceUIRetire(const void *owner) {
+    if (!owner || owner != sNativeFieldChoiceOwner) return;
+    sNativeFieldChoiceOwner = NULL;
+    gNativeFieldChoiceUIState.active = gNativeFieldChoiceUIState.ready = gNativeFieldChoiceUIState.viewActive = 0;
+    if (!++gNativeFieldChoiceUIState.revision) ++gNativeFieldChoiceUIState.revision;
+}
+// Native field choice resident state end.
 #endif
 static void OptionsMenu_LaunchApp_Impl(FieldSystem *fieldSystem, OptionsMenuArgs *args) {
     static const OverlayManagerTemplate sOverlayTemplate_OptionsMenu = { OptionsMenu_Init, OptionsMenu_Main, OptionsMenu_Exit, FS_OVERLAY_ID(options_app) };

@@ -3117,11 +3117,11 @@ static void NativeSummaryUIPublish(PokemonSummary *summary, u32 phase) {
     next.previousPage = next.nextPage = next.page;
     next.previousMonSlot = next.nextMonSlot = next.partySlot;
     BOOL learning = HGNativeSummaryUIIsLearning(&next) && args->partyCount == 1;
-    BOOL supported = learning || (next.mode == 0 && next.monDataType == 1 && !next.moveToLearn && next.page < 3
+    BOOL supported = learning || (HGNativeSummaryUIIsOrdinary(&next) && next.page < 3
         && (next.pageMask & (1u << next.page)) && (!next.isEgg || next.page == 0));
     BOOL inputPhase = learning ? phase == HG_SUMMARY_UI_FORGET_MOVE || phase == HG_SUMMARY_UI_FORGET_CONFIRM
         : phase == HG_SUMMARY_UI_INPUT || (phase == HG_SUMMARY_UI_MOVE_SELECT && next.page == 1 && !next.isEgg);
-    BOOL valid = next.partyCount > 0 && next.partyCount <= 6 && next.partySlot < next.partyCount
+    BOOL valid = (next.monDataType != 2 || args->party != NULL)
         && next.species != SPECIES_NONE && next.ribbonCount <= 80;
     BOOL live = supported && inputPhase && sNativeSummaryPageWindowsLive && summary->pageWindows != NULL
         && summary->numPageWindows == (next.page == 1 ? 18 : 8);

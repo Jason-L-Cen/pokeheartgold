@@ -1127,11 +1127,11 @@ u32 PCBox_WaitActionMenuAndButtonsSlide(PCBoxWork *work) {
     return 1;
 }
 
-void PCBox_UpdateMarkingMenuSlide(PCBoxWork *work) {
-    BgCellManager_UpdateCellMove(work->view->panels, 2);
+u32 PCBox_UpdateMarkingMenuSlide(PCBoxWork *work) {
+    return BgCellManager_UpdateCellMove(work->view->panels, 2);
 }
 
-int PCBox_WaitBottomButtonsSlide(PCBoxWork *work) {
+u32 PCBox_WaitBottomButtonsSlide(PCBoxWork *work) {
     int a = BgCellManager_UpdateCellMove(work->view->panels, 8);
     int b = BgCellManager_UpdateCellMove(work->view->panels, 9);
     int c = BgCellManager_UpdateCellMove(work->view->panels, 10);
@@ -1146,7 +1146,7 @@ u32 PCBox_WaitPartyPanelSlide(PCBoxWork *work) {
     return PCBox_UpdatePartyPanelSlide(work) != 0;
 }
 
-int PCBox_WaitPartyPanelAndActionMenuSlide(PCBoxWork *work) {
+u32 PCBox_WaitPartyPanelAndActionMenuSlide(PCBoxWork *work) {
     if (!PCBox_UpdatePartyPanelSlide(work)) {
         return 0;
     }
@@ -1154,11 +1154,11 @@ int PCBox_WaitPartyPanelAndActionMenuSlide(PCBoxWork *work) {
     return 1;
 }
 
-void PCBox_WaitPartyPanelSlideFunc(PCBoxWork *work) {
-    PCBox_WaitPartyPanelSlide(work);
+u32 PCBox_WaitPartyPanelSlideFunc(PCBoxWork *work) {
+    return PCBox_WaitPartyPanelSlide(work);
 }
 
-int PCBox_UpdateBoxTraySlideIn(PCBoxWork *work) {
+u32 PCBox_UpdateBoxTraySlideIn(PCBoxWork *work) {
     int a = BgCellManager_UpdateCellMove(work->view->panels, 0);
     int b = BgCellManager_UpdateCellMove(work->view->panels, 15);
     PCBox_MoveBoxTraySprites(work, 8);
@@ -1168,17 +1168,17 @@ int PCBox_UpdateBoxTraySlideIn(PCBoxWork *work) {
     return 1;
 }
 
-int PCBox_UpdateBoxTraySlideOut(PCBoxWork *work) {
+u32 PCBox_UpdateBoxTraySlideOut(PCBoxWork *work) {
     int a = BgCellManager_UpdateCellMove(work->view->panels, 0);
     PCBox_MoveBoxTraySprites(work, -8);
     return a;
 }
 
-void PCBox_WaitReturnButtonSlide(PCBoxWork *work) {
-    BgCellManager_UpdateCellMove(work->view->panels, 0xa);
+u32 PCBox_WaitReturnButtonSlide(PCBoxWork *work) {
+    return BgCellManager_UpdateCellMove(work->view->panels, 0xa);
 }
 
-int PCBox_WaitActionMenuThenTitleSlide(PCBoxWork *work) {
+u32 PCBox_WaitActionMenuThenTitleSlide(PCBoxWork *work) {
     PCBoxView *view = work->view;
     switch (view->subState) {
     case 0:
@@ -1196,8 +1196,8 @@ int PCBox_WaitActionMenuThenTitleSlide(PCBoxWork *work) {
     return 1;
 }
 
-void PCBox_WaitTitlePanelSlide(PCBoxWork *work) {
-    BgCellManager_UpdateCellMove(work->view->panels, 0xc);
+u32 PCBox_WaitTitlePanelSlide(PCBoxWork *work) {
+    return BgCellManager_UpdateCellMove(work->view->panels, 0xc);
 }
 
 u32 PCBox_UpdateBoxMenuSlide(PCBoxWork *work) {
@@ -1229,12 +1229,12 @@ u32 PCBox_WaitBoxMenuThenWallpaperList(PCBoxWork *work) {
     return 1;
 }
 
-void PCBox_WaitWallpaperListSlideOut(PCBoxWork *work) {
+u32 PCBox_WaitWallpaperListSlideOut(PCBoxWork *work) {
     PCBox_MoveWallpaperMenuSprites(work->view, ~7);
-    BgCellManager_UpdateCellMove(work->view->panels, 0xd);
+    return BgCellManager_UpdateCellMove(work->view->panels, 0xd);
 }
 
-int PCBox_AnimateDepositBoxSelectOpen(PCBoxWork *work) {
+u32 PCBox_AnimateDepositBoxSelectOpen(PCBoxWork *work) {
     PCBoxView *view = work->view;
     void *tiles = BgCellManager_GetCellTilemap(view->panels, 0);
     switch (view->subState) {
@@ -1681,7 +1681,7 @@ void PCBox_AttachIconToCursor(PCBoxWork *work) {
 }
 
 // Cursor dip animation over the selected mon (and its icon).
-BOOL PCBox_AnimateTrayPickUp(PCBoxWork *work) {
+u32 PCBox_AnimateTrayPickUp(PCBoxWork *work) {
     s16 x, y;
     PCBoxView *view = work->view;
 
@@ -1787,7 +1787,7 @@ u32 PCBox_WaitItemModeSelect(PCBoxWork *work) {
     return 1;
 }
 
-int PCBox_UpdateItemModeBoxDrag(PCBoxWork *work) {
+u32 PCBox_UpdateItemModeBoxDrag(PCBoxWork *work) {
     PCBoxView *view = work->view;
     int x, y;
     u16 selected, raw;
@@ -1912,7 +1912,7 @@ u32 PCBox_AnimateSwappedItemMove(PCBoxWork *work) {
     return 1;
 }
 
-int PCBox_UpdateItemTrayDrag(PCBoxWork *work) {
+u32 PCBox_UpdateItemTrayDrag(PCBoxWork *work) {
     PCBoxView *view = work->view;
     int x, y;
     u16 selected, raw;
@@ -2027,7 +2027,7 @@ u32 PCBox_AnimateTraySwappedItemMove(PCBoxWork *work) {
     return 1;
 }
 
-int PCBox_AnimateTrayItemPickUp(PCBoxWork *work) {
+u32 PCBox_AnimateTrayItemPickUp(PCBoxWork *work) {
     PCBoxView *view = work->view;
 
     struct {
@@ -2154,7 +2154,7 @@ u32 PCBox_AnimateTrayItemReturn(PCBoxWork *work) {
     return 1;
 }
 
-int PCBox_UpdateItemModePartyDrag(PCBoxWork *work) {
+u32 PCBox_UpdateItemModePartyDrag(PCBoxWork *work) {
     PCBoxView *view = work->view;
     int busy = PCBox_UpdateActionMenuSlide(view->panels), other = PCBox_UpdatePartyPanelSlide(work);
     u32 x, y;

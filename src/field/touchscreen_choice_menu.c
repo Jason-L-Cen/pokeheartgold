@@ -1,6 +1,11 @@
 #include <nitro/gx/gx_vramcnt.h>
 
 #include "global.h"
+#ifdef HEARTGOLD_NATIVE
+#include "field/bottom_screen_app.h"
+#include "native_field_choice_ui.h"
+#include "screen_fade.h"
+#endif
 
 #include "constants/sndseq.h"
 
@@ -81,8 +86,8 @@ typedef struct TouchscreenChoiceMenuData {
     u8 unk_38C[8];
     int selection;
     u32 unk_398;
-    void (*selectionCallback)(void *arg, int selection); // ScrCmd_MenuExec: MenuExec_PrintItemHelp
-    void *selectionCallbackArg;
+    TouchscreenChoiceMenuCallback selectionCallback;
+    struct ScriptMenu *selectionCallbackArg;
 } TouchscreenChoiceMenuData;
 
 typedef BOOL (*TouchscreenChoiceMenuStateFunc)(TouchscreenChoiceMenuData *data);
@@ -129,7 +134,7 @@ static BOOL TouchscreenChoiceMenu_HandleYesNoInput(TouchscreenChoiceMenuData *da
 SysTask *TouchscreenChoiceMenu_Create(BgConfig *bgConfig, u16 *lastTouchMenuInput, FieldSystem *fieldSystem, u16 *result);
 void TouchscreenChoiceMenu_Destroy(BgConfig *bgConfig, SysTask *task);
 BOOL TouchscreenChoiceMenu_IsExitDone(void *unused);
-void TouchscreenChoiceMenu_SetCallback(SysTask *task, void (*callback)(void *arg, int selection), void *arg);
+void TouchscreenChoiceMenu_SetCallback(SysTask *task, TouchscreenChoiceMenuCallback callback, struct ScriptMenu *arg);
 BOOL TouchscreenChoiceMenu_State_Init(TouchscreenChoiceMenuData *data);
 BOOL TouchscreenChoiceMenu_State_ShowYesNo(TouchscreenChoiceMenuData *data);
 BOOL TouchscreenChoiceMenu_State_YesNoInput(TouchscreenChoiceMenuData *data);
@@ -142,6 +147,37 @@ BOOL TouchscreenChoiceMenu_State_ListInput(TouchscreenChoiceMenuData *data);
 BOOL TouchscreenChoiceMenu_State_ListEnd(TouchscreenChoiceMenuData *data);
 BOOL TouchscreenChoiceMenu_State_ListWriteResult(TouchscreenChoiceMenuData *data);
 BOOL TouchscreenChoiceMenu_State_CancelYesNo(TouchscreenChoiceMenuData *data);
+
+#ifdef HEARTGOLD_NATIVE
+_Static_assert(TOUCHSCREEN_CHOICE_MENU_STATE_SHOW_LIST == HG_FIELD_CHOICE_UI_SHOW_LIST
+    && TOUCHSCREEN_CHOICE_MENU_STATE_LIST_INPUT == HG_FIELD_CHOICE_UI_LIST_INPUT
+    && TOUCHSCREEN_CHOICE_MENU_STATE_LIST_END == HG_FIELD_CHOICE_UI_LIST_END
+    && TOUCHSCREEN_CHOICE_MENU_STATE_LIST_WRITE_RESULT == HG_FIELD_CHOICE_UI_LIST_WRITE_RESULT, "native field choice phases");
+
+static void TouchscreenChoiceMenu_PublishNativeUI(TouchscreenChoiceMenuData *data) {
+    HGNativeFieldChoiceUIState next = {0};
+    next.phase = data->state;
+    next.viewActive = HGNativeFieldChoiceUIIsListPhase(next.phase);
+    if (next.viewActive) {
+        next.rowCount = data->itemCount;
+        next.selectedIndex = data->selection;
+        if (data->state == TOUCHSCREEN_CHOICE_MENU_STATE_LIST_INPUT && data->menu && data->result && data->cursorSprite
+            && data->bgConfig && data->itemCount >= 2 && data->itemCount <= 8
+            && ScriptMenu_GetCount(data->menu) == data->itemCount && data->selection >= 0 && data->selection < data->itemCount) {
+            next.cancelEnabled = ScriptMenu_IsCancellable(data->menu) != 0;
+            next.ready = FieldSystem_GetBottomScreenAppId(data->fieldSystem) == BOTTOM_SCREEN_APP_CHOICE_MENU
+                && FieldSystem_GetBottomScreenAppState(data->fieldSystem) == BOTTOM_SCREEN_APP_STATE_RUNNING
+                && FieldSystem_TaskIsRunning(data->fieldSystem) && FieldSystem_IsFieldMapRunning(data->fieldSystem)
+                && !FieldSystem_IsChildAppRunning(data->fieldSystem) && IsPaletteFadeFinished() && *data->result == 0xEEEE
+                && !((data->bgConfig->scrollScheduled | data->bgConfig->bufferTransferScheduled) & 0x78);
+            for (int i = 0; i < data->itemCount; ++i) {
+                if (data->listWindows[i].bgConfig != data->bgConfig || !data->listWindows[i].pixelBuffer) next.ready = 0;
+            }
+        }
+    }
+    NativeFieldChoiceUIPublish(data->task, &next);
+}
+#endif
 
 SysTask *TouchscreenChoiceMenu_Create(BgConfig *bgConfig, u16 *lastTouchMenuInput, FieldSystem *fieldSystem, u16 *result) {
     SysTask *task;
@@ -186,10 +222,16 @@ SysTask *TouchscreenChoiceMenu_Create(BgConfig *bgConfig, u16 *lastTouchMenuInpu
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_BG2, GF_PLANE_TOGGLE_ON);
     GfGfx_EngineBTogglePlanes(GX_PLANEMASK_OBJ, GF_PLANE_TOGGLE_ON);
     TextFlags_SetCanTouchSpeedUpPrint(TRUE);
+#ifdef HEARTGOLD_NATIVE
+    NativeFieldChoiceUIBegin(task);
+#endif
     return task;
 }
 
 void TouchscreenChoiceMenu_Destroy(BgConfig *bgConfig, SysTask *task) {
+#ifdef HEARTGOLD_NATIVE
+    NativeFieldChoiceUIRetire(task);
+#endif
     TouchscreenChoiceMenuData *data = SysTask_GetData(task);
     int i;
 
@@ -214,7 +256,7 @@ BOOL TouchscreenChoiceMenu_IsExitDone(void *unused) {
 }
 
 // FieldSystem_SetTouchscreenChoiceMenuCallback (ScrCmd_MenuExec): called with the list index on every selection change.
-void TouchscreenChoiceMenu_SetCallback(SysTask *task, void (*callback)(void *arg, int selection), void *arg) {
+void TouchscreenChoiceMenu_SetCallback(SysTask *task, TouchscreenChoiceMenuCallback callback, struct ScriptMenu *arg) {
     TouchscreenChoiceMenuData *data = SysTask_GetData(task);
     data->selectionCallback = callback;
     data->selectionCallbackArg = arg;
@@ -233,6 +275,9 @@ static void TouchscreenChoiceMenu_Task(SysTask *task, void *taskData) {
         FieldSystem_SwitchBottomScreenApp(data->fieldSystem, 0, NULL); // back to the start menu (app 0)
     }
     SpriteList_RenderAndAnimateSprites(data->spriteList);
+#ifdef HEARTGOLD_NATIVE
+    TouchscreenChoiceMenu_PublishNativeUI(data);
+#endif
 }
 
 static void TouchscreenChoiceMenu_LoadBgGraphics(TouchscreenChoiceMenuData *data) {

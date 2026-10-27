@@ -17,6 +17,9 @@ from check_native_engine import generate_engine
 from prepare_native_content import verify
 from import_original_content import read_boot_header
 
+# Set only after review of the exact actually passed native PC report.
+APPROVED_PC_NATIVE_REPORT_SHA256 = 'f1162c6265b5c07a1f17ef9080210660c7c3108a01c641de891b54741480071b'
+
 
 def party_action_names(move_names):
     header=(ROOT/'include/party_menu.h').read_text().split('typedef enum PartyMonContextMenuItem {',1)[1].split('PARTY_MON_CONTEXT_MENU_MAX,',1)[0]
@@ -488,7 +491,8 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',choices=('iphonesimulator','iphoneos'),default='iphonesimulator')
     parser.add_argument('--check',action='store_true',help='Run UIKit input, frame, pause/resume and reset checks after launching')
-    parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves','summary-tm','summary-candy','evolution','evolution-cancel','evolution-learn','pokedex','capture-registration','naming'),help='Select an independent private UIKit case; requires --check')
+    parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves','summary-tm','summary-candy','evolution','evolution-cancel','evolution-learn','pokedex','capture-registration','naming','pc-box'),help='Select an independent private UIKit case; requires --check')
+    parser.add_argument('--pc-box-native-report',type=Path,help='Separately approved passed native PC report; only --check-case pc-box')
     parser.add_argument('--summary-tm-report',type=Path,help='Sealed passed native TM report.json; only --check-case summary-tm')
     parser.add_argument('--summary-candy-report',type=Path,help='Sealed passed native Candy report.json; only --check-case summary-candy')
     parser.add_argument('--evolution-report',type=Path,help='Sealed passed native success/cancel/learning report.json; only matching evolution CHECK case')
@@ -510,14 +514,16 @@ def main():
         parser.error('--capture-report is required only with --check --check-case capture-registration')
     if (args.check_case=='naming')!=bool(args.naming_report):
         parser.error('--naming-report is required only with --check --check-case naming')
+    if (args.check_case=='pc-box')!=bool(args.pc_box_native_report):
+        parser.error('--pc-box-native-report is required only with --check --check-case pc-box')
     audit=BUILD/'audit'; module=audit/'engine.wasm'
     link=json.loads((audit/'engine-link.json').read_text())
     if link['exitCode'] or hashlib.sha256(module.read_bytes()).hexdigest()!=link['outputSha256']:
         raise RuntimeError('Run check_abi32.py --audit first; strict engine link is unavailable')
     listing=subprocess.run([str(WABT/'bin/wasm-objdump'),'-x',str(module)],capture_output=True,text=True,timeout=15)
     shipping_exports=set(re.findall(r'-> "([^"\n]+)"',listing.stdout))
-    if listing.returncode or 'HGNativePokedexUIGetState' not in shipping_exports:
-        raise RuntimeError('Shipping engine is missing the original Pokédex UI getter')
+    if listing.returncode or not {'HGNativePokedexUIGetState','HGNativeFieldChoiceUIGetState'}<=shipping_exports:
+        raise RuntimeError('Shipping engine is missing an original public UI getter; run the current Full first')
     pack=verify(link.get('nativeContent')); header=read_boot_header(pack)
     destination=BUILD/f'app-{args.sdk}'; destination.mkdir(exist_ok=True)
     def run(command,log):
@@ -528,8 +534,15 @@ def main():
         (destination/log).write_text(result.stdout+result.stderr)
         if result.returncode: raise RuntimeError(f'Original app build failed: {destination/log}')
     shipping_module_sha256=link['outputSha256']
-    private_guest=None
-    if args.check_case=='naming':
+    private_guest=None; pc_box_replay=None; app_source_bank=None
+    if args.check_case=='pc-box':
+        from check_pc_box_uikit_binding import QA_NAMES, pc_box_guest
+        module,private_guest,pc_box_replay=pc_box_guest(args.pc_box_native_report,audit,link,APPROVED_PC_NATIVE_REPORT_SHA256)
+        from check_native_pc_box import current_input_paths
+        app_source_bank={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in sorted(current_input_paths())}
+        app_source_bank_bytes=(json.dumps(app_source_bank,sort_keys=True,separators=(',',':'))+'\n').encode()
+        (destination/'app-input-bank.json').write_bytes(app_source_bank_bytes)
+    elif args.check_case=='naming':
         module,private_guest=capture_guest(args.naming_report,audit,link,naming=True)
     elif args.check_case=='capture-registration':
         module,private_guest=capture_guest(args.capture_report,audit,link)
@@ -555,14 +568,21 @@ def main():
     selected_listing=subprocess.run([str(WABT/'bin/wasm-objdump'),'-x',str(module)],capture_output=True,text=True,timeout=15)
     (destination/'selected-module-exports.log').write_text(selected_listing.stdout+selected_listing.stderr)
     selected_exports=set(re.findall(r'-> "([^"\n]+)"',selected_listing.stdout))
-    if selected_listing.returncode or not {'HGNativePokedexUIGetState','HGNativeCaptureUIGetState','HGNativeNamingUIGetState','HGNativeOptionsUIGetState'}<=selected_exports:
+    if selected_listing.returncode or not {'HGNativePokedexUIGetState','HGNativeCaptureUIGetState','HGNativeNamingUIGetState','HGNativeOptionsUIGetState','HGNativePCBoxUIGetState','HGNativeFieldChoiceUIGetState'}<=selected_exports:
         raise RuntimeError('Selected module lacks a current public UI getter; require a matching actual native proof, not rewritten approval hashes')
+    if args.check_case=='pc-box' and selected_exports!=shipping_exports|set(QA_NAMES):
+        raise RuntimeError('PC CHECK requires exactly the current public exports plus the two approved private PC QA exports')
     if args.check and not args.check_case and selected_exports!=shipping_exports|set(QA_EXPORTS)|{'IsPaletteFadeFinished'}:
         raise RuntimeError('Default CHECK requires the shipping exports, existing private QA exports and one read-only palette-fade export')
     generated,writes,restores=generate_engine(destination,module,run)
     flags,sources=native_build_settings(destination)
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
     if args.check and not args.check_case: check_flags.append('-DHEARTGOLD_ORIGINAL_DEFAULT_CHECK')
+    if args.check_case=='pc-box':
+        check_flags += ['-DHEARTGOLD_ORIGINAL_PC_BOX_CHECK',
+            f'-DHG_PC_BOX_NATIVE_REPORT_SHA256="{private_guest["sourceReportSha256"]}"',
+            f'-DHG_PC_BOX_NATIVE_MODULE_SHA256="{private_guest["privateGuestModuleSha256"]}"',
+            f'-DHG_PC_BOX_REPLAY_SHA256="{private_guest["replayResourceSha256"]}"']
     if args.check_case in ('summary-tm','summary-candy','evolution','evolution-cancel','evolution-learn','pokedex'): check_flags.append('-DHEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK')
     if args.check_case in ('evolution','evolution-cancel'): check_flags.append('-DHEARTGOLD_ORIGINAL_EVOLUTION_CHECK')
     if args.check_case=='evolution-learn': check_flags.append('-DHEARTGOLD_ORIGINAL_EVOLUTION_LEARN_CHECK')
@@ -608,6 +628,11 @@ def main():
                  CFBundleName='HeartGoldOriginal',CFBundleDisplayName='心金 · 原版引擎',UIDeviceFamily=[1,2],MinimumOSVersion='16.0')
     if args.check:
         plist['HGPrivateCheckCase']=args.check_case or 'default'
+    if args.check_case=='pc-box':
+        plist['HGPrivatePCBoxNativeReportSha256']=private_guest['sourceReportSha256']
+        plist['HGPrivatePCBoxNativeModuleSha256']=private_guest['privateGuestModuleSha256']
+        plist['HGPrivatePCBoxReplaySha256']=private_guest['replayResourceSha256']
+        (app/'pc-box-approved-trace.json').write_bytes(pc_box_replay)
     if args.check_case=='naming':
         plist['HGPrivateNamingNativeReportSha256']=private_guest['sourceReportSha256']
         plist['HGPrivateNamingNativeModuleSha256']=private_guest['privateGuestModuleSha256']
@@ -665,6 +690,13 @@ def main():
     if args.check_case in ('evolution','evolution-cancel'): report.update(evolution=True,evolutionCancel=args.check_case=='evolution-cancel')
     if args.check_case=='evolution-learn': report.update(evolution=True,evolutionCancel=False,evolutionLearn=True)
     if args.check_case=='naming': report['naming']=True
+    if args.check_case=='pc-box': report['pcBox']=True
+    if args.check_case=='pc-box':
+        if app_source_bank!={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in sorted(current_input_paths())}:
+            raise RuntimeError('Actual App source inventory or bytes changed during the PC CHECK build')
+        report.update(appInputBankFile=str(destination/'app-input-bank.json'),appInputBankSha256=hashlib.sha256(app_source_bank_bytes).hexdigest(),
+            appInputCount=len(app_source_bank),appInputsUnchanged=True,
+            nativeWholeBankScope='historical native-run provenance; current App source bank is pinned separately')
     if args.check_case=='capture-registration': report['captureRegistration']=True
     if args.check_case=='pokedex': report['normalPokedex']=True
     (destination/'report.json').write_text(json.dumps(report,indent=2)+'\n')

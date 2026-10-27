@@ -2229,6 +2229,9 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     if ([privateCase isEqual:@"field-potion"] || [privateCase isEqual:@"forced-switch"] || [privateCase isEqual:@"learn-moves"]) { [self checkPrivateNativeCase:privateCase]; return; }
     NSMutableDictionary *report = [NSMutableDictionary new];
     [self checkOptionsControls:report];
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+    [report addEntriesFromDictionary:[self checkPCBoxHostPrimitives]];
+#endif
     report[@"actualCapturesComplete"]=@YES;
     uint8_t tiles[65]={0}; tiles[1]=0x21; tiles[33]=0x03;
     HGNativePartyUIWindow window={.pixelBuffer=1,.tileWidth=2,.tileHeight=1,.clearColor=0};
@@ -2485,7 +2488,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     }
     report[@"bagRawCardCacheScope"]=@(bagCache); _bagOwnerPictures=savedBagOwner;
     NSDictionary *savedSummaryOwner=_summaryOwnerPictures;
-    HGNativeSummaryUIState cachedSummary={.active=1,.revision=81,.phase=HG_SUMMARY_UI_INPUT,.monDataType=1};
+    HGNativeSummaryUIState cachedSummary={.active=1,.revision=81,.phase=HG_SUMMARY_UI_INPUT,.monDataType=1,.partyCount=1};
     NSDictionary *summarySeed=@{@"content":glyph,@"revision":@81,@"phase":@(HG_SUMMARY_UI_INPUT),@"page":@0};
     _summaryOwnerPictures=summarySeed;
     BOOL summaryCache=[self copySummaryPictures:&cachedSummary frame:nil subFrame:nil]==summarySeed;

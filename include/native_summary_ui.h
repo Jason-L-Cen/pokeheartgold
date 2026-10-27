@@ -39,6 +39,11 @@ typedef struct HGNativeSummaryUIState {
 // Owner thread only; copy each nonzero descriptor's tiled 4bpp bytes before advancing the game.
 const HGNativeSummaryUIState *HGNativeSummaryUIGetState(void);
 
+static inline uint32_t HGNativeSummaryUIIsOrdinary(const HGNativeSummaryUIState *state) {
+    return state && !state->mode && !state->moveToLearn && state->partyCount && state->partySlot < state->partyCount
+        && ((state->monDataType == 1 && state->partyCount <= 6) || (state->monDataType == 2 && state->partyCount <= 30));
+}
+
 static inline uint32_t HGNativeSummaryUIIsLearning(const HGNativeSummaryUIState *state) {
     return state && state->mode == 2 && state->page == 1 && (state->pageMask & 2) && !state->isEgg
         && state->moveToLearn && state->moveToLearn <= NUM_MOVES
@@ -50,9 +55,8 @@ static inline uint32_t HGNativeSummaryUIResolveInput(const HGNativeSummaryUIStat
     uint32_t kind, uint32_t index, HGNativeSummaryUIInput *out) {
     uint32_t learning = HGNativeSummaryUIIsLearning(state);
     if (!state || !out || !state->active || !state->ready || state->revision != revision || state->phase != phase
-        || (!learning && (state->mode || state->monDataType != 1 || state->moveToLearn)) || state->page > 2
-        || !(state->pageMask & (1u << state->page)) || !state->partyCount || state->partyCount > 6
-        || state->partySlot >= state->partyCount || (state->isEgg && state->page)
+        || (!learning && !HGNativeSummaryUIIsOrdinary(state)) || state->page > 2
+        || !(state->pageMask & (1u << state->page)) || (state->isEgg && state->page)
         || (learning ? ((phase != HG_SUMMARY_UI_FORGET_MOVE && phase != HG_SUMMARY_UI_FORGET_CONFIRM)
                 || state->moveSlot > (phase == HG_SUMMARY_UI_FORGET_MOVE ? 4u : 3u))
             : ((phase != HG_SUMMARY_UI_INPUT && phase != HG_SUMMARY_UI_MOVE_SELECT)

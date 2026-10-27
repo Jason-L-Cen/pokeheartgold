@@ -30,6 +30,8 @@
 #include "native_pokedex_ui.h"
 #include "native_naming_ui.h"
 #include "native_options_ui.h"
+#include "native_pc_box_ui.h"
+#include "native_field_choice_ui.h"
 
 enum { OriginalBattleMenuBag=1, OriginalBattleMenuParty=2 };
 static NSString *OriginalPartyStatusName(uint32_t status) {
@@ -51,6 +53,8 @@ _Static_assert(sizeof(HGNativeNamingUIState)==16 && offsetof(HGNativeNamingUISta
     && offsetof(HGNativeNamingUIState,revision)==8 && offsetof(HGNativeNamingUIState,ready)==12, "Naming UI ABI");
 _Static_assert(sizeof(HGNativeOptionsUIState)==16 && offsetof(HGNativeOptionsUIState,ownerGeneration)==4
     && offsetof(HGNativeOptionsUIState,revision)==8 && offsetof(HGNativeOptionsUIState,ready)==12, "Options UI ABI");
+_Static_assert(sizeof(HGNativePCBoxUIState)==52 && offsetof(HGNativePCBoxUIState,viewActive)==48, "PC Box UI ABI");
+_Static_assert(sizeof(HGNativeFieldChoiceUIState)==36 && offsetof(HGNativeFieldChoiceUIState,viewActive)==32, "Field Choice UI ABI");
 _Static_assert(sizeof(HGNativePokedexUIState)==5124 && offsetof(HGNativePokedexUIState,controls)==452
     && offsetof(HGNativePokedexUIState,visuals)==1988, "Pokedex UI ABI");
 static BOOL OriginalBattleChoiceMode(uint32_t mode) {
@@ -91,8 +95,11 @@ static uint32_t OriginalBattleMenuKind(const HGNativeBattleBagUIState *bag, cons
 
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
 #include "../Original/NativeAudioCheck.h"
-#ifndef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
+#if !defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK) && !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
 #include "../tests/battle_menus_qa.h"
+#endif
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+#include "../tests/pc_box_qa.h"
 #endif
 #ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
 #include "../tests/summary_learn_guest.inc"
@@ -254,8 +261,17 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 @property(nonatomic,readonly) CGPoint location;
 @property(nonatomic,readonly) BOOL pressed;
 @property(nonatomic,readonly) BOOL cancelled;
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+- (void)checkPCBoxEventAt:(CGPoint)point pressed:(BOOL)pressed;
+#endif
 @end
 @implementation OriginalJoystick
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+- (void)checkPCBoxEventAt:(CGPoint)point pressed:(BOOL)pressed {
+    _location=point; _pressed=pressed; _cancelled=NO;
+    [self sendActionsForControlEvents:UIControlEventValueChanged];
+}
+#endif
 - (BOOL)beginTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event {
     _location=[touch locationInView:self]; _pressed=YES; _cancelled=NO;
     [self sendActionsForControlEvents:UIControlEventValueChanged]; return YES;
@@ -363,11 +379,25 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     HGNativeOptionsUIState _optionsChoice, _optionsInput;
     BOOL _optionsScene, _optionsChoicePending, _optionsInputActive, _optionsInputCooling;
     uint32_t _optionsOwnerGeneration, _optionsChoiceKeys, _optionsInputKeys, _optionsInputReads, _optionsReleaseReads;
+    UIImageView *_fieldChoicePreview;
+    UIImage *_fieldChoicePreviewImage, *_fieldChoiceOwnerPreview;
+    NSData *_fieldChoiceUIState, *_displayedFieldChoiceUIState, *_fieldChoiceOwnerFrame;
+    HGNativeFieldChoiceUIState _fieldChoiceChoice, _fieldChoiceInput;
+    BOOL _fieldChoiceScene, _fieldChoiceChoicePending, _fieldChoiceInputActive, _fieldChoiceInputCooling;
+    uint32_t _fieldChoiceOwnerGeneration, _fieldChoiceChoiceKeys, _fieldChoiceInputKeys, _fieldChoiceInputReads, _fieldChoiceReleaseReads, _fieldChoiceFrameGeneration;
     NSData *_namingUIState, *_displayedNamingUIState;
     HGNativeNamingUIState _namingChoice, _namingInput;
     BOOL _namingScene, _namingChoicePending, _namingChoiceTouch, _namingInputActive, _namingInputCooling, _namingInputTouch;
     uint32_t _namingOwnerGeneration, _namingChoiceKeys, _namingChoiceX, _namingChoiceY;
     uint32_t _namingInputKeys, _namingInputX, _namingInputY, _namingInputReads, _namingReleaseReads;
+    UIView *_pcBoxPanel;
+    UIImageView *_pcBoxWorkspace, *_pcBoxFooter, *_pcBoxInfo;
+    NSArray<UIImageView *> *_pcBoxActions;
+    NSData *_pcBoxUIState, *_displayedPCBoxUIState;
+    NSDictionary *_pcBoxPictures, *_pcBoxOwnerPictures;
+    HGNativePCBoxUIState _pcBoxChoice, _pcBoxInput;
+    BOOL _pcBoxScene, _pcBoxChoicePending, _pcBoxInputActive, _pcBoxInputCooling;
+    uint32_t _pcBoxOwnerGeneration, _pcBoxChoiceKeys, _pcBoxInputKeys, _pcBoxInputReads, _pcBoxReleaseReads;
     NSData *_captureUIState, *_displayedCaptureUIState;
     BOOL _captureScene, _captureChoicePending, _captureInputActive, _captureInputCooling;
     uint32_t _captureChoiceGeneration, _captureChoiceRevision, _captureInputGeneration, _captureInputRevision, _captureInputReads, _captureReleaseReads;
@@ -392,6 +422,16 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     uint32_t _frameBuffer, _lastFrame, _preferredViewWidth, _preferredBattleWidth, _frameWidth, _frameEngine, _displayedWidth, _displayedEngine, _fieldMapId;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     uint32_t _publishedFrames, _bootCount, _bootFrameBase, _checkedBootParameter;
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+    NSData *_pcBoxQAState,*_displayedPCBoxQAState,*_pcBoxQARequestExpected;
+    uint32_t _pcBoxQAPadReads,_displayedPCBoxQAPadReads,_pcBoxQAOwnerFrame,_displayedPCBoxQAOwnerFrame;
+    uint32_t _pcBoxQAPublishedFrame,_pcBoxQADisplayedPublishedFrame;
+    uint32_t _pcBoxQARequestKind,_pcBoxQARequestSerial,_pcBoxQARequestCompleted;
+    BOOL _pcBoxQARequestPending,_pcBoxQARequestAccepted;
+    uint32_t _pcBoxQAPulseStage,_pcBoxQAPulseKey,_pcBoxQAPulseReads,_pcBoxQAPulseReleaseReads,_pcBoxQAPulseHeld,_pcBoxQAPulseError;
+    BOOL _pcBoxQAPulseGeneric, _pcBoxQAPulseMessage;
+    NSMutableDictionary *_pcBoxCheckRuntime;
+#endif
     BOOL _suspended, _finished, _checkResetPending, _checkedResetOccurred, _resetQuiesced, _restartClean, _audioChanging;
     NSData *_geometryState;
     NSData *_audioProducerTrace;
@@ -437,11 +477,23 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 - (void)queueOptionsKey:(OriginalKeyButton *)button;
 - (void)takeOptionsInputLocked:(const HGNativeOptionsUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys;
 - (void)updateOptionsControls:(NSData *)data preview:(UIImage *)preview paused:(BOOL)paused;
+- (void)clearFieldChoiceInputLocked;
+- (void)queueFieldChoiceKey:(OriginalKeyButton *)button;
+- (void)takeFieldChoiceInputLocked:(const HGNativeFieldChoiceUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys;
+- (void)updateFieldChoiceControls:(NSData *)data preview:(UIImage *)preview blocked:(BOOL)blocked paused:(BOOL)paused;
+- (void)layoutFieldChoiceControls:(CGRect)area;
 - (void)clearNamingInputLocked;
 - (void)queueNamingInputKeys:(uint32_t)keys touch:(BOOL)touch point:(CGPoint)point;
 - (void)takeNamingInputLocked:(const HGNativeNamingUIState *)state reads:(uint32_t)reads
     keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed;
 - (void)updateNamingControls:(NSData *)data paused:(BOOL)paused;
+- (void)setupPCBoxControls;
+- (void)layoutPCBoxControls:(CGRect)area;
+- (void)clearPCBoxInputLocked;
+- (void)queuePCBoxKey:(OriginalKeyButton *)button;
+- (void)takePCBoxInputLocked:(const HGNativePCBoxUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys;
+- (NSDictionary *)copyPCBoxPictures:(const HGNativePCBoxUIState *)state main:(NSData *)main sub:(NSData *)sub;
+- (void)updatePCBoxControls:(NSData *)data pictures:(NSDictionary *)pictures blocked:(BOOL)blocked paused:(BOOL)paused;
 #ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
 - (BOOL)queueSummaryTMFixture:(uint32_t)revision;
 - (BOOL)queueSummaryTMRaw:(const HGSummaryLearnQAState *)expected keys:(uint32_t)keys x:(uint32_t)x y:(uint32_t)y pressed:(BOOL)pressed;
@@ -462,7 +514,19 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 - (void)pokedexGesture:(UIPanGestureRecognizer *)gesture;
 - (NSString *)pokedexLabelForRole:(uint32_t)role index:(uint32_t)index state:(const HGNativePokedexUIState *)state visual:(BOOL)visual;
 @end
-#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+@interface OriginalController (PCBoxUIKitCheck)
+- (BOOL)readPCBoxQAOwner:(HGPCBoxQAState *)qa;
+- (BOOL)queuePCBoxQARequest:(uint32_t)kind;
+- (void)processPCBoxQARequestOwnerLocked:(const HGPCBoxQAState *)qa;
+- (void)observePCBoxCheckPulseOwnerLocked:(const HGPCBoxQAState *)qa reads:(uint32_t)reads keys:(uint32_t *)keys pressed:(BOOL)pressed;
+- (void)clearPCBoxCheckTransientLocked:(BOOL)interrupted;
+- (void)beginPCBoxUIKitCheck;
+- (void)checkPCBoxUIKitDisplay;
+- (void)finishPCBoxUIKitCheck:(NSString *)status;
+@end
+#endif
+#if defined(HEARTGOLD_ORIGINAL_APP_CHECK) && !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
 @interface OriginalController (Checks)
 #ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
 - (BOOL)captureRegistrationInputIdleLocked;
@@ -476,6 +540,9 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 - (BOOL)captureRegistrationSettlement:(const HGNativeCaptureQAState *)q variant:(uint32_t)variant;
 #else
 - (void)checkControls;
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+- (NSDictionary *)checkPCBoxHostPrimitives;
+#endif
 #ifdef HEARTGOLD_ORIGINAL_POKEDEX_CHECK
 - (void)checkPokedexCase;
 - (void)checkPokedexDisplay:(uint32_t)frame;
@@ -556,6 +623,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _optionsPreview.contentMode=UIViewContentModeScaleAspectFit; _optionsPreview.layer.magnificationFilter=kCAFilterNearest;
     _optionsPreview.isAccessibilityElement=YES; _optionsPreview.accessibilityLabel=@"原版文字速度和边框预览";
     _optionsPreview.accessibilityHint=@"只读预览，由原版菜单同步更新"; [self.view addSubview:_optionsPreview];
+    _fieldChoicePreview=[UIImageView new]; _fieldChoicePreview.hidden=YES;
+    _fieldChoicePreview.contentMode=UIViewContentModeScaleAspectFit; _fieldChoicePreview.layer.magnificationFilter=kCAFilterNearest;
+    _fieldChoicePreview.isAccessibilityElement=YES; _fieldChoicePreview.accessibilityLabel=@"原版对话与选项说明";
+    [self.view addSubview:_fieldChoicePreview];
     UIPanGestureRecognizer *touch = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(canvasTouch:)];
     touch.minimumNumberOfTouches = touch.maximumNumberOfTouches = 1;
     [_canvas addGestureRecognizer:touch];
@@ -758,6 +829,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
     _battleMenuButtons=battleMenuButtons; _battleMenuImages=battleMenuImages;
     [self setupPokedexControls];
+    [self setupPCBoxControls];
     [self.view bringSubviewToFront:_buttons[@1]]; [self.view bringSubviewToFront:_buttons[@2]];
     _status = [UILabel new]; _status.text = @"正在启动原版引擎…";
     _status.textColor = UIColor.whiteColor; _status.textAlignment = NSTextAlignmentCenter;
@@ -771,7 +843,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [notifications addObserver:self selector:@selector(audioInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
     [notifications addObserver:self selector:@selector(audioRouteChanged:) name:AVAudioSessionRouteChangeNotification object:nil];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-#ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
+#if defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+    [self beginPCBoxUIKitCheck];
+#elif defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK)
     [self checkCaptureRegistrationCase];
 #else
 #ifdef HEARTGOLD_ORIGINAL_POKEDEX_CHECK
@@ -1009,6 +1083,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _buttons[@2].frame=CGRectMake(right,bottom,side-12,size);
         _status.frame=CGRectInset(_canvas.frame,10,10);
     }
+    [self layoutPCBoxControls:area];
+    [self layoutFieldChoiceControls:area];
 }
 - (void)battlePressed:(UIButton *)button {
     const HGNativeBattleUIState *state = _displayedBattleUIState.bytes;
@@ -1503,7 +1579,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (NSDictionary *)copySummaryPictures:(const HGNativeSummaryUIState *)state frame:(NSData *)frame subFrame:(NSData *)subFrame {
     BOOL learning=state->active && HGNativeSummaryUIIsLearning(state);
-    if (!state->active || (!learning && (state->mode || state->monDataType!=1 || state->moveToLearn))) { _summaryOwnerPictures=nil; return nil; }
+    if (!state->active || (!learning && !HGNativeSummaryUIIsOrdinary(state))) { _summaryOwnerPictures=nil; return nil; }
     BOOL sameView=[_summaryOwnerPictures[@"revision"] unsignedIntValue]==state->revision
         && [_summaryOwnerPictures[@"phase"] unsignedIntValue]==state->phase && [_summaryOwnerPictures[@"page"] unsignedIntValue]==state->page
         && [_summaryOwnerPictures[@"mode"] unsignedIntValue]==state->mode;
@@ -1561,7 +1637,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL learning=state->active && HGNativeSummaryUIIsLearning(state);
     if (learning) { _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; *keys=0; *pressed=NO; }
     BOOL panel=state->active && (learning ? state->phase==HG_SUMMARY_UI_FORGET_MOVE || state->phase==HG_SUMMARY_UI_FORGET_CONFIRM
-        : !state->mode && state->monDataType==1 && !state->moveToLearn && state->page<=2
+        : HGNativeSummaryUIIsOrdinary(state) && state->page<=2
             && (state->phase==HG_SUMMARY_UI_INPUT || (state->phase==HG_SUMMARY_UI_MOVE_SELECT && state->page==1)));
     if (!panel) {
         if (_summaryChoicePending || _summaryInputActive) { _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; *keys=0; *pressed=NO; }
@@ -1590,7 +1666,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)updateSummaryControls:(NSData *)data pictures:(NSDictionary *)pictures paused:(BOOL)paused {
     const HGNativeSummaryUIState *state=data.bytes;
     BOOL learning=data.length==sizeof(*state) && state->active && HGNativeSummaryUIIsLearning(state);
-    BOOL scene=data.length==sizeof(*state) && state->active && (learning || (!state->mode && state->monDataType==1 && !state->moveToLearn));
+    BOOL scene=data.length==sizeof(*state) && state->active && (learning || HGNativeSummaryUIIsOrdinary(state));
     BOOL panel=scene && (learning ? state->phase==HG_SUMMARY_UI_FORGET_MOVE || state->phase==HG_SUMMARY_UI_FORGET_CONFIRM
         : state->page<=2 && (state->phase==HG_SUMMARY_UI_INPUT || (state->phase==HG_SUMMARY_UI_MOVE_SELECT && state->page==1)));
     BOOL changed=_summaryScene!=scene || !_displayedSummaryUIState || data.length!=_displayedSummaryUIState.length
@@ -1742,6 +1818,254 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (i >= 4 || displayMode == HG_BATTLE_UI_COMMAND || (!choice && (displayMode==HG_BATTLE_UI_TARGETS ? !state->targetSpecies[i] : !state->move[i]))) button.accessibilityLabel = config.title;
         button.configuration = config;
     }
+}
+- (void)setupPCBoxControls {
+    _pcBoxPanel=[UIView new]; _pcBoxPanel.hidden=YES; _pcBoxPanel.backgroundColor=_partyPanel.backgroundColor;
+    _pcBoxPanel.layer.cornerRadius=12; _pcBoxPanel.clipsToBounds=YES; [self.view addSubview:_pcBoxPanel];
+    _pcBoxWorkspace=[UIImageView new]; _pcBoxFooter=[UIImageView new]; _pcBoxInfo=[UIImageView new];
+    NSMutableArray *actions=[NSMutableArray new];
+    for (NSUInteger i=0;i<5;i++) [actions addObject:[UIImageView new]];
+    _pcBoxActions=actions;
+    NSMutableArray *images=[NSMutableArray arrayWithObjects:_pcBoxWorkspace,_pcBoxFooter,_pcBoxInfo,nil];
+    [images addObjectsFromArray:actions];
+    for (UIImageView *image in images) {
+        image.contentMode=UIViewContentModeScaleAspectFit; image.clipsToBounds=YES; image.layer.magnificationFilter=kCAFilterNearest;
+        image.isAccessibilityElement=YES; image.accessibilityTraits=UIAccessibilityTraitImage; [_pcBoxPanel addSubview:image];
+    }
+    _pcBoxWorkspace.accessibilityHint=@"使用方向键移动原版光标，再按A；按Y切换快捷操作";
+    _pcBoxFooter.accessibilityLabel=@"原版电脑操作提示";
+    _pcBoxInfo.accessibilityLabel=@"原版宝可梦资料、画像、招式和道具说明";
+    for (NSUInteger i=0;i<actions.count;i++) {
+        _pcBoxActions[i].accessibilityLabel=[NSString stringWithFormat:@"原版电脑操作第%lu项",(unsigned long)i+1];
+        _pcBoxActions[i].accessibilityHint=@"只读原版操作栏；使用方向键选择，按A执行";
+    }
+    UIButton *shortcut=[self button:@"快捷" key:0x800]; shortcut.hidden=YES;
+}
+- (void)layoutPCBoxControls:(CGRect)area {
+    if (!_pcBoxScene) return;
+    CGFloat gap=8,controls=52,ph=MAX(1,area.size.height-controls-8),pw=area.size.width;
+    _pcBoxPanel.frame=CGRectMake(area.origin.x,area.origin.y,pw,ph);
+    CGFloat footerHeight=MIN(48,ph*0.17),bodyHeight=MAX(1,ph-footerHeight-gap),detailWidth=pw*0.40;
+    CGFloat railWidth=MIN(132,pw*0.15),workspaceWidth=MAX(1,pw-detailWidth-railWidth-4*gap);
+    BOOL railVisible=_pcBoxActions.count && !_pcBoxActions[0].hidden;
+    _pcBoxWorkspace.frame=CGRectMake(gap,0,workspaceWidth+(!railVisible ? railWidth+gap : 0),bodyHeight);
+    CGFloat railX=workspaceWidth+2*gap,rowHeight=MIN(44,bodyHeight/5);
+    for (NSUInteger i=0;i<5;i++) _pcBoxActions[i].frame=CGRectMake(railX,i*rowHeight,railWidth,rowHeight);
+    _pcBoxInfo.frame=CGRectMake(pw-detailWidth,0,detailWidth-gap,bodyHeight);
+    _pcBoxFooter.frame=CGRectMake(gap,ph-footerHeight,pw-2*gap,footerHeight);
+    NSArray *keys=@[@0x40,@0x80,@0x20,@0x10,@1,@2,@0x800];
+    CGFloat keyWidth=(pw-6*gap)/7,y=CGRectGetMaxY(area)-controls;
+    for (NSUInteger i=0;i<keys.count;i++) _buttons[keys[i]].frame=CGRectMake(area.origin.x+i*(keyWidth+gap),y,keyWidth,controls);
+    _buttons[@8].frame=CGRectMake(CGRectGetMaxX(area)-96,area.origin.y+4,88,44);
+    _status.frame=CGRectInset(_pcBoxPanel.frame,10,10);
+}
+- (void)clearPCBoxInputLocked {
+    _pcBoxChoicePending=_pcBoxInputActive=_pcBoxInputCooling=NO;
+    memset(&_pcBoxChoice,0,sizeof(_pcBoxChoice)); memset(&_pcBoxInput,0,sizeof(_pcBoxInput));
+    _pcBoxChoiceKeys=_pcBoxInputKeys=_pcBoxInputReads=_pcBoxReleaseReads=0;
+}
+- (void)queuePCBoxKey:(OriginalKeyButton *)button {
+    const HGNativePCBoxUIState *shown=_displayedPCBoxUIState.bytes; uint32_t keys;
+    if (!_pcBoxScene || button.hidden || !button.enabled || _displayedPCBoxUIState.length!=sizeof(*shown)
+        || !HGNativePCBoxUIResolveInput(shown,shown->ownerGeneration,shown->revision,(uint32_t)button.tag,&keys)) return;
+    [_condition lock];
+    const HGNativePCBoxUIState *live=_pcBoxUIState.length==sizeof(*live) ? _pcBoxUIState.bytes : NULL;
+    if (!_paused && !_stopping && !_failure && !_pcBoxChoicePending && !_pcBoxInputActive && !_pcBoxInputCooling
+        && HGNativePCBoxUIResolveInput(live,shown->ownerGeneration,shown->revision,keys,&keys)) {
+        _pcBoxChoice=*shown; _pcBoxChoiceKeys=keys; _pcBoxChoicePending=YES;
+    }
+    [_condition unlock];
+}
+- (void)takePCBoxInputLocked:(const HGNativePCBoxUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys {
+    *keys=0; uint32_t resolved;
+    if (_pcBoxInputCooling && reads-_pcBoxReleaseReads>=2) [self clearPCBoxInputLocked];
+    if (_pcBoxInputActive && (reads-_pcBoxInputReads>=4
+        || !HGNativePCBoxUIResolveInput(state,_pcBoxInput.ownerGeneration,_pcBoxInput.revision,_pcBoxInputKeys,&resolved))) {
+        [self clearPCBoxInputLocked]; _pcBoxInputCooling=YES; _pcBoxReleaseReads=reads;
+    }
+    if (_pcBoxChoicePending) {
+        if (!_pcBoxInputActive && !_pcBoxInputCooling
+            && HGNativePCBoxUIResolveInput(state,_pcBoxChoice.ownerGeneration,_pcBoxChoice.revision,_pcBoxChoiceKeys,&resolved)) {
+            _pcBoxInput=_pcBoxChoice; _pcBoxInputKeys=resolved; _pcBoxInputReads=reads; _pcBoxInputActive=YES;
+        }
+        _pcBoxChoicePending=NO; _pcBoxChoiceKeys=0; memset(&_pcBoxChoice,0,sizeof(_pcBoxChoice));
+    }
+    if (_pcBoxInputActive) *keys=_pcBoxInputKeys;
+}
+- (NSDictionary *)copyPCBoxPictures:(const HGNativePCBoxUIState *)state main:(NSData *)main sub:(NSData *)sub {
+    if (state->active!=1) { _pcBoxOwnerPictures=nil; return nil; }
+    if (state->viewActive!=1) return _pcBoxOwnerPictures;
+    if (main.length!=256*192*4 || sub.length!=256*192*4) return nil;
+    BOOL full=state->partyPanelOpen || state->trayOpen || !(state->phase==HG_PC_BOX_UI_MOVE_MODE_INPUT
+        || state->phase==HG_PC_BOX_UI_WITHDRAW_INPUT || state->phase==HG_PC_BOX_UI_DEPOSIT_INPUT || state->phase==HG_PC_BOX_UI_ITEM_MODE_INPUT);
+    NSMutableArray *actions=[NSMutableArray new];
+    for (NSUInteger i=0;i<5;i++) [actions addObject:OriginalFrameRegion(main,168,40+24*(uint32_t)i,88,24) ?: NSNull.null];
+    _pcBoxOwnerPictures=@{@"workspace":OriginalFrameRegion(main,0,0,full ? 256 : 168,full ? 160 : 168) ?: NSNull.null,
+        @"footer":OriginalFrameRegion(main,0,160,256,32) ?: NSNull.null,@"actions":actions,
+        @"info":OriginalFrameRegion(sub,0,0,256,192) ?: NSNull.null,
+        @"generation":@(state->ownerGeneration),@"revision":@(state->revision),@"full":@(full)};
+    return _pcBoxOwnerPictures;
+}
+- (void)updatePCBoxControls:(NSData *)data pictures:(NSDictionary *)pictures blocked:(BOOL)blocked paused:(BOOL)paused {
+    const HGNativePCBoxUIState *state=data.bytes;
+    BOOL scene=data.length==sizeof(*state) && state->active==1 && !blocked,was=_pcBoxScene;
+    BOOL changed=was!=scene || (scene && (_displayedPCBoxUIState.length!=sizeof(*state) || memcmp(_displayedPCBoxUIState.bytes,state,sizeof(*state))));
+    _pcBoxScene=scene; _displayedPCBoxUIState=data; _pcBoxPanel.hidden=!scene; _buttons[@0x800].hidden=!scene;
+    if (changed && (was || scene)) {
+        [_condition lock]; _pcBoxChoicePending=NO; _pcBoxChoiceKeys=0; memset(&_pcBoxChoice,0,sizeof(_pcBoxChoice)); _inputGeneration++;
+        _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0; _touchPressed=NO; _touchX=_touchY=0;
+        if (!scene) {
+            [self clearPCBoxInputLocked];
+            if (data.length==sizeof(*state) && state->active==1) {_pcBoxInputCooling=YES;_pcBoxReleaseReads=_lastPadReadCount;}
+        }
+        [_condition unlock];
+        for (OriginalKeyButton *button in _buttons.allValues) button.inputGeneration++;
+        [self resetJoystick]; [self.view setNeedsLayout];
+    }
+    if (!scene) {
+        if (data.length!=sizeof(*state) || !state->active) {
+            _pcBoxWorkspace.image=_pcBoxFooter.image=_pcBoxInfo.image=nil;
+            for (UIImageView *image in _pcBoxActions) image.image=nil;
+        }
+        if (was) for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10,@1,@2,@8]) {
+            UIButton *button=_buttons[key]; button.configuration=nil; button.enabled=YES; button.alpha=1; button.accessibilityHint=nil;
+            [button setTitle:[key isEqual:@1] ? @"确认" : [key isEqual:@2] ? @"返回" : [key isEqual:@8] ? @"开始" : button.currentTitle forState:UIControlStateNormal];
+            button.accessibilityLabel=button.currentTitle;
+        }
+        return;
+    }
+    _battleBar.hidden=_partyPanel.hidden=_partyBack.hidden=_bagPanel.hidden=_bagPage.hidden=_summaryPanel.hidden=_battleMenuPanel.hidden=_pokedexPanel.hidden=YES;
+    _fieldMenu.hidden=_fieldMenuShade.hidden=_joystick.hidden=_menuButton.hidden=_canvas.hidden=_optionsPreview.hidden=YES;
+    _canvas.userInteractionEnabled=NO;
+    for (UIButton *button in _bagNavigation) button.hidden=YES;
+    for (UIButton *button in _summaryNavigation) button.hidden=YES;
+    _pcBoxPanel.alpha=state->viewActive==1 && !paused ? 1 : 0.55;
+    _pcBoxWorkspace.image=[pictures[@"workspace"] isKindOfClass:UIImage.class] ? pictures[@"workspace"] : nil;
+    _pcBoxFooter.image=[pictures[@"footer"] isKindOfClass:UIImage.class] ? pictures[@"footer"] : nil;
+    NSString *cursor=state->selectedSlot<36 ? [NSString stringWithFormat:@"光标位置%u",state->selectedSlot+1] : @"盒子标题或操作栏";
+    _pcBoxWorkspace.accessibilityLabel=[NSString stringWithFormat:@"原版电脑盒子%u，%@，%@%@",state->activeBox+1,
+        (@[@"寄放宝可梦",@"取出宝可梦",@"移动宝可梦",@"移动道具"])[MIN(state->mode,3u)],cursor,state->cursorHolding ? @"，正在持有" : @""];
+    NSArray *actions=pictures[@"actions"];
+    _pcBoxInfo.image=[pictures[@"info"] isKindOfClass:UIImage.class] ? pictures[@"info"] : nil;
+    for (NSUInteger i=0;i<5;i++) {
+        _pcBoxActions[i].image=i<actions.count && [actions[i] isKindOfClass:UIImage.class] ? actions[i] : nil;
+        _pcBoxActions[i].hidden=[pictures[@"full"] boolValue] || !state->actionMenuOpen;
+    }
+    [_condition lock]; BOOL idle=!_stopping && !_failure && !_pcBoxChoicePending && !_pcBoxInputActive && !_pcBoxInputCooling;
+    BOOL resume=_interrupted && _interruptionEnded && !_inactive; [_condition unlock];
+    NSArray *keys=@[@0x40,@0x80,@0x20,@0x10,@1,@2,@0x800],*titles=@[@"↑",@"↓",@"←",@"→",@"选择",@"返回",@"快捷"];
+    NSArray *labels=@[@"向上移动原版光标",@"向下移动原版光标",@"向左移动原版光标",@"向右移动原版光标",@"A：执行原版当前项目",@"B：原版返回或取消",@"Y：切换原版快捷操作"];
+    for (NSUInteger i=0;i<keys.count;i++) {
+        UIButton *button=_buttons[keys[i]]; uint32_t resolved; button.hidden=NO; button.configuration=nil;
+        button.enabled=!paused && idle && HGNativePCBoxUIResolveInput(state,state->ownerGeneration,state->revision,[keys[i] unsignedIntValue],&resolved);
+        button.alpha=button.enabled ? 1 : 0.5; [button setTitle:titles[i] forState:UIControlStateNormal]; button.accessibilityLabel=labels[i];
+        button.accessibilityHint=@"按键交给原版电脑处理；操作栏用方向键和A选择"; [self.view bringSubviewToFront:button];
+    }
+    _buttons[@0x400].hidden=YES; _buttons[@8].hidden=!resume; _buttons[@8].enabled=resume;
+    [_buttons[@8] setTitle:resume ? @"继续" : @"开始" forState:UIControlStateNormal]; _buttons[@8].accessibilityLabel=resume ? @"恢复应用" : @"开始";
+    if (resume) [self.view bringSubviewToFront:_buttons[@8]];
+}
+- (void)layoutFieldChoiceControls:(CGRect)area {
+    if (!_fieldChoiceScene) return;
+    CGFloat side=MIN(150,area.size.width*0.19),gap=8;
+    CGFloat width=MIN(area.size.width-2*side,MAX(1,area.size.height-gap)*256.0/240.0);
+    CGFloat menuHeight=width*192/256,previewHeight=width*48/256;
+    CGFloat x=CGRectGetMidX(area)-width/2,y=CGRectGetMidY(area)-(menuHeight+gap+previewHeight)/2;
+    _canvas.frame=CGRectMake(x,y,width,menuHeight);
+    _fieldChoicePreview.frame=CGRectMake(x,y+menuHeight+gap,width,previewHeight);
+    CGFloat size=MAX(44,MIN(56,(side-12)/2)),left=area.origin.x+6,bottom=CGRectGetMaxY(area)-size-12;
+    _buttons[@0x40].frame=CGRectMake(left+size/2,bottom-size*2-8,size,size);
+    _buttons[@0x80].frame=CGRectMake(left+size/2,bottom,size,size);
+    _buttons[@0x20].frame=CGRectMake(left,bottom-size-4,size,size);
+    _buttons[@0x10].frame=CGRectMake(left+size+4,bottom-size-4,size,size);
+    CGFloat right=CGRectGetMaxX(area)-side+6;
+    _buttons[@1].frame=CGRectMake(right,bottom-size-8,side-12,size);
+    _buttons[@2].frame=CGRectMake(right,bottom,side-12,size);
+    _status.frame=CGRectInset(_canvas.frame,10,10);
+}
+- (void)clearFieldChoiceInputLocked {
+    _fieldChoiceChoicePending=_fieldChoiceInputActive=_fieldChoiceInputCooling=NO;
+    memset(&_fieldChoiceChoice,0,sizeof(_fieldChoiceChoice)); memset(&_fieldChoiceInput,0,sizeof(_fieldChoiceInput));
+    _fieldChoiceChoiceKeys=_fieldChoiceInputKeys=_fieldChoiceInputReads=_fieldChoiceReleaseReads=0;
+}
+- (void)queueFieldChoiceKey:(OriginalKeyButton *)button {
+    const HGNativeFieldChoiceUIState *shown=_displayedFieldChoiceUIState.bytes; uint32_t keys;
+    if (!_fieldChoiceScene || button.hidden || !button.enabled || _displayedFieldChoiceUIState.length!=sizeof(*shown)
+        || !HGNativeFieldChoiceUIResolveInput(shown,shown->ownerGeneration,shown->revision,(uint32_t)button.tag,&keys)) return;
+    [_condition lock];
+    const HGNativeFieldChoiceUIState *live=_fieldChoiceUIState.length==sizeof(*live) ? _fieldChoiceUIState.bytes : NULL;
+    if (!_paused && !_stopping && !_failure && !_fieldChoiceChoicePending && !_fieldChoiceInputActive && !_fieldChoiceInputCooling
+        && HGNativeFieldChoiceUIResolveInput(live,shown->ownerGeneration,shown->revision,keys,&keys)) {
+        _fieldChoiceChoice=*shown; _fieldChoiceChoiceKeys=keys; _fieldChoiceChoicePending=YES;
+    }
+    [_condition unlock];
+}
+- (void)takeFieldChoiceInputLocked:(const HGNativeFieldChoiceUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys {
+    *keys=0; uint32_t resolved;
+    if (_fieldChoiceInputCooling && reads-_fieldChoiceReleaseReads>=2) [self clearFieldChoiceInputLocked];
+    if (_fieldChoiceInputActive && (reads-_fieldChoiceInputReads>=4
+        || !HGNativeFieldChoiceUIResolveInput(state,_fieldChoiceInput.ownerGeneration,_fieldChoiceInput.revision,_fieldChoiceInputKeys,&resolved))) {
+        [self clearFieldChoiceInputLocked]; _fieldChoiceInputCooling=YES; _fieldChoiceReleaseReads=reads;
+    }
+    if (_fieldChoiceChoicePending) {
+        if (!_fieldChoiceInputActive && !_fieldChoiceInputCooling
+            && HGNativeFieldChoiceUIResolveInput(state,_fieldChoiceChoice.ownerGeneration,_fieldChoiceChoice.revision,_fieldChoiceChoiceKeys,&resolved)) {
+            _fieldChoiceInput=_fieldChoiceChoice; _fieldChoiceInputKeys=resolved; _fieldChoiceInputReads=reads; _fieldChoiceInputActive=YES;
+        }
+        _fieldChoiceChoicePending=NO; _fieldChoiceChoiceKeys=0; memset(&_fieldChoiceChoice,0,sizeof(_fieldChoiceChoice));
+    }
+    if (_fieldChoiceInputActive) *keys=_fieldChoiceInputKeys;
+}
+- (void)updateFieldChoiceControls:(NSData *)data preview:(UIImage *)preview blocked:(BOOL)blocked paused:(BOOL)paused {
+    const HGNativeFieldChoiceUIState *state=data.bytes;
+    BOOL scene=data.length==sizeof(*state) && state->active==1 && HGNativeFieldChoiceUIIsListPhase(state->phase) && !blocked;
+    BOOL was=_fieldChoiceScene,changed=was!=scene || (scene && (_displayedFieldChoiceUIState.length!=sizeof(*state)
+        || memcmp(_displayedFieldChoiceUIState.bytes,state,sizeof(*state))));
+    _fieldChoiceScene=scene; _displayedFieldChoiceUIState=data;
+    if (changed && (was || scene)) {
+        [_condition lock]; _fieldChoiceChoicePending=NO; _fieldChoiceChoiceKeys=0; memset(&_fieldChoiceChoice,0,sizeof(_fieldChoiceChoice));
+        _inputGeneration++; _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0;
+        _touchPressed=NO; _touchX=_touchY=0;
+        if (!scene) [self clearFieldChoiceInputLocked]; [_condition unlock];
+        for (UIGestureRecognizer *gesture in _canvas.gestureRecognizers) {gesture.enabled=NO;gesture.enabled=YES;}
+        for (OriginalKeyButton *button in _buttons.allValues) button.inputGeneration++;
+        [self resetJoystick]; [self.view setNeedsLayout];
+    }
+    _fieldChoicePreview.hidden=!scene || !preview; _fieldChoicePreview.image=scene ? preview : nil;
+    if (!scene) {
+        if (was) {
+            _canvas.alpha=1;
+            if (!_evolutionScene && !_captureScene) {_canvas.accessibilityLabel=@"原版游戏画面";_canvas.accessibilityValue=nil;}
+            for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10,@1,@2,@8]) {
+                if ((_evolutionScene || _captureScene) && (key.unsignedIntValue==1 || key.unsignedIntValue==2)) continue;
+                UIButton *button=_buttons[key]; button.configuration=nil; button.enabled=YES; button.alpha=1; button.accessibilityHint=nil;
+                [button setTitle:[key isEqual:@1] ? @"确认" : [key isEqual:@2] ? @"返回" : [key isEqual:@8] ? @"开始" : button.currentTitle forState:UIControlStateNormal];
+                button.accessibilityLabel=button.currentTitle;
+            }
+        }
+        return;
+    }
+    _battleBar.hidden=_partyPanel.hidden=_partyBack.hidden=_bagPanel.hidden=_bagPage.hidden=_summaryPanel.hidden=_battleMenuPanel.hidden=_pokedexPanel.hidden=_pcBoxPanel.hidden=YES;
+    _fieldMenu.hidden=_fieldMenuShade.hidden=_joystick.hidden=_menuButton.hidden=_optionsPreview.hidden=YES;
+    for (UIButton *button in _bagNavigation) button.hidden=YES;
+    for (UIButton *button in _summaryNavigation) button.hidden=YES;
+    [_condition lock]; BOOL idle=!_stopping && !_failure && !_fieldChoiceChoicePending && !_fieldChoiceInputActive && !_fieldChoiceInputCooling;
+    BOOL resume=_interrupted && _interruptionEnded && !_inactive; [_condition unlock];
+    NSArray *keys=@[@0x40,@0x80,@0x20,@0x10,@1,@2],*titles=@[@"↑",@"↓",@"←",@"→",@"选择",@"返回"];
+    NSArray *labels=@[@"向上选择",@"向下选择",@"向左选择",@"向右选择",@"A：选择当前项目",@"B：返回"];
+    for (NSUInteger i=0;i<keys.count;i++) {
+        UIButton *button=_buttons[keys[i]]; uint32_t resolved; button.hidden=NO; button.configuration=nil;
+        button.enabled=!paused && idle && HGNativeFieldChoiceUIResolveInput(state,state->ownerGeneration,state->revision,[keys[i] unsignedIntValue],&resolved);
+        button.alpha=button.enabled ? 1 : 0.5; [button setTitle:titles[i] forState:UIControlStateNormal]; button.accessibilityLabel=labels[i];
+        button.accessibilityHint=i==5 && !state->cancelEnabled ? @"当前选项不能取消" : @"使用原版方向键和A选择";
+    }
+    _buttons[@0x400].hidden=_buttons[@0x800].hidden=YES;
+    _buttons[@8].hidden=!resume; _buttons[@8].enabled=resume;
+    [_buttons[@8] setTitle:resume ? @"继续" : @"开始" forState:UIControlStateNormal]; _buttons[@8].accessibilityLabel=resume ? @"恢复应用" : @"开始";
+    _canvas.hidden=NO; _canvas.userInteractionEnabled=NO; _canvas.isAccessibilityElement=YES;
+    _canvas.alpha=_fieldChoicePreview.alpha=state->viewActive==1 && !paused ? 1 : 0.55;
+    _canvas.accessibilityLabel=@"原版选项菜单";
+    _canvas.accessibilityValue=state->rowCount ? [NSString stringWithFormat:@"第%u项，共%u项",state->selectedIndex+1,state->rowCount] : @"正在准备选项";
 }
 - (void)clearOptionsInputLocked {
     _optionsChoicePending=_optionsInputActive=_optionsInputCooling=NO;
@@ -2069,6 +2393,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)keyDown:(OriginalKeyButton *)sender {
     sender.inputGeneration++;
+    if (_pcBoxScene) {
+        if (sender.hidden || !sender.enabled) return;
+        [_condition lock]; BOOL resume=sender.tag==8 && _interrupted && _interruptionEnded && !_inactive;
+        if (resume) {_interrupted=_interruptionEnded=NO;_paused=NO;[_condition signal];} [_condition unlock];
+        if (!resume) [self queuePCBoxKey:sender]; return;
+    }
     if (_optionsScene) {
         [_condition lock]; BOOL resume=sender.tag==8 && _interrupted && _interruptionEnded && !_inactive;
         if (resume) {_interrupted=_interruptionEnded=NO;_paused=NO;[_condition signal];} [_condition unlock];
@@ -2080,6 +2410,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (resume) {_interrupted=_interruptionEnded=NO;_paused=NO;[_condition signal];} [_condition unlock];
         if (!resume) [self queueNamingInputKeys:sender.tag==0x400 ? 4 : (uint32_t)sender.tag touch:NO point:CGPointZero];
         return;
+    }
+    if (_fieldChoiceScene) {
+        if (sender.hidden || !sender.enabled) return;
+        [_condition lock]; BOOL resume=sender.tag==8 && _interrupted && _interruptionEnded && !_inactive;
+        if (resume) {_interrupted=_interruptionEnded=NO;_paused=NO;[_condition signal];} [_condition unlock];
+        if (!resume) [self queueFieldChoiceKey:sender]; return;
     }
     if (_captureScene && sender.tag!=8) { if (sender.tag==1) [self queueCaptureButton:sender]; return; }
     if (_pokedexScene && sender.tag!=8) {
@@ -2096,8 +2432,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     } else if (!_paused && !_captureScene) { _keys |= sender.tag; _pendingKeys |= sender.tag; }
     [_condition unlock];
 }
-- (void)keyUp:(UIButton *)sender { if (_optionsScene || _namingScene) return; [_condition lock]; _keys &= ~sender.tag; [_condition unlock]; }
-- (void)keyCancel:(UIButton *)sender { if (_optionsScene || _namingScene) return; [_condition lock]; _keys &= ~sender.tag; _pendingKeys &= ~sender.tag; _submittedKeys &= ~sender.tag; [_condition unlock]; }
+- (void)keyUp:(UIButton *)sender { if (_optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene) return; [_condition lock]; _keys &= ~sender.tag; [_condition unlock]; }
+- (void)keyCancel:(UIButton *)sender { if (_optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene) return; [_condition lock]; _keys &= ~sender.tag; _pendingKeys &= ~sender.tag; _submittedKeys &= ~sender.tag; [_condition unlock]; }
 - (void)acknowledgeKeysLocked:(uint32_t)reads {
     // Display callbacks can outpace original PAD_Read; keep submitted taps until it samples them.
     if (reads==_lastPadReadCount) return;
@@ -2124,7 +2460,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t direction=0;
     if (pressed && length>=travel*0.2) direction=fabs(dy)>=fabs(dx) ? (dy<0 ? 0x40 : 0x80) : (dx<0 ? 0x20 : 0x10);
     [_condition lock];
-    BOOL allowed=_fieldMapId && !_selectedEngine && !_fieldMenuOpen && !_paused && !_stopping && !_battleMode && !_evolutionScene && !_captureScene && !_namingScene && !_optionsScene;
+    BOOL allowed=_fieldMapId && !_selectedEngine && !_fieldMenuOpen && !_paused && !_stopping && !_battleMode && !_evolutionScene && !_captureScene && !_namingScene && !_optionsScene && !_pcBoxOwnerGeneration && !_fieldChoiceOwnerGeneration;
     if (!allowed) { direction=0; _pendingJoystickKeys=0; }
     _joystickKeys=direction;
     if (pressed && allowed) { _pendingJoystickKeys=direction; _joystickNeedsReset=NO; }
@@ -2138,7 +2474,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     else [self joystickAt:stick.location pressed:stick.pressed];
 }
 - (void)toggleMenu {
-    if (_optionsScene || _namingScene || _captureScene || _evolutionScene || _pokedexScene) return;
+    if (_optionsScene || _namingScene || _captureScene || _evolutionScene || _pokedexScene || _pcBoxOwnerGeneration || _fieldChoiceScene) return;
     [_condition lock];
     if (_fieldMapId) {
         _fieldMenuOpen=!_fieldMenuOpen; _automaticMenuEngine=_fieldMenuOpen; _selectedEngine=0; _fieldMenuFrame=nil;
@@ -2154,6 +2490,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)touchAt:(CGPoint)point pressed:(BOOL)pressed {
     if (_optionsScene) return;
     if (_namingScene) {if (pressed) [self queueNamingInputKeys:0 touch:YES point:point];return;}
+    if (_pcBoxOwnerGeneration || _fieldChoiceScene) return;
     [_condition lock];
     _inputGeneration++;
     BOOL fieldMenu=_fieldMenuOpen && _fieldMapId;
@@ -2167,6 +2504,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)canvasTouch:(UIPanGestureRecognizer *)gesture {
     if (_optionsScene) return;
     if (_namingScene) {if (gesture.state==UIGestureRecognizerStateBegan) [self tapAt:[gesture locationInView:gesture.view]];return;}
+    if (_pcBoxOwnerGeneration || _fieldChoiceScene) return;
     [self touchAt:[gesture locationInView:gesture.view] pressed:gesture.state == UIGestureRecognizerStateBegan || gesture.state == UIGestureRecognizerStateChanged];
 }
 - (void)canvasTap:(UITapGestureRecognizer *)gesture {
@@ -2185,6 +2523,13 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _paused = _inactive || _interrupted;
     if (_paused) { _keys = _pendingKeys = _submittedKeys = _joystickKeys = _pendingJoystickKeys = _submittedJoystickKeys = 0; _joystickNeedsReset = YES; _touchPressed = NO; _battleChoicePending = _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; } else [_condition signal];
     if (_paused) {
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+        [self clearPCBoxCheckTransientLocked:YES];
+#endif
+        [self clearPCBoxInputLocked];
+        if (_pcBoxOwnerGeneration) {_pcBoxInputCooling=YES;_pcBoxReleaseReads=_lastPadReadCount;}
+        [self clearFieldChoiceInputLocked];
+        if (_fieldChoiceOwnerGeneration) {_fieldChoiceInputCooling=YES;_fieldChoiceReleaseReads=_lastPadReadCount;}
         [self clearOptionsInputLocked];
         if (_optionsOwnerGeneration) {_optionsInputCooling=YES;_optionsReleaseReads=_lastPadReadCount;}
         [self clearNamingInputLocked];
@@ -2222,7 +2567,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock]; _interrupted = _interruptionEnded = YES; [self updatePauseLocked]; [_condition unlock];
 }
 - (void)stop {
-    [_condition lock]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; [self clearEvolutionInputLocked]; [self clearPokedexInputLocked]; _stopping = YES; _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; _inputGeneration++;
+    [_condition lock];
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+    [self clearPCBoxCheckTransientLocked:NO];
+#endif
+    [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; [self clearEvolutionInputLocked]; [self clearPokedexInputLocked]; _stopping = YES; _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; _inputGeneration++;
     _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _checkBattleMenusRequestPending=NO;
@@ -2244,7 +2593,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL interrupted = _interrupted, ended = _interruptionEnded,paused = _paused,resetStick = _joystickNeedsReset;
     uint32_t fieldMap=_fieldMapId,icons=_fieldMenuIcons;
     BOOL menuOpen=_fieldMenuOpen; NSData *menuFrame=_fieldMenuFrame; _fieldMenuFrame=nil;
-    NSData *partyUI=_partyUIState,*bagUI=_bagUIState,*summaryUI=_summaryUIState,*evolutionUI=_evolutionUIState,*pokedexUI=_pokedexUIState,*optionsUI=_optionsUIState,*namingUI=_namingUIState,*captureUI=_captureUIState;
+    NSData *partyUI=_partyUIState,*bagUI=_bagUIState,*summaryUI=_summaryUIState,*evolutionUI=_evolutionUIState,*pokedexUI=_pokedexUIState,*optionsUI=_optionsUIState,*namingUI=_namingUIState,*captureUI=_captureUIState,*pcBoxUI=_pcBoxUIState;
+    NSData *fieldChoiceUI=_fieldChoiceUIState; UIImage *fieldChoicePreview=_fieldChoicePreviewImage;
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+    NSData *pcQAAtRead=_pcBoxQAState;
+    uint32_t pcPadAtRead=_pcBoxQAPadReads,pcOwnerFrameAtRead=_pcBoxQAOwnerFrame,pcPublishedAtRead=_pcBoxQAPublishedFrame;
+#endif
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     uint32_t checkFrameAtRead=_publishedFrames;
 #ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
@@ -2256,7 +2610,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     NSData *battleBagUI=_battleBagUIState,*battlePartyUI=_battlePartyUIState;
     UIImage *optionsPreview=_optionsPreviewImage;
-    NSDictionary *partyPictures=_partyPictures,*bagPictures=_bagPictures,*summaryPictures=_summaryPictures,*battleMenuPictures=_battleMenuPictures,*evolutionPictures=_evolutionPictures,*pokedexPictures=_pokedexPictures; [_condition unlock];
+    NSDictionary *partyPictures=_partyPictures,*bagPictures=_bagPictures,*summaryPictures=_summaryPictures,*battleMenuPictures=_battleMenuPictures,*evolutionPictures=_evolutionPictures,*pokedexPictures=_pokedexPictures,*pcBoxPictures=_pcBoxPictures; [_condition unlock];
     if (frame) _displayedEngine=frameEngine;
     uint32_t engine=_displayedEngine;
     BOOL optionsContext=optionsUI.length==sizeof(HGNativeOptionsUIState) && ((const HGNativeOptionsUIState *)optionsUI.bytes)->active==1;
@@ -2272,9 +2626,19 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     const HGNativeSummaryUIState *summary=summaryUI.length==sizeof(HGNativeSummaryUIState) ? summaryUI.bytes : NULL;
     BOOL summaryLearning=summary && summary->active && HGNativeSummaryUIIsLearning(summary);
     [self updateBattleMenuControls:battleBagUI party:battlePartyUI pictures:battleMenuPictures paused:paused engine:engine];
-    BOOL summaryContext=!optionsContext && !namingContext && summary && summary->active && (summaryLearning || (!summary->mode && summary->monDataType==1 && !summary->moveToLearn));
+    BOOL summaryContext=!optionsContext && !namingContext && summary && summary->active && (summaryLearning || HGNativeSummaryUIIsOrdinary(summary));
     [self updateEvolutionControls:evolutionUI pictures:evolutionPictures summary:summaryContext || captureContext || namingContext || optionsContext paused:paused];
-    BOOL pokedexBlocked=optionsContext || namingContext || captureContext || summaryContext || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene;
+    BOOL pcBoxActive=pcBoxUI.length==sizeof(HGNativePCBoxUIState) && ((const HGNativePCBoxUIState *)pcBoxUI.bytes)->active==1;
+    BOOL bagActive=bagUI.length==sizeof(HGNativeBagUIState) && ((const HGNativeBagUIState *)bagUI.bytes)->active;
+    BOOL pcBoxBlocked=optionsContext || namingContext || captureContext || (summary && summary->active) || bagActive || _partyScene || _evolutionScene || _battleScene || _battleMenuScene;
+    BOOL pcBoxContext=pcBoxActive && !pcBoxBlocked;
+    if (!pcBoxContext) [self updatePCBoxControls:pcBoxUI pictures:pcBoxPictures blocked:pcBoxBlocked paused:paused];
+    const HGNativeFieldChoiceUIState *fieldChoice=fieldChoiceUI.length==sizeof(HGNativeFieldChoiceUIState) ? fieldChoiceUI.bytes : NULL;
+    BOOL fieldChoiceBlocked=optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene
+        || (pokedexUI.length==sizeof(HGNativePokedexUIState) && ((const HGNativePokedexUIState *)pokedexUI.bytes)->active);
+    BOOL fieldChoiceContext=fieldChoice && fieldChoice->active==1 && HGNativeFieldChoiceUIIsListPhase(fieldChoice->phase) && !fieldChoiceBlocked;
+    if (!fieldChoiceContext) [self updateFieldChoiceControls:fieldChoiceUI preview:nil blocked:fieldChoiceBlocked paused:paused];
+    BOOL pokedexBlocked=optionsContext || namingContext || captureContext || summaryContext || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene || pcBoxActive || fieldChoiceContext;
     [self updatePokedexControls:pokedexUI pictures:pokedexPictures blocked:pokedexBlocked paused:paused];
     if (captureContext) [self updateCaptureControls:captureUI paused:paused];
     if (frame) {
@@ -2285,12 +2649,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _displayedBattleMenusQAState=battleMenusQAAtRead; _displayedPaletteFadeFinished=paletteFadeFinishedAtRead;
 #endif
     }
-    BOOL field=fieldMap && !engine && !_battleMode && !_battleScene && !_partyScene && !_bagScene && !_summaryScene && !_battleMenuScene && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext;
+    BOOL field=fieldMap && !engine && !_battleMode && !_battleScene && !_partyScene && !_bagScene && !_summaryScene && !_battleMenuScene && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext && !pcBoxActive && !fieldChoiceContext;
     if (!field) _fieldMenu.image=nil;
     else if (menuFrame) _fieldMenu.image=OriginalPixelImage(menuFrame,256,192);
     BOOL panel=field && menuOpen && _fieldMenu.image;
     _fieldMenu.hidden=_fieldMenuShade.hidden=!panel; _fieldMenu.userInteractionEnabled=!paused;
-    _canvas.userInteractionEnabled=!(field && menuOpen) && !_partyScene && !(_bagScene && !_bagPanel.hidden) && !(_summaryScene && !_summaryPanel.hidden) && !summaryLearning && !_battleMenuKind && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext;
+    _canvas.userInteractionEnabled=!(field && menuOpen) && !_partyScene && !(_bagScene && !_bagPanel.hidden) && !(_summaryScene && !_summaryPanel.hidden) && !summaryLearning && !_battleMenuKind && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext && !pcBoxActive && !fieldChoiceContext;
     NSMutableArray *visible=[NSMutableArray new];
     NSArray *auxNames=@[@"已登记道具 1",@"已登记道具 2",@"跑鞋开关",@"互动"];
     const unsigned auxBits[]={29,30,28,31};
@@ -2324,12 +2688,18 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
     OriginalSetButtonContent(_menuButton,nil,nil,field ? (menuOpen ? @"关闭菜单" : @"菜单") : (engine ? @"返回场景" : @"触摸菜单"));
     if (_pokedexScene) [self layoutPokedexControls:UIEdgeInsetsInsetRect(self.view.bounds,self.view.safeAreaInsets)];
+    if (pcBoxContext) [self updatePCBoxControls:pcBoxUI pictures:pcBoxPictures blocked:NO paused:paused];
+    if (fieldChoiceContext) [self updateFieldChoiceControls:fieldChoiceUI preview:fieldChoicePreview blocked:NO paused:paused];
     if (namingContext) [self updateNamingControls:namingUI paused:paused];
     if (optionsContext) [self updateOptionsControls:optionsUI preview:optionsPreview paused:paused];
     if (failure) { _status.text = failure; _status.hidden = NO; }
     else if (interrupted) { _status.text = ended ? @"已暂停，点开始继续" : @"声音中断，已暂停"; _status.hidden = NO; }
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-#ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
+#if defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+    _displayedPCBoxQAState=pcQAAtRead; _displayedPCBoxQAPadReads=pcPadAtRead;
+    _displayedPCBoxQAOwnerFrame=pcOwnerFrameAtRead; _pcBoxQADisplayedPublishedFrame=pcPublishedAtRead;
+    [self checkPCBoxUIKitDisplay];
+#elif defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK)
     _displayedCaptureQAState=captureQAAtRead; _displayedCaptureQAPadReads=capturePadAtRead;
     [self checkCaptureRegistrationDisplay:checkFrameAtRead];
 #else
@@ -2680,7 +3050,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
             [_condition lock]; _audioChanging=NO; [_condition unlock];
 #endif
-            if (!ready) { [_condition lock]; _failure = error.localizedDescription ?: @"无法恢复游戏与声音输出。"; _stopping = YES; [self clearCaptureInputLocked]; [_condition unlock]; }
+            if (!ready) { [_condition lock]; _failure = error.localizedDescription ?: @"无法恢复游戏与声音输出。"; _stopping = YES;
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+                [self clearPCBoxCheckTransientLocked:YES];
+#endif
+                [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearCaptureInputLocked]; [_condition unlock]; }
         }
     }
     uint32_t battleAddress=w2c_hgengine_HGNativeBattleUIGetState(_game);
@@ -2700,6 +3074,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t summaryAddress=w2c_hgengine_HGNativeSummaryUIGetState(_game);
     if (!summaryAddress || summaryAddress>_env->memory->size || sizeof(HGNativeSummaryUIState)>_env->memory->size-summaryAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeSummaryUIState *currentSummary=(const HGNativeSummaryUIState *)(_env->memory->data+summaryAddress);
+    uint32_t pcBoxAddress=w2c_hgengine_HGNativePCBoxUIGetState(_game);
+    if (!pcBoxAddress || pcBoxAddress>_env->memory->size || sizeof(HGNativePCBoxUIState)>_env->memory->size-pcBoxAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    const HGNativePCBoxUIState *currentPCBox=(const HGNativePCBoxUIState *)(_env->memory->data+pcBoxAddress);
+    uint32_t fieldChoiceAddress=w2c_hgengine_HGNativeFieldChoiceUIGetState(_game);
+    if (!fieldChoiceAddress || fieldChoiceAddress>_env->memory->size || sizeof(HGNativeFieldChoiceUIState)>_env->memory->size-fieldChoiceAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    const HGNativeFieldChoiceUIState *currentFieldChoice=(const HGNativeFieldChoiceUIState *)(_env->memory->data+fieldChoiceAddress);
     uint32_t evolutionAddress=w2c_hgengine_HGNativeEvolutionUIGetState(_game);
     if (!evolutionAddress || evolutionAddress>_env->memory->size || sizeof(HGNativeEvolutionUIState)>_env->memory->size-evolutionAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeEvolutionUIState *currentEvolution=(const HGNativeEvolutionUIState *)(_env->memory->data+evolutionAddress);
@@ -2722,10 +3102,22 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t battleMenuKind=OriginalBattleMenuKind(currentBattleBag,currentBattleParty);
     BOOL battleChild=currentBattleBag->active || currentBattleParty->active;
     BOOL summaryLearning=currentSummary->active && HGNativeSummaryUIIsLearning(currentSummary);
-    BOOL summaryContext=!optionsContext && !namingContext && currentSummary->active && (summaryLearning || (!currentSummary->mode && currentSummary->monDataType==1 && !currentSummary->moveToLearn));
-    BOOL pokedexBlocked=optionsContext || namingContext || captureContext || summaryContext || currentEvolution->active || battleChild || currentBattle->active || currentParty->active || currentBag->active;
+    BOOL summaryContext=!optionsContext && !namingContext && currentSummary->active && (summaryLearning || HGNativeSummaryUIIsOrdinary(currentSummary));
+    BOOL pcBoxActive=currentPCBox->active==1;
+    BOOL pcBoxContext=pcBoxActive && !optionsContext && !namingContext && !captureContext && !currentSummary->active
+        && !currentBag->active && !currentParty->active && !currentEvolution->active && !battleChild && !currentBattle->active;
+    BOOL fieldChoiceList=currentFieldChoice->active==1 && HGNativeFieldChoiceUIIsListPhase(currentFieldChoice->phase);
+    BOOL fieldChoiceContext=fieldChoiceList && !optionsContext && !namingContext && !captureContext && !summaryContext && !pcBoxActive
+        && !currentBag->active && !currentParty->active && !currentEvolution->active && !battleChild && !currentBattle->active && !currentPokedex->active;
+    BOOL pokedexBlocked=optionsContext || namingContext || captureContext || summaryContext || currentEvolution->active || battleChild || currentBattle->active || currentParty->active || currentBag->active || pcBoxActive || fieldChoiceContext;
     BOOL pokedexContext=currentPokedex->active && !pokedexBlocked;
     uint32_t fieldMap=w2c_hgengine_HGNativeFieldMap(_game);
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+    HGPCBoxQAState pcOwnerQA={0};
+    if (![self readPCBoxQAOwner:&pcOwnerQA]) {
+        [_condition lock]; _failure=[NSString stringWithFormat:@"Private PC observer failed at %u",pcOwnerQA.error]; _stopping=YES; [_condition unlock];
+    }
+#endif
 #if defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK)
     HGNativeCaptureQAState captureQA={0}; [self readCaptureRegistrationQA:&captureQA];
 #elif defined(HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK)
@@ -2733,6 +3125,43 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     [_condition lock];
     [self acknowledgeKeysLocked:HGNativeInputPadReads(_env)];
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+    [self processPCBoxQARequestOwnerLocked:&pcOwnerQA];
+#endif
+    if (pcBoxActive || _pcBoxOwnerGeneration) {
+        _joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0; _joystickNeedsReset=YES;
+        _touchX=_touchY=0; _touchPressed=NO; _fieldMenuOpen=NO; _fieldMenuFrame=nil;
+        if (!pcBoxActive || currentPCBox->ownerGeneration!=_pcBoxOwnerGeneration) {
+            BOOL retiring=_pcBoxOwnerGeneration!=0; [self clearPCBoxInputLocked];
+            if (retiring && pcBoxActive) {_pcBoxInputCooling=YES;_pcBoxReleaseReads=HGNativeInputPadReads(_env);}
+        }
+        if (!pcBoxContext && (_pcBoxChoicePending || _pcBoxInputActive)) {
+            [self clearPCBoxInputLocked]; _pcBoxInputCooling=YES; _pcBoxReleaseReads=HGNativeInputPadReads(_env);
+        }
+        if (pcBoxContext || !_pcBoxOwnerGeneration || !pcBoxActive) {
+            _keys=_pendingKeys=_submittedKeys=0; _battleChoicePending=NO;
+            _partyChoicePending=_partyTouchActive=_bagChoicePending=_bagTouchActive=NO;
+            _summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO; _summaryInputKeys=0;
+            _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
+            [self clearCaptureInputLocked]; [self clearEvolutionInputLocked]; [self clearPokedexInputLocked];
+        }
+    }
+    _pcBoxOwnerGeneration=pcBoxActive ? currentPCBox->ownerGeneration : 0;
+    if (fieldChoiceContext || _fieldChoiceOwnerGeneration) {
+        _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0;
+        _touchX=_touchY=0; _touchPressed=NO; _joystickNeedsReset=YES; _fieldMenuOpen=NO; _fieldMenuFrame=nil;
+        if (!fieldChoiceContext || currentFieldChoice->ownerGeneration!=_fieldChoiceOwnerGeneration) {
+            BOOL retiring=_fieldChoiceOwnerGeneration!=0; [self clearFieldChoiceInputLocked];
+            if (retiring && fieldChoiceContext) {_fieldChoiceInputCooling=YES;_fieldChoiceReleaseReads=HGNativeInputPadReads(_env);}
+        }
+        if (fieldChoiceContext) {
+            _battleChoicePending=NO; _partyChoicePending=_partyTouchActive=_bagChoicePending=_bagTouchActive=NO;
+            _summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO; _summaryInputKeys=0;
+            _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
+            [self clearPCBoxInputLocked]; [self clearCaptureInputLocked]; [self clearEvolutionInputLocked]; [self clearPokedexInputLocked];
+        }
+    }
+    _fieldChoiceOwnerGeneration=fieldChoiceContext ? currentFieldChoice->ownerGeneration : 0;
 #ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
     BOOL captureLeaseWasActive=_captureInputActive; uint32_t captureLeaseStart=_captureInputReads;
 #endif
@@ -2771,6 +3200,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     else if (captureContext) _selectedEngine=0;
     else if (summaryContext) _selectedEngine=(summaryLearning ? currentSummary->phase==HG_SUMMARY_UI_FORGET_MOVE || currentSummary->phase==HG_SUMMARY_UI_FORGET_CONFIRM
         : currentSummary->page<=2 && (currentSummary->phase==HG_SUMMARY_UI_INPUT || (currentSummary->phase==HG_SUMMARY_UI_MOVE_SELECT && currentSummary->page==1))) ? 0 : _touchEngine;
+    else if (pcBoxContext) _selectedEngine=0;
+    else if (fieldChoiceContext) _selectedEngine=1;
     else if (currentEvolution->active) _selectedEngine=0;
     else if (pokedexContext) _selectedEngine=0;
     else if (battleChild) _selectedEngine=battleMenuKind ? 0 : _touchEngine;
@@ -2809,10 +3240,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
             _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
         }
     }
-    if (_audio.failure) { _failure = _audio.failure; _stopping = YES; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; }
+    if (_audio.failure) { _failure = _audio.failure; _stopping = YES;
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+        [self clearPCBoxCheckTransientLocked:YES];
+#endif
+        [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; }
     BOOL stopping = _stopping;
-    uint32_t keys = optionsContext || namingContext || captureContext ? 0 : [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth,preferredBattleWidth=_preferredBattleWidth;
-    BOOL battleChoice = !optionsContext && !namingContext && !captureContext && _battleChoicePending;
+    uint32_t keys = optionsContext || namingContext || captureContext || pcBoxContext || fieldChoiceContext ? 0 : [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth,preferredBattleWidth=_preferredBattleWidth;
+    BOOL battleChoice = !optionsContext && !namingContext && !captureContext && !pcBoxActive && !fieldChoiceContext && _battleChoicePending;
     uint32_t battleRevision = _battleChoiceRevision, battleIndex = _battleChoiceIndex;
     _battleChoicePending = NO;
     BOOL pressed = _touchPressed;
@@ -2825,6 +3260,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         else {keys=x=y=0;pressed=NO;}
     } else if (captureContext) {
         if (!_paused && !stopping) [self takeCaptureInputLocked:currentCapture reads:HGNativeInputPadReads(_env) keys:&keys];
+    } else if (pcBoxContext) {
+        x=y=0; pressed=NO;
+        if (!_paused && !stopping) [self takePCBoxInputLocked:currentPCBox reads:HGNativeInputPadReads(_env) keys:&keys];
+        else keys=0;
+    } else if (fieldChoiceContext) {
+        x=y=0; pressed=NO;
+        if (!_paused && !stopping) [self takeFieldChoiceInputLocked:currentFieldChoice reads:HGNativeInputPadReads(_env) keys:&keys];
+        else keys=0;
     } else {
 #ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
     if (!_paused && !stopping) [self takeCaptureRegistrationBootLocked:&captureQA keys:&keys x:&x y:&y pressed:&pressed];
@@ -2859,6 +3302,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (namingLeaseWasActive) _namingQAMaxHeldReads=MAX(_namingQAMaxHeldReads,namingLeaseReads-namingLeaseStart);
 #endif
     BOOL menuOpen=_fieldMenuOpen;
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+    [self observePCBoxCheckPulseOwnerLocked:&pcOwnerQA reads:HGNativeInputPadReads(_env) keys:&keys pressed:pressed];
+#endif
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     BOOL checkReset=_checkResetPending; _checkResetPending=NO;
 #if defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK)
@@ -2869,7 +3315,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #elif defined(HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK)
     BOOL summaryTMRequest=_summaryTMRequestPending,summaryTMIdle=!captureContext && [self summaryTMInputIdleLocked] && !keys && !pressed;
     uint32_t summaryTMRevision=_summaryTMRequestRevision; _summaryTMRequestPending=NO; _summaryTMFixturePreparing=summaryTMRequest;
-#else
+#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
     BOOL checkBattleMenusRequest=_checkBattleMenusRequestPending; uint32_t checkBattleMenusRevision=_checkBattleMenusRequestRevision; _checkBattleMenusRequestPending=NO;
 #endif
 #endif
@@ -2895,7 +3341,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (!valid) _summaryTMFixtureError=@"fixture_request_no_longer_ready";
         [_condition lock]; _summaryTMRequestAccepted=accepted; _summaryTMFixturePreparing=NO; [_condition unlock];
     }
-#else
+#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
     if (checkBattleMenusRequest && !stopping && !captureContext) {
         BOOL accepted=w2c_hgengine_HGNativeBattleMenusQARequest(_game,checkBattleMenusRevision)!=0;
         [_condition lock]; _checkBattleMenusRequestAccepted=accepted; [_condition unlock];
@@ -2922,6 +3368,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSData *partyUI = [NSData dataWithBytes:currentParty length:sizeof(*currentParty)];
     NSData *bagUI = [NSData dataWithBytes:currentBag length:sizeof(*currentBag)];
     NSData *summaryUI = [NSData dataWithBytes:currentSummary length:sizeof(*currentSummary)];
+    NSData *pcBoxUI = [NSData dataWithBytes:currentPCBox length:sizeof(*currentPCBox)];
+    NSData *fieldChoiceUI = [NSData dataWithBytes:currentFieldChoice length:sizeof(*currentFieldChoice)];
     NSData *evolutionUI = [NSData dataWithBytes:currentEvolution length:sizeof(*currentEvolution)];
     NSData *optionsUI = [NSData dataWithBytes:currentOptions length:sizeof(*currentOptions)];
     NSData *namingUI = [NSData dataWithBytes:currentNaming length:sizeof(*currentNaming)];
@@ -2938,7 +3386,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSDictionary *summaryTMFacts=[self summaryTMCurrentFacts];
     UIImage *summaryTMWarning=haveTM && publishedTM.owner==HG_SUMMARY_LEARN_SUMMARY && publishedTM.graphicsReady && currentSummary->ready
         ? [self summaryTMWarningImage:&publishedTM.hmWarning] : nil;
-#else
+#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
     uint32_t qaAddress=w2c_hgengine_HGNativeBattleMenusQAGetState(_game);
     if (!qaAddress || qaAddress>_env->memory->size || sizeof(HGNativeBattleMenusQAState)>_env->memory->size-qaAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeBattleMenusQAState *qa=(const HGNativeBattleMenusQAState *)(_env->memory->data+qaAddress);
@@ -2947,7 +3395,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
 #endif
     const HGNativeBattleUIState *battleState = battleUI.bytes;
-    BOOL originalPage=optionsContext || namingContext || captureContext || summaryContext || currentEvolution->active || pokedexContext || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty) || HGNativePartyUIIsRareCandy(currentParty)))
+    BOOL originalPage=optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || fieldChoiceContext || currentEvolution->active || pokedexContext || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty) || HGNativePartyUIIsRareCandy(currentParty)))
         || (currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag)));
     BOOL battleScene=(battleState->active || battleChild) && !engine && !originalPage;
     uint32_t sceneWidth=originalPage ? 256 : fieldMap ? MAX(256,preferredWidth) : 256;
@@ -2960,7 +3408,13 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
 #endif
-    BOOL rendered=battleScene ? w2c_hgengine_HGNativeRenderBattleView(_game,width,_frameBuffer,size) : w2c_hgengine_HGNativeRender2DView(_game,engine,width,_frameBuffer,size);
+    if (pcBoxActive && memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox))) return;
+    if (memcmp(fieldChoiceUI.bytes,currentFieldChoice,sizeof(*currentFieldChoice))) return;
+    if (!fieldChoiceList || _fieldChoiceFrameGeneration!=currentFieldChoice->ownerGeneration) {
+        _fieldChoiceOwnerFrame=nil; _fieldChoiceOwnerPreview=nil; _fieldChoiceFrameGeneration=0;
+    }
+    BOOL frozenChoice=fieldChoiceContext && !currentFieldChoice->viewActive && _fieldChoiceOwnerFrame.length==256*192*4;
+    BOOL rendered=frozenChoice || (battleScene ? w2c_hgengine_HGNativeRenderBattleView(_game,width,_frameBuffer,size) : w2c_hgengine_HGNativeRender2DView(_game,engine,width,_frameBuffer,size));
     if (!rendered) {
         if (width==256) return;
         width=256; size=width*192*4;
@@ -2969,7 +3423,41 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_COPY,1);
 #endif
-    NSData *frame = [NSData dataWithBytes:_env->memory->data + _frameBuffer length:size];
+    NSData *frame = frozenChoice ? _fieldChoiceOwnerFrame : [NSData dataWithBytes:_env->memory->data + _frameBuffer length:size];
+    UIImage *fieldChoicePreview=nil;
+    if (fieldChoiceContext) {
+        if (memcmp(fieldChoiceUI.bytes,currentFieldChoice,sizeof(*currentFieldChoice))) return;
+        if (currentFieldChoice->viewActive==1) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+            CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
+#endif
+            if (!w2c_hgengine_HGNativeRender2D(_game,0,_frameBuffer,256*192*4)) return;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+            CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_COPY,1);
+#endif
+            NSData *mainFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
+            fieldChoicePreview=OriginalFrameRegion(mainFrame,0,144,256,48);
+            if (!fieldChoicePreview || memcmp(fieldChoiceUI.bytes,currentFieldChoice,sizeof(*currentFieldChoice))) return;
+            _fieldChoiceOwnerFrame=frame; _fieldChoiceOwnerPreview=fieldChoicePreview; _fieldChoiceFrameGeneration=currentFieldChoice->ownerGeneration;
+        } else fieldChoicePreview=_fieldChoiceOwnerPreview;
+    }
+    NSDictionary *pcBoxPictures=nil;
+    if (pcBoxActive) {
+        if (memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox))) return;
+        if (pcBoxContext && currentPCBox->viewActive==1) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+            CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
+#endif
+            if (!w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4)) return;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+            CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_COPY,1);
+#endif
+            NSData *subFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
+            if (memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox))) return;
+            pcBoxPictures=[self copyPCBoxPictures:pcBoxUI.bytes main:frame sub:subFrame];
+            if (!pcBoxPictures) return;
+        } else pcBoxPictures=_pcBoxOwnerPictures;
+    } else _pcBoxOwnerPictures=nil;
     UIImage *optionsPreview=nil;
     if (optionsContext) {
         if (memcmp(optionsUI.bytes,currentOptions,sizeof(*currentOptions)) || !w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4)) return;
@@ -3038,7 +3526,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (!pokedexContext) _pokedexOwnerPictures=nil;
     uint32_t icons=w2c_hgengine_HGNativeFieldMenuIcons(_game);
     NSData *menuFrame=nil;
-    if (!optionsContext && !namingContext && !captureContext && fieldMap && menuOpen) {
+    if (!optionsContext && !namingContext && !captureContext && !pcBoxActive && !fieldChoiceContext && fieldMap && menuOpen) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
 #endif
@@ -3054,6 +3542,15 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     if (!HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
     if (optionsContext && memcmp(optionsUI.bytes,currentOptions,sizeof(*currentOptions))) return;
+    if (memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox))) return;
+    if (memcmp(fieldChoiceUI.bytes,currentFieldChoice,sizeof(*currentFieldChoice))) return;
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+    HGPCBoxQAState pcPublishedQA={0}; BOOL pcQACoherent=[self readPCBoxQAOwner:&pcPublishedQA]
+        && !memcmp(&pcPublishedQA.pc,currentPCBox,sizeof(*currentPCBox))
+        && !memcmp(&pcPublishedQA.summary,currentSummary,sizeof(*currentSummary))
+        && !memcmp(&pcPublishedQA.naming,currentNaming,sizeof(*currentNaming));
+    NSData *pcQAData=pcQACoherent ? [NSData dataWithBytes:&pcPublishedQA length:sizeof(pcPublishedQA)] : nil;
+#endif
 #ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
     BOOL paletteFadeFinished=w2c_hgengine_IsPaletteFadeFinished(_game)!=0;
 #endif
@@ -3061,6 +3558,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _partyUIState=partyUI; _partyPictures=partyPictures;
     _bagUIState=bagUI; _bagPictures=bagPictures;
     _summaryUIState=summaryUI; _summaryPictures=summaryPictures;
+    _pcBoxUIState=pcBoxUI; _pcBoxPictures=pcBoxPictures;
+    _fieldChoiceUIState=fieldChoiceUI; _fieldChoicePreviewImage=fieldChoicePreview;
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+    _pcBoxQAState=pcQAData; _pcBoxQAPadReads=HGNativeInputPadReads(_env);
+    _pcBoxQAOwnerFrame=OS_GetVBlankCount(); _pcBoxQAPublishedFrame=_publishedFrames+1;
+#endif
     _evolutionUIState=evolutionUI; _evolutionPictures=evolutionPictures;
     _optionsUIState=optionsUI; _optionsPreviewImage=optionsPreview;
     _namingUIState=namingUI;
@@ -3088,7 +3591,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     _summaryTMQAState=summaryTMData; _summaryTMFacts=summaryTMFacts; _summaryTMHMWarningImage=summaryTMWarning;
     _summaryTMPadReads=HGNativeInputPadReads(_env); _summaryTMBootInputStep=_summaryTMBootStep; _summaryTMBootInputFrame=_summaryTMBootFrame;
-#else
+#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
     _battleMenusQAState=battleMenusQA;
 #ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
     _paletteFadeFinished=paletteFadeFinished;
@@ -3098,7 +3601,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     [_condition unlock];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-#ifndef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
+#if !defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK) && !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
     [self checkPrivatePartyPublished:partyUI pictures:partyPictures frame:_publishedFrames];
 #endif
     tracePublished=YES;
@@ -3206,7 +3709,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                 [_audio close];
                 if (!reset) {
                     [_condition lock];
-                    [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked];
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+                    [self clearPCBoxCheckTransientLocked:NO]; _pcBoxQAState=nil;
+#endif
+                    [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
                     _audioChanging=NO; _finished = YES;
 #endif
@@ -3227,6 +3733,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                 for (unsigned i = 0; i < 3; i++) if (_wasi->fds[i] >= 0) close(_wasi->fds[i]);
                 free(_wasi); _wasi = NULL;
                 [_condition lock]; BOOL restart = !_stopping && !_failure; [_condition unlock];
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+                if (restart) {
+                    [_condition lock]; [self clearPCBoxCheckTransientLocked:YES];
+                    _failure=@"Private PC case reset before its normal stop"; _stopping=YES; [_condition unlock]; restart=NO;
+                }
+#endif
                 if (!restart) break;
                 rebooted = YES;
                 // Publish fresh UI/audio ownership on the main queue after all old callbacks have been fenced.
@@ -3237,11 +3749,15 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     HGNativeSummaryUIState summary = {0}; HGNativeEvolutionUIState evolution={0};
                     HGNativeOptionsUIState options={0}; NSData *optionsUI=[NSData dataWithBytes:&options length:sizeof(options)];
                     HGNativeNamingUIState naming={0}; NSData *namingUI=[NSData dataWithBytes:&naming length:sizeof(naming)];
+                    HGNativePCBoxUIState pcBox={0}; NSData *pcBoxUI=[NSData dataWithBytes:&pcBox length:sizeof(pcBox)];
+                    HGNativeFieldChoiceUIState fieldChoice={0}; NSData *fieldChoiceUI=[NSData dataWithBytes:&fieldChoice length:sizeof(fieldChoice)];
                     HGNativeCaptureUIState capture={0}; NSData *captureUI=[NSData dataWithBytes:&capture length:sizeof(capture)];
                     HGNativePokedexUIState pokedex={0};
                     HGNativeBattleBagUIState battleBag={0}; HGNativeBattlePartyUIState battleParty={0};
                     [self updateOptionsControls:optionsUI preview:nil paused:NO];
                     [self updateNamingControls:namingUI paused:NO];
+                    [self updatePCBoxControls:pcBoxUI pictures:nil blocked:NO paused:NO];
+                    [self updateFieldChoiceControls:fieldChoiceUI preview:nil blocked:NO paused:NO];
                     [self updateCaptureControls:captureUI paused:NO];
                     [self->_condition lock];
                     self->_audio = [OriginalAudio new];
@@ -3265,6 +3781,18 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     [self clearOptionsInputLocked]; self->_optionsOwnerGeneration=0;
                     self->_namingUIState=self->_displayedNamingUIState=namingUI; self->_namingScene=NO;
                     [self clearNamingInputLocked]; self->_namingOwnerGeneration=0;
+                    self->_pcBoxUIState=self->_displayedPCBoxUIState=pcBoxUI; self->_pcBoxPictures=self->_pcBoxOwnerPictures=nil;
+                    [self clearPCBoxInputLocked]; self->_pcBoxOwnerGeneration=0; self->_pcBoxScene=NO;
+                    [self clearFieldChoiceInputLocked]; self->_fieldChoiceOwnerGeneration=self->_fieldChoiceFrameGeneration=0; self->_fieldChoiceScene=NO;
+                    self->_fieldChoiceUIState=self->_displayedFieldChoiceUIState=fieldChoiceUI;
+                    self->_fieldChoiceOwnerFrame=nil; self->_fieldChoicePreviewImage=self->_fieldChoiceOwnerPreview=nil;
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+                    [self clearPCBoxCheckTransientLocked:YES];
+                    self->_pcBoxQAState=self->_displayedPCBoxQAState=nil;
+                    self->_pcBoxQAPadReads=self->_displayedPCBoxQAPadReads=self->_pcBoxQAOwnerFrame=self->_displayedPCBoxQAOwnerFrame=0;
+                    self->_pcBoxQAPublishedFrame=self->_pcBoxQADisplayedPublishedFrame=0;
+                    self->_pcBoxQARequestSerial=self->_pcBoxQARequestCompleted=0;
+#endif
                     self->_captureUIState=captureUI;
                     self->_pokedexUIState=[NSData dataWithBytes:&pokedex length:sizeof(pokedex)]; self->_pokedexPictures=self->_pokedexOwnerPictures=self->_pokedexDisplayPictures=nil;
                     self->_summaryChoicePending = self->_summaryInputActive = self->_summaryTouchPressed = NO;
@@ -3336,6 +3864,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                         !self->_namingChoice.active && !self->_namingChoice.ownerGeneration && !self->_namingChoice.revision && !self->_namingChoice.ready &&
                         !self->_namingInput.active && !self->_namingInput.ownerGeneration && !self->_namingInput.revision && !self->_namingInput.ready &&
                         [self->_namingUIState isEqualToData:namingUI] && [self->_displayedNamingUIState isEqualToData:namingUI] &&
+                        !self->_pcBoxScene && !self->_pcBoxChoicePending && !self->_pcBoxInputActive && !self->_pcBoxInputCooling && !self->_pcBoxOwnerGeneration &&
+                        !self->_pcBoxChoiceKeys && !self->_pcBoxInputKeys && !self->_pcBoxInputReads && !self->_pcBoxReleaseReads && !self->_pcBoxPictures && !self->_pcBoxOwnerPictures &&
+                        !self->_pcBoxChoice.active && !self->_pcBoxInput.active && [self->_pcBoxUIState isEqualToData:pcBoxUI] && [self->_displayedPCBoxUIState isEqualToData:pcBoxUI] &&
+                        !self->_fieldChoiceScene && !self->_fieldChoiceOwnerGeneration && !self->_fieldChoiceFrameGeneration && !self->_fieldChoiceChoicePending && !self->_fieldChoiceInputActive && !self->_fieldChoiceInputCooling &&
+                        !self->_fieldChoiceChoiceKeys && !self->_fieldChoiceInputKeys && !self->_fieldChoiceInputReads && !self->_fieldChoiceReleaseReads && !self->_fieldChoiceOwnerFrame && !self->_fieldChoicePreviewImage && !self->_fieldChoiceOwnerPreview &&
+                        !self->_fieldChoiceChoice.active && !self->_fieldChoiceInput.active && [self->_fieldChoiceUIState isEqualToData:fieldChoiceUI] && [self->_displayedFieldChoiceUIState isEqualToData:fieldChoiceUI] &&
                         !self->_pokedexChoicePending && !self->_pokedexInputActive && !self->_pokedexInputCooling && !self->_pokedexGestureLive && !self->_pokedexGestureAdmitted && !self->_pokedexPictures && !self->_pokedexOwnerPictures &&
                         !self->_pokedexGestureContinued && !self->_pokedexInput.keys && !self->_pokedexInput.touchPressed && !self->_pokedexInput.touchX && !self->_pokedexInput.touchY && !self->_pokedexGestureTrack.kind && !self->_pokedexDisplayPictures &&
                         !self->_battleMenuChoicePending && !self->_battleMenuTouchActive && !self->_battleMenuTouchCooling && !self->_battleMenuOwnerPictures && !self->_checkBattleMenusRequestPending &&
@@ -3378,7 +3912,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         }
         HGNativeBackupSetPath(NULL);
         [_condition lock];
-        [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked];
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+        [self clearPCBoxCheckTransientLocked:NO]; _pcBoxQAState=nil;
+#endif
+        [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         _audioChanging=NO; _finished = YES;
 #endif
@@ -3391,6 +3928,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #include "pokedex_ui.inc"
 
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
+#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+#include "../tests/pc_box_uikit_check.inc"
+#else
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+#include "../tests/pc_box_check.inc"
+#endif
 #include "../tests/check_original_app.inc"
 #ifdef HEARTGOLD_ORIGINAL_EVOLUTION_CHECK
 #include "../tests/evolution_check.inc"
@@ -3400,6 +3943,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
 #ifdef HEARTGOLD_ORIGINAL_POKEDEX_CHECK
 #include "../tests/pokedex_check.inc"
+#endif
 #endif
 #endif
 

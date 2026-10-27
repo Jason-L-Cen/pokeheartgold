@@ -1,6 +1,9 @@
 #include "field/bottom_screen_app.h"
 
 #include "global.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_field_choice_ui.h"
+#endif
 
 #include "constants/sprites.h"
 
@@ -8,6 +11,7 @@
 
 #include "assert.h"
 #include "poke_overlay.h"
+#include "overlay_01.h"
 #include "screen_fade.h"
 #include "sys_task_api.h"
 #include "systask_environment.h"
@@ -82,7 +86,7 @@ BOOL CommClubButtons_IsExitDone(BgConfig *bgConfig);
 void *UnionChatLog_Init(FieldSystem *fieldSystem);
 void UnionChatLog_Exit(void *data);
 
-void TouchscreenChoiceMenu_SetCallback(void *app, void *callback, void *arg);
+void TouchscreenChoiceMenu_SetCallback(SysTask *app, TouchscreenChoiceMenuCallback callback, struct ScriptMenu *arg);
 void TouchscreenMenu_RequestSelectedIconAnim(void *app);
 void TouchscreenMenu_RequestRegisteredItemAnim(void *app, int item);
 void FieldHookUnused_OnEvent(void *, u32);
@@ -93,7 +97,7 @@ u32 FieldSystem_GetTouchscreenChoiceMenuState(FieldSystem *fieldSystem);
 u8 FieldSystem_GetBottomScreenAppId(FieldSystem *fieldSystem);
 u8 FieldSystem_GetBottomScreenAppState(FieldSystem *fieldSystem);
 struct ScriptMenu **FieldSystem_GetTouchscreenChoiceMenuList(FieldSystem *fieldSystem);
-void FieldSystem_SetTouchscreenChoiceMenuCallback(FieldSystem *fieldSystem, void *callback, void *arg);
+void FieldSystem_SetTouchscreenChoiceMenuCallback(FieldSystem *fieldSystem, TouchscreenChoiceMenuCallback callback, struct ScriptMenu *arg);
 static SysTask *BottomScreenApps_CreateTask(BgConfig *bgConfig, u16 *lastTouchMenuInput, FieldSystem *fieldSystem);
 static void BottomScreenApps_ExitApp(FieldSystem *fieldSystem);
 static BOOL BottomScreenApps_IsExitDone(FieldSystem *fieldSystem);
@@ -293,6 +297,9 @@ static void Task_BottomScreenApps(SysTask *task, void *env) {
 void FieldSystem_SwitchBottomScreenApp(FieldSystem *fieldSystem, int appId, void *args) {
     BottomScreenAppManager *manager = SysTask_GetData(fieldSystem->bottomScreenTask);
     if (manager->state == BOTTOM_SCREEN_APP_STATE_RUNNING) {
+#ifdef HEARTGOLD_NATIVE
+        if (manager->appId == BOTTOM_SCREEN_APP_CHOICE_MENU) NativeFieldChoiceUIInvalidate(manager->app);
+#endif
         manager->state = BOTTOM_SCREEN_APP_STATE_SWITCH_REQUESTED;
         manager->nextAppId = appId;
         manager->args = args;
@@ -306,6 +313,9 @@ void FieldSystem_SetTouchscreenChoiceMenuState(FieldSystem *fieldSystem, int app
     if (appId != FieldSystem_GetBottomScreenAppId(fieldSystem)) {
         GF_ASSERT(FALSE);
     }
+#ifdef HEARTGOLD_NATIVE
+    if (manager->appId == BOTTOM_SCREEN_APP_CHOICE_MENU) NativeFieldChoiceUIInvalidate(manager->app);
+#endif
     menu->state = state;
     menu->result = result;
 }
@@ -332,7 +342,7 @@ struct ScriptMenu **FieldSystem_GetTouchscreenChoiceMenuList(FieldSystem *fieldS
     return &menu->menu;
 }
 
-void FieldSystem_SetTouchscreenChoiceMenuCallback(FieldSystem *fieldSystem, void *callback, void *arg) {
+void FieldSystem_SetTouchscreenChoiceMenuCallback(FieldSystem *fieldSystem, TouchscreenChoiceMenuCallback callback, struct ScriptMenu *arg) {
     BottomScreenAppManager *manager = SysTask_GetData(fieldSystem->bottomScreenTask);
     TouchscreenChoiceMenu_SetCallback(manager->app, callback, arg);
 }

@@ -56,6 +56,31 @@ static uint32_t SummaryCheckPublisher(void) {
     summary.bgConfig=NULL; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); CHECK(!state->ready);
     summary.bgConfig=&bg; bg.bufferTransferScheduled=bg.scrollScheduled=0;
     NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); CHECK(state->ready);
+    BoxPokemon box[30];
+    for (u32 i=0;i<30;++i) ZeroBoxMonData(&box[i]);
+    u16 species=SPECIES_CHIKORITA; u32 isEgg=TRUE;
+    SetBoxMonData(&box[2],MON_DATA_SPECIES,&species);
+    SetBoxMonData(&box[14],MON_DATA_SPECIES,&species);
+    SetBoxMonData(&box[20],MON_DATA_SPECIES,&species); SetBoxMonData(&box[20],MON_DATA_IS_EGG,&isEgg);
+    SetBoxMonData(&box[29],MON_DATA_SPECIES,&species);
+    args.party=(Party *)box; args.monDataType=2; args.partyCount=30; args.partySlot=14;
+    NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); revision=state->revision;
+    CHECK(state->ready && HGNativeSummaryUIIsOrdinary(state) && !HGNativeSummaryUIIsLearning(state)
+        && state->partyCount==30 && state->partySlot==14 && state->previousMonEnabled && state->previousMonSlot==2
+        && state->nextMonEnabled && state->nextMonSlot==20);
+    CHECK(HGNativeSummaryUIResolveInput(state,revision,HG_SUMMARY_UI_INPUT,HG_SUMMARY_UI_INPUT_PREVIOUS_MON,0,&input) && input.keys==64);
+    CHECK(HGNativeSummaryUIResolveInput(state,revision,HG_SUMMARY_UI_INPUT,HG_SUMMARY_UI_INPUT_NEXT_MON,0,&input) && input.keys==128);
+    summary.page=1; CHECK(PokemonSummary_FindNextMon(&summary,1)==29); summary.page=0;
+    args.partySlot=29; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT);
+    CHECK(state->ready && state->revision!=revision && state->previousMonSlot==20 && !state->nextMonEnabled
+        && !HGNativeSummaryUIResolveInput(state,revision,HG_SUMMARY_UI_INPUT,HG_SUMMARY_UI_INPUT_BACK,0,&input));
+    args.partySlot=2; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT);
+    CHECK(state->ready && !state->previousMonEnabled && state->nextMonSlot==14);
+    args.partySlot=30; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); CHECK(!state->ready);
+    args.partySlot=2; args.partyCount=31; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); CHECK(!state->ready);
+    args.partyCount=0; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); CHECK(!state->ready);
+    args.partyCount=30; args.party=NULL; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); CHECK(!state->ready);
+    args.party=(Party *)box; args.monDataType=3; NativeSummaryUIPublish(&summary,HG_SUMMARY_UI_INPUT); CHECK(!state->ready);
     NativeSummaryUIBind(NULL); CHECK(!state->active && !state->ready && !state->nickname.pixelBuffer);
     return 0;
 }
@@ -166,7 +191,7 @@ uint32_t CheckOriginalSummaryUI(void) {
         && !HGNativeSummaryUIResolveInput(&state,9,2,UINT32_MAX,0,&input));
     HGNativeSummaryUIState valid=state;
 #define REJECT(member,value) do { state=valid; state.member=(value); CHECK(!HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_MOVE,0,&input)); } while (0)
-    REJECT(active,0); REJECT(ready,0); REJECT(mode,1); REJECT(monDataType,2); REJECT(moveToLearn,1);
+    REJECT(active,0); REJECT(ready,0); REJECT(mode,1); REJECT(monDataType,0); REJECT(monDataType,3); REJECT(moveToLearn,1);
     REJECT(page,3); REJECT(pageMask,1); REJECT(partyCount,0); REJECT(partyCount,7); REJECT(partySlot,1); REJECT(isEgg,1);
     REJECT(moveMask,2); REJECT(moves[0].enabled,0); REJECT(moves[0].moveId,0);
     REJECT(moves[0].cropWidth,0); REJECT(moves[0].cropWidth,257); REJECT(moves[0].cropHeight,0); REJECT(moves[0].cropHeight,193);
@@ -197,6 +222,16 @@ uint32_t CheckOriginalSummaryUI(void) {
     CHECK(HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_NEXT_MON,0,&input) && input.keys==128);
     state.previousMonSlot=2; CHECK(!HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_PREVIOUS_MON,0,&input));
     state.nextMonSlot=0; CHECK(!HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_NEXT_MON,0,&input));
+    state=valid; state.monDataType=2; state.partyCount=30; state.partySlot=14;
+    state.previousMonEnabled=state.nextMonEnabled=1; state.previousMonSlot=2; state.nextMonSlot=29;
+    CHECK(!HGNativeSummaryUIIsOrdinary(NULL) && HGNativeSummaryUIIsOrdinary(&state) && !HGNativeSummaryUIIsLearning(&state));
+    CHECK(HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_MOVE,0,&input));
+    CHECK(HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_PREVIOUS_MON,0,&input) && input.keys==64);
+    CHECK(HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_NEXT_MON,0,&input) && input.keys==128);
+    state.nextMonSlot=30; CHECK(!HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_NEXT_MON,0,&input));
+    state.partySlot=29; CHECK(HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_BACK,0,&input));
+    state.partySlot=30; CHECK(!HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_BACK,0,&input));
+    state.partySlot=29; state.partyCount=31; CHECK(!HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_BACK,0,&input));
     state=valid; state.page=0; state.isEgg=1;
     CHECK(HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_BACK,0,&input) && input.keys==2);
     CHECK(!HGNativeSummaryUIResolveInput(&state,9,2,HG_SUMMARY_UI_INPUT_MOVE,0,&input)
@@ -218,7 +253,7 @@ uint32_t CheckOriginalSummaryUI(void) {
 int main(void) {
     uint32_t line=CheckOriginalSummaryUI();
     if (line) { fprintf(stderr,"Summary UI check line %u\n",line); return 1; }
-    puts("PASS: real Summary publisher BG commit barrier, input revisions, original key/touch routes, zero-PP details, bounds and view-only move selection.");
+    puts("PASS: real Summary publisher BG commit barrier, input revisions, original key/touch routes, boxed navigation with empty slots and egg rules, bounds and view-only move selection.");
     return 0;
 }
 #endif

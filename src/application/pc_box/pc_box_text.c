@@ -1216,11 +1216,16 @@ void PCBox_PlaceCursorOnGridInput(PCBoxWork *work, int target) {
     ManagedSprite_SetPositionXY(work->view->sprites[9], pos.x, pos.y);
 }
 
-void PCBox_GridOnButton(PCBoxWork *work, int target) {
+void PCBox_GridOnButton(void *data, int target, int prevTargetArg) {
+    PCBoxWork *work = data;
+    (void)prevTargetArg;
     GridInputHandler_SetNextInput(work->view->gridInput, (u8)target);
     PCBox_PlaceCursorOnGridInput(work, target);
 }
 
-void PCBox_GridOnSwitchToTouchMode(PCBoxWork *work) {
+void PCBox_GridOnSwitchToTouchMode(void *data, int newTargetArg, int prevTargetArg) {
+    PCBoxWork *work = data;
+    (void)newTargetArg;
+    (void)prevTargetArg;
     PCBox_SetSpriteVisible(work->view, 9, 0);
 }

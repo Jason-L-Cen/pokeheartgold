@@ -1,4 +1,8 @@
 #include "global.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pc_box_ui.h"
+#include "screen_fade.h"
+#endif
 
 #include "constants/items.h"
 #include "constants/pokemon.h"
@@ -74,6 +78,50 @@ static void PCBox_LoadWallpaperTilemap(PCBoxWork *work, s32 unused, u32 tile, u3
 static void PCBox_LoadWallpaper(PCBoxWork *work, s32 member, u32 tile, u32 offset, u32 palette);
 static u32 PCBox_IsPointInRect(s32 x, s32 y, const u8 *r);
 
+#ifdef HEARTGOLD_NATIVE
+#define CHECK_NATIVE_PC_PHASE(name) _Static_assert(PC_BOX_STATE_##name == HG_PC_BOX_UI_##name, "native PC phase " #name)
+CHECK_NATIVE_PC_PHASE(WAIT_BUTTON); CHECK_NATIVE_PC_PHASE(HANDLE_YES_NO);
+CHECK_NATIVE_PC_PHASE(MOVE_MODE_INPUT); CHECK_NATIVE_PC_PHASE(MARKING_MENU_INPUT);
+CHECK_NATIVE_PC_PHASE(MOVE_MODE_PARTY_INPUT); CHECK_NATIVE_PC_PHASE(BOX_TRAY_INPUT);
+CHECK_NATIVE_PC_PHASE(BOX_MENU_INPUT); CHECK_NATIVE_PC_PHASE(WALLPAPER_MENU_INPUT);
+CHECK_NATIVE_PC_PHASE(WITHDRAW_INPUT); CHECK_NATIVE_PC_PHASE(DEPOSIT_INPUT);
+CHECK_NATIVE_PC_PHASE(DEPOSIT_BOX_INPUT); CHECK_NATIVE_PC_PHASE(BOX_TRAY_HOLDING_INPUT);
+CHECK_NATIVE_PC_PHASE(ITEM_MODE_INPUT); CHECK_NATIVE_PC_PHASE(ITEM_MODE_BOX_TRAY_INPUT);
+CHECK_NATIVE_PC_PHASE(ITEM_TRAY_HOLDING_INPUT); CHECK_NATIVE_PC_PHASE(ITEM_MODE_PARTY_INPUT);
+#undef CHECK_NATIVE_PC_PHASE
+
+static void PCBox_PublishNativeUI(PCBoxWork *work, u32 phase) {
+    HGNativePCBoxUIState next = {0};
+    NativePCBoxUISelection selection = {0};
+    next.phase = phase;
+    next.mode = work->args->mode;
+    next.activeBox = work->activeBox;
+    next.selectedSlot = work->selectedSlot;
+    next.partyPanelOpen = work->partyPanelOpen;
+    next.trayOpen = work->trayOpen;
+    if (work->view && HGNativePCBoxUIGetState()->viewActive) {
+        PCBoxView *view = work->view;
+        selection.gridNextInput = GridInputHandler_GetNextInput(view->gridInput);
+        selection.gridIsButtons = GridInputHandler_IsButtonInputMode(view->gridInput);
+        selection.markings = view->markings;
+        selection.trayBox = work->trayBox;
+        selection.wallpaperSelection = view->wallpaperSelection;
+        if (view->yesNoPrompt) {
+            selection.yesNoCursorPos = view->yesNoPrompt->cursorPos;
+            selection.yesNoInTouchMode = view->yesNoPrompt->inTouchMode;
+        }
+        next.actionMenuOpen = PCBox_IsActionMenuOpen(view->panels);
+        next.cursorHolding = view->cursorHolding;
+        next.ready = HGNativePCBoxUIIsInputPhase(phase) && IsPaletteFadeFinished()
+            && !PaletteData_GetSelectedBuffersBitmask(view->paletteData) && !view->updateFunc && !view->pendingUpdateFunc;
+        if (phase == PC_BOX_STATE_HANDLE_YES_NO) {
+            next.ready = next.ready && view->yesNoPrompt && view->yesNoPrompt->buttonsAreInit == 1 && view->yesNoPrompt->result == 3;
+        }
+    }
+    NativePCBoxUIPublish(work, &next, &selection);
+}
+#endif
+
 BOOL PCBox_Init(OverlayManager *manager, int *state) {
     PCBoxWork *work;
 
@@ -89,13 +137,20 @@ BOOL PCBox_Init(OverlayManager *manager, int *state) {
     work->selectedSlot = PC_BOX_SLOT_NONE;
     work->returnCursorPos = 0;
     work->nextState = PC_BOX_STATE_START;
+#ifdef HEARTGOLD_NATIVE
+    NativePCBoxUIBegin(work);
+#endif
     return TRUE;
 }
 
 BOOL PCBox_Main(OverlayManager *manager, int *state) {
     PCBoxWork *work = OverlayManager_GetData(manager);
 
-    if (PCBox_RunStateMachine(work, state) == FALSE) {
+    BOOL running = PCBox_RunStateMachine(work, state);
+#ifdef HEARTGOLD_NATIVE
+    PCBox_PublishNativeUI(work, *state);
+#endif
+    if (running == FALSE) {
         return TRUE;
     }
     return FALSE;
@@ -105,6 +160,9 @@ BOOL PCBox_Exit(OverlayManager *manager, int *state) {
     PCBoxWork *work = OverlayManager_GetData(manager);
 
     PCStorage_SetActiveBox(work->storage, work->activeBox);
+#ifdef HEARTGOLD_NATIVE
+    NativePCBoxUIRetire(work);
+#endif
     OverlayManager_FreeData(manager);
     Heap_Destroy(HEAP_ID_9);
     return TRUE;
@@ -136,14 +194,14 @@ static void PCBox_UpdateDetailPanel(PCBoxWork *work) {
     PCBox_UpdateInfoItemIconPosition(work->view);
 }
 
-void PCBox_SetUpdateFunc(PCBoxView *view, void *v) {
+void PCBox_SetUpdateFunc(PCBoxView *view, PCBoxUpdateFunc v) {
     view->subState = 0;
     view->counter = 0;
     view->updateFunc = v;
     view->pendingUpdateFunc = NULL;
 }
 
-void PCBox_SetPendingUpdateFunc(PCBoxView *view, void *v) {
+void PCBox_SetPendingUpdateFunc(PCBoxView *view, PCBoxUpdateFunc v) {
     view->pendingUpdateFunc = v;
 }
 
