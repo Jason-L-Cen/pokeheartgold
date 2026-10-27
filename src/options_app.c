@@ -25,6 +25,9 @@
 #include "sound_playback.h"
 #include "wireless_status_icon.h"
 #include "vram_transfer_manager.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_options_ui.h"
+#endif
 
 // Not to be confused with `Options`, which is almost exactly the same, save for two members being swapped. SMH
 typedef struct OptionsApp_Options {
@@ -332,6 +335,9 @@ BOOL OptionsMenu_Init(OverlayManager *manager, int *state) {
 
     OptionsApp_Data *data = OverlayManager_CreateAndGetData(manager, sizeof(OptionsApp_Data), HEAP_ID_OPTIONS_APP);
     memset(data, 0, sizeof(OptionsApp_Data));
+#ifdef HEARTGOLD_NATIVE
+    NativeOptionsUIBegin(data);
+#endif
 
     data->options.textSpeed = Options_GetTextSpeed(args->options);
     data->options.battleScene = Options_GetBattleScene(args->options);
@@ -384,8 +390,16 @@ BOOL OptionsMenu_Exit(OverlayManager *manager, int *state) {
     TextFlags_SetCanABSpeedUpPrint(TRUE);
     TextFlags_SetCanTouchSpeedUpPrint(TRUE);
 
+#ifdef HEARTGOLD_NATIVE
+    enum HeapID heapID = data->heapID;
+    NativeOptionsUIRetire(data);
+#endif
     OverlayManager_FreeData(manager);
+#ifdef HEARTGOLD_NATIVE
+    Heap_Destroy(heapID);
+#else
     Heap_Destroy(data->heapID);
+#endif
 
     return TRUE;
 }
@@ -416,6 +430,9 @@ BOOL OptionsMenu_Main(OverlayManager *manager, int *state) {
         }
         OptionsApp_HandleInput(data);
         SpriteSystem_DrawSprites(data->spriteGfxHandler);
+#ifdef HEARTGOLD_NATIVE
+        NativeOptionsUIPublish(data, data->exitState == 2 && data->exitChoice == 0);
+#endif
         return FALSE;
     case 3:
         SpriteSystem_DrawSprites(data->spriteGfxHandler);
@@ -442,6 +459,9 @@ BOOL OptionsMenu_Main(OverlayManager *manager, int *state) {
     }
 
     data->exitState++;
+#ifdef HEARTGOLD_NATIVE
+    NativeOptionsUIPublish(data, data->exitState == 2 && data->exitChoice == 0);
+#endif
     return FALSE;
 }
 
@@ -516,6 +536,9 @@ static BOOL OptionsApp_Setup(OptionsApp_Data *data) {
 static BOOL OptionsApp_Free(OptionsApp_Data *data) {
     switch (data->setupAndFreeState) {
     case 0:
+#ifdef HEARTGOLD_NATIVE
+        Main_SetVBlankIntrCB(NULL, NULL);
+#endif
         GF_DestroyVramTransferManager();
         OptionsApp_FreeWindows(data);
 

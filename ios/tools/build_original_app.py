@@ -515,7 +515,8 @@ def main():
     if link['exitCode'] or hashlib.sha256(module.read_bytes()).hexdigest()!=link['outputSha256']:
         raise RuntimeError('Run check_abi32.py --audit first; strict engine link is unavailable')
     listing=subprocess.run([str(WABT/'bin/wasm-objdump'),'-x',str(module)],capture_output=True,text=True,timeout=15)
-    if listing.returncode or 'HGNativePokedexUIGetState' not in set(re.findall(r'-> "([^"\n]+)"',listing.stdout)):
+    shipping_exports=set(re.findall(r'-> "([^"\n]+)"',listing.stdout))
+    if listing.returncode or 'HGNativePokedexUIGetState' not in shipping_exports:
         raise RuntimeError('Shipping engine is missing the original Pokédex UI getter')
     pack=verify(link.get('nativeContent')); header=read_boot_header(pack)
     destination=BUILD/f'app-{args.sdk}'; destination.mkdir(exist_ok=True)
@@ -539,21 +540,29 @@ def main():
     elif args.check_case in ('summary-tm','summary-candy'):
         module,private_guest=summary_tm_guest(args.summary_candy_report or args.summary_tm_report,audit,link,rare_candy=args.check_case=='summary-candy')
     elif args.check:
-        from check_native_battle_menus import prepare_battle_menus_guest
+        from check_native_battle_menus import QA_EXPORTS, prepare_battle_menus_guest
         guest_destination=Path(tempfile.mkdtemp(prefix='battle-menus-guest-',dir=destination))
         if args.check_case:
             module,private_guest=prepare_battle_menus_guest(guest_destination,run,
                 field_potion=args.check_case=='field-potion',forced_switch=args.check_case=='forced-switch',learn_moves=args.check_case=='learn-moves')
         else:
-            module,private_guest=prepare_battle_menus_guest(guest_destination,run)
+            def default_check_run(command,log):
+                if log=='guest-strict-link.log':
+                    command=list(command)
+                    command.insert(command.index('-o'),'-Wl,--export=IsPaletteFadeFinished')
+                run(command,log)
+            module,private_guest=prepare_battle_menus_guest(guest_destination,default_check_run)
     selected_listing=subprocess.run([str(WABT/'bin/wasm-objdump'),'-x',str(module)],capture_output=True,text=True,timeout=15)
     (destination/'selected-module-exports.log').write_text(selected_listing.stdout+selected_listing.stderr)
     selected_exports=set(re.findall(r'-> "([^"\n]+)"',selected_listing.stdout))
-    if selected_listing.returncode or not {'HGNativePokedexUIGetState','HGNativeCaptureUIGetState','HGNativeNamingUIGetState'}<=selected_exports:
+    if selected_listing.returncode or not {'HGNativePokedexUIGetState','HGNativeCaptureUIGetState','HGNativeNamingUIGetState','HGNativeOptionsUIGetState'}<=selected_exports:
         raise RuntimeError('Selected module lacks a current public UI getter; require a matching actual native proof, not rewritten approval hashes')
+    if args.check and not args.check_case and selected_exports!=shipping_exports|set(QA_EXPORTS)|{'IsPaletteFadeFinished'}:
+        raise RuntimeError('Default CHECK requires the shipping exports, existing private QA exports and one read-only palette-fade export')
     generated,writes,restores=generate_engine(destination,module,run)
     flags,sources=native_build_settings(destination)
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
+    if args.check and not args.check_case: check_flags.append('-DHEARTGOLD_ORIGINAL_DEFAULT_CHECK')
     if args.check_case in ('summary-tm','summary-candy','evolution','evolution-cancel','evolution-learn','pokedex'): check_flags.append('-DHEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK')
     if args.check_case in ('evolution','evolution-cancel'): check_flags.append('-DHEARTGOLD_ORIGINAL_EVOLUTION_CHECK')
     if args.check_case=='evolution-learn': check_flags.append('-DHEARTGOLD_ORIGINAL_EVOLUTION_LEARN_CHECK')
@@ -650,6 +659,7 @@ def main():
                 executableSha256=hashlib.sha256((app/'HeartGoldOriginal').read_bytes()).hexdigest(),
                 entryCommandJournal=str(destination/'entry.log.command.json'),
                 entryCommandJournalSha256=hashlib.sha256((destination/'entry.log.command.json').read_bytes()).hexdigest())
+    if args.check and not args.check_case: report['privateReadOnlyExports']=['IsPaletteFadeFinished']
     if args.check_case=='summary-tm': report['summaryTm']=True
     if args.check_case=='summary-candy': report['rareCandyLearn']=True
     if args.check_case in ('evolution','evolution-cancel'): report.update(evolution=True,evolutionCancel=args.check_case=='evolution-cancel')

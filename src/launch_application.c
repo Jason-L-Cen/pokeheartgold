@@ -1,6 +1,9 @@
 #include "launch_application.h"
 
 #include "global.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_options_ui.h"
+#endif
 
 #include "constants/flags.h"
 
@@ -666,6 +669,36 @@ BugContestSwapMonArgs *BugContestSwapMon_LaunchApp(FieldSystem *fieldSystem, Pok
     return args;
 }
 
+#ifdef HEARTGOLD_NATIVE
+// Keep this state resident: Options overlay54 restores its own data/BSS on reload.
+HGNativeOptionsUIState gNativeOptionsUIState;
+static const void *sNativeOptionsOwner;
+
+const HGNativeOptionsUIState *HGNativeOptionsUIGetState(void) { return &gNativeOptionsUIState; }
+
+void NativeOptionsUIBegin(const void *owner) {
+    if (!owner || owner == sNativeOptionsOwner) return;
+    sNativeOptionsOwner = owner;
+    if (!++gNativeOptionsUIState.ownerGeneration) ++gNativeOptionsUIState.ownerGeneration;
+    if (!++gNativeOptionsUIState.revision) ++gNativeOptionsUIState.revision;
+    gNativeOptionsUIState.active = 1;
+    gNativeOptionsUIState.ready = 0;
+}
+
+void NativeOptionsUIPublish(const void *owner, uint32_t ready) {
+    if (owner != sNativeOptionsOwner || gNativeOptionsUIState.active != 1 || ready > 1
+        || gNativeOptionsUIState.ready == ready) return;
+    gNativeOptionsUIState.ready = ready;
+    if (!++gNativeOptionsUIState.revision) ++gNativeOptionsUIState.revision;
+}
+
+void NativeOptionsUIRetire(const void *owner) {
+    if (!owner || owner != sNativeOptionsOwner) return;
+    sNativeOptionsOwner = NULL;
+    gNativeOptionsUIState.active = gNativeOptionsUIState.ready = 0;
+    if (!++gNativeOptionsUIState.revision) ++gNativeOptionsUIState.revision;
+}
+#endif
 static void OptionsMenu_LaunchApp_Impl(FieldSystem *fieldSystem, OptionsMenuArgs *args) {
     static const OverlayManagerTemplate sOverlayTemplate_OptionsMenu = { OptionsMenu_Init, OptionsMenu_Main, OptionsMenu_Exit, FS_OVERLAY_ID(options_app) };
     FieldSystem_LaunchApplication(fieldSystem, &sOverlayTemplate_OptionsMenu, args);

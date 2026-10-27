@@ -1875,6 +1875,9 @@ int main(int argc,char **argv) {
     u32 namingUI=w2c_hg32_CheckNativeNamingUI(&first);
     if (namingUI) fprintf(stderr,"Native Naming UI qualification check line %u\n",namingUI);
     CHECK(!namingUI && !w2c_hg32_CheckNativeNamingUI(&second));
+    u32 optionsUI=w2c_hg32_CheckNativeOptionsUI(&first);
+    if (optionsUI) fprintf(stderr,"Native Options UI qualification check line %u\n",optionsUI);
+    CHECK(!optionsUI && !w2c_hg32_CheckNativeOptionsUI(&second));
     u32 ballPocket=w2c_hg32_CheckOriginalBallPocket(&first);
     if (ballPocket) fprintf(stderr,"Original ball pocket check line %u\n",ballPocket);
     CHECK(!ballPocket && !w2c_hg32_CheckOriginalBallPocket(&second));

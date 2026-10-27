@@ -441,6 +441,177 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     _battleMenuOwnerPictures=oldOwnerPictures; _battleMenuOwnerKind=oldOwnerKind; _battleMenuOwnerRevision=oldOwnerRevision; _battleMenuOwnerPhase=oldOwnerPhase;
     _frameEngine=oldFrameEngine; _displayedEngine=oldDisplayedEngine;
 }
+- (void)checkOptionsFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
+    NSArray *keys=@[@"actualOptionsTwoLifetimes",@"actualOptionsSingleScreenCanvas",@"actualOptionsBusyBlocksButtons",@"actualOptionsRealButtonEvents",
+        @"actualOptionsTextPreviewChanged",@"actualOptionsFramePreviewChanged",@"actualOptionsCancelRestoresFrame",@"actualOptionsCancelReturnsField",
+        @"actualOptionsConfirmReturnsField",@"actualOptionsCapturesComplete",@"actualOptionsPreservesSave",@"actualOptionsCompleted"];
+    for (NSString *key in keys) report[key]=@NO;
+    NSArray *pngs=@[@"original-options-first-ready-check.png",@"original-options-text-speed-check.png",@"original-options-frame-preview-check.png",
+        @"original-options-first-cancel-field-check.png",@"original-options-reopen-check.png",@"original-options-confirm-check.png",@"original-options-confirm-field-check.png",
+        @"original-options-preview-baseline.png",@"original-options-preview-changed.png",@"original-options-preview-restored.png"];
+    NSMutableSet *captured=[NSMutableSet new]; NSMutableArray *events=[NSMutableArray new];
+    NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
+    NSURL *save=[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
+    save=[[save URLByAppendingPathComponent:@"HeartGoldOriginal"] URLByAppendingPathComponent:@"heartgold.sav"];
+    NSData *saveBefore=[NSData dataWithContentsOfURL:save];
+    __block NSUInteger stage=0,polls=0,lastStage=NSNotFound,move=0,presses=0,busySamples=0,stableFrames=0;
+    __block uint32_t firstGeneration=0,secondGeneration=0,steadyGeneration=0,steadyRevision=0;
+    __block BOOL canvasOK=YES,busyOK=YES,buttonsOK=YES;
+    __block NSData *baselineBorder=nil,*baselineMain=nil,*lastBorder=nil;
+    __block UIImage *lastCanvas=nil;
+    __block CFAbsoluteTime steadySince=0;
+    CFAbsoluteTime deadline=CFAbsoluteTimeGetCurrent()+90;
+    NSData *(^border)(UIImage *)=^NSData *(UIImage *image) {
+        CGImageRef cg=image.CGImage;
+        if (!cg || CGImageGetWidth(cg)!=256 || CGImageGetHeight(cg)!=48 || CGImageGetBitsPerPixel(cg)!=32 || CGImageGetBitsPerComponent(cg)!=8) return nil;
+        size_t stride=CGImageGetBytesPerRow(cg); NSData *pixels=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(cg)));
+        if (stride<256*4 || stride>pixels.length/48) return nil;
+        NSMutableData *result=[NSMutableData new]; const uint8_t *p=pixels.bytes;
+        // Full original frame2; exclude only its printer's inner window (16,8,216,32).
+        for (NSUInteger y=0;y<48;y++) for (NSUInteger x=0;x<256;x++) if (x<16 || x>=232 || y<8 || y>=40) [result appendBytes:p+y*stride+x*4 length:4];
+        return result;
+    };
+    BOOL (^shot)(NSString *,UIImage *)=^BOOL(NSString *name,UIImage *image) {
+        BOOL ok=[self checkPrivateCapture:name kind:@"actual-options" image:image];
+        report[@"actualCapturesComplete"]=@([report[@"actualCapturesComplete"] boolValue] && ok);
+        if (ok) [captured addObject:name]; return ok;
+    };
+    __block void (^step)(void);
+    void (^finish)(NSString *)=^(NSString *status) {
+        BOOL files=[captured isEqualToSet:[NSSet setWithArray:pngs]];
+        for (NSString *name in pngs) {UIImage *image=[UIImage imageWithContentsOfFile:[folder URLByAppendingPathComponent:name].path];files&=image.CGImage!=nil;}
+        report[@"actualOptionsTwoLifetimes"]=@(firstGeneration && secondGeneration==(firstGeneration==UINT32_MAX ? 1u : firstGeneration+1));
+        report[@"actualOptionsSingleScreenCanvas"]=@(firstGeneration && canvasOK);
+        report[@"actualOptionsBusyBlocksButtons"]=@(busySamples && busyOK);
+        report[@"actualOptionsRealButtonEvents"]=@(buttonsOK && presses==11);
+        report[@"actualOptionsCapturesComplete"]=@(files);
+        report[@"actualOptionsPreservesSave"]=@(saveBefore && [saveBefore isEqualToData:[NSData dataWithContentsOfURL:save]]);
+        report[@"actualOptionsCompleted"]=@([status isEqual:@"completed"]);
+        NSDictionary *evidence=@{@"status":status,@"stage":@(stage),@"polls":@(polls),@"firstGeneration":@(firstGeneration),@"secondGeneration":@(secondGeneration),
+            @"buttonEvents":@(presses),@"busySamples":@(busySamples),@"captures":[captured allObjects],@"events":events,
+            @"diskPersistenceValidated":@NO,@"audibleAudioValidated":@NO,@"physicalGesturesValidated":@NO};
+        [[NSJSONSerialization dataWithJSONObject:evidence options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:@"original-options-flow-qa.json"] options:NSDataWritingAtomic error:nil];
+        // The existing completion chain takes afterMenus snapshots, stops, waits and writes its report on every outcome.
+        step=nil; completion();
+    };
+    BOOL (^press)(uint32_t)=^BOOL(uint32_t key) {
+        OriginalKeyButton *button=(OriginalKeyButton *)self->_buttons[@(key)];
+        NSData *shownData=self->_displayedOptionsUIState; const HGNativeOptionsUIState *shown=shownData.bytes;
+        if (![button isKindOfClass:OriginalKeyButton.class] || button.hidden || !button.enabled || button.window!=self.view.window
+            || !button.window || ![button isDescendantOfView:self.view] || shownData.length!=sizeof(*shown) || !HGNativeOptionsUIInputAllowed(shown,shown->ownerGeneration,shown->revision)) return NO;
+        BOOL activated=[button accessibilityActivate];
+        [self->_condition lock];
+        BOOL queued=self->_optionsChoicePending && self->_optionsChoice.ownerGeneration==shown->ownerGeneration && self->_optionsChoice.revision==shown->revision && self->_optionsChoiceKeys==key;
+        BOOL admitted=self->_optionsInputActive && self->_optionsInput.ownerGeneration==shown->ownerGeneration && self->_optionsInput.revision==shown->revision && self->_optionsInputKeys==key;
+        [self->_condition unlock];
+        BOOL ok=activated && (queued || admitted); buttonsOK&=ok; if (ok) presses++; return ok;
+    };
+    void (^resetSteady)(void)=^{steadySince=0;stableFrames=0;lastBorder=nil;lastCanvas=nil;};
+    step=^{
+        [self.view layoutIfNeeded];
+        NSData *data=self->_displayedOptionsUIState; const HGNativeOptionsUIState *p=data.bytes;
+        BOOL valid=data.length==sizeof(*p),active=valid && p->active==1;
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+        NSData *displayedQA=self->_displayedBattleMenusQAState;
+        const HGNativeBattleMenusQAState *q=displayedQA.length==sizeof(*q) ? displayedQA.bytes : NULL;
+#endif
+        [self->_condition lock]; BOOL failed=self->_failure!=nil || self->_finished;
+        uint32_t map=self->_fieldMapId; BOOL idle=!self->_optionsChoicePending && !self->_optionsInputActive && !self->_optionsInputCooling;
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+        NSData *geometry=self->_geometryState;
+#endif
+        BOOL menu=self->_fieldMenuOpen,paused=self->_paused; [self->_condition unlock];
+        if (failed || ++polls>900 || CFAbsoluteTimeGetCurrent()>deadline) {finish(failed ? @"engine_stopped" : @"options_flow_timeout");return;}
+        if (lastStage!=stage) {
+            if (events.count<128) [events addObject:@{@"stage":@(stage),@"generation":@(active ? p->ownerGeneration : 0),@"revision":@(active ? p->revision : 0),@"ready":@(active ? p->ready : 0),@"map":@(map)}];
+            lastStage=stage;
+        }
+        BOOL native=active && self->_optionsScene && !self->_displayedEngine && self->_displayedWidth==256
+            && self->_canvas.image.size.width==256 && self->_canvas.image.size.height==192 && !self->_canvas.hidden && !self->_canvas.userInteractionEnabled
+            && self->_optionsPreview.image.size.width==256 && self->_optionsPreview.image.size.height==48 && !self->_optionsPreview.hidden && !self->_optionsPreview.userInteractionEnabled
+            && fabs(self->_canvas.bounds.size.width*3-self->_canvas.bounds.size.height*4)<1 && CGRectGetMaxY(self->_canvas.frame)<=CGRectGetMinY(self->_optionsPreview.frame)
+            && self->_menuButton.hidden && self->_fieldMenu.hidden && self->_joystick.hidden && self->_partyPanel.hidden && self->_bagPanel.hidden && self->_battleBar.hidden;
+        if (active) {
+            canvasOK&=native;
+            if (!p->ready) {busySamples++;for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10,@1,@2]) busyOK&=!self->_buttons[key].enabled;}
+        }
+        NSData *edge=native ? border(self->_optionsPreview.image) : nil;
+        BOOL ready=native && !paused && p->ready==1 && idle && edge && [self checkPrivatePixels:self->_canvas.image] && [self checkPrivatePixels:self->_optionsPreview.image];
+        if (!ready || steadyGeneration!=p->ownerGeneration || steadyRevision!=p->revision || ![lastBorder isEqualToData:edge]) {
+            steadySince=ready ? CFAbsoluteTimeGetCurrent() : 0; stableFrames=0; steadyGeneration=active ? p->ownerGeneration : 0; steadyRevision=active ? p->revision : 0;
+        }
+        if (ready && lastCanvas!=self->_canvas.image) stableFrames++;
+        lastCanvas=self->_canvas.image; lastBorder=edge;
+        BOOL steady=ready && stableFrames>=3 && CFAbsoluteTimeGetCurrent()-steadySince>=0.5;
+        BOOL field=valid && !active && map==MAP_ROUTE_29 && !self->_optionsScene && self->_optionsPreview.hidden && !self->_displayedEngine
+            && !self->_battleMode && !self->_battleScene && !self->_battleMenuScene && !self->_partyScene && !self->_bagScene && !self->_summaryScene
+            && !self->_canvas.hidden && [self checkPrivatePixels:self->_canvas.image] && !self->_menuButton.hidden && self->_menuButton.enabled && self->_menuButton.window
+            && (menu ? !self->_fieldMenu.hidden && self->_fieldMenu.image!=nil : !self->_joystick.hidden);
+        if ((stage==0 || stage==6) && field) {
+            if (!menu) {
+                UIButton *button=self->_menuButton;
+                if (!button.hidden && button.enabled && button.window && [button isDescendantOfView:self.view]) [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+            } else if (!self->_fieldMenu.hidden && self->_fieldMenu.window && self->_fieldMenu.userInteractionEnabled) {
+                for (NSUInteger i=0;i<MIN((NSUInteger)7,self->_fieldMenuElements.count);i++) if (((self->_fieldMenuIcons>>(i*4))&15)==6
+                    && [self->_fieldMenu.accessibilityElements containsObject:self->_fieldMenuElements[i]]) {
+                    if ([self->_fieldMenuElements[i] accessibilityActivate]) {stage=stage==0 ? 1 : 7;resetSteady();} break;
+                }
+            }
+        } else if (stage==1 && steady) {
+            firstGeneration=p->ownerGeneration;baselineBorder=edge;baselineMain=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(self->_canvas.image.CGImage)));
+            if (!shot(@"original-options-first-ready-check.png",nil) || !shot(@"original-options-preview-baseline.png",self->_optionsPreview.image)) {finish(@"first_capture_failed");return;}
+            if (!press(0x10)) {finish(@"text_right_not_admitted");return;}stage=2;resetSteady();
+        } else if (stage==2 && steady) {
+            NSData *main=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(self->_canvas.image.CGImage)));
+            report[@"actualOptionsTextPreviewChanged"]=@(baselineMain && ![baselineMain isEqualToData:main]);
+            if (!shot(@"original-options-text-speed-check.png",nil)) {finish(@"text_capture_failed");return;}stage=3;move=0;
+        } else if (stage==3 && steady) {
+            if (move<5) {if (!press(0x80)) {finish(@"down_not_admitted");return;}move++;resetSteady();}
+            else {if (!press(0x10)) {finish(@"frame_right_not_admitted");return;}stage=4;resetSteady();}
+        } else if (stage==4 && steady) {
+            report[@"actualOptionsFramePreviewChanged"]=@(baselineBorder && ![baselineBorder isEqualToData:edge]);
+            if (![report[@"actualOptionsFramePreviewChanged"] boolValue]) {finish(@"frame_preview_did_not_change");return;}
+            if (!shot(@"original-options-frame-preview-check.png",nil) || !shot(@"original-options-preview-changed.png",self->_optionsPreview.image)) {finish(@"frame_capture_failed");return;}
+            if (!press(2)) {finish(@"cancel_not_admitted");return;}stage=5;resetSteady();
+        } else if ((stage==5 || stage==10) && field) {
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+            const uint32_t *scene=geometry.bytes;
+            if (menu) {
+                UIButton *button=self->_menuButton;
+                if (self->_displayedPaletteFadeFinished && !button.hidden && button.enabled && button.userInteractionEnabled
+                    && button.window && button.window==self.view.window && [button isDescendantOfView:self.view])
+                    [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+            } else if (self->_displayedPaletteFadeFinished && q && q->version==HG_BATTLE_MENUS_QA_VERSION && q->byteSize==sizeof(*q) && q->fieldReady==1
+                && self->_fieldMenu.hidden && !self->_joystick.hidden && geometry.length==8*sizeof(uint32_t) && scene[0] && scene[1]) {
+#else
+            {
+#endif
+                BOOL cancelled=stage==5;
+                NSString *name=cancelled ? @"original-options-first-cancel-field-check.png" : @"original-options-confirm-field-check.png";
+                report[cancelled ? @"actualOptionsCancelReturnsField" : @"actualOptionsConfirmReturnsField"]=@YES;
+                if (!shot(name,nil)) {finish(cancelled ? @"cancel_field_capture_failed" : @"confirm_field_capture_failed");return;}
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+                [events addObject:@{@"event":@"field-captured",@"stage":@(stage),@"capture":name,@"fieldFrame":@(q->fieldFrame),@"revision":@(q->revision)}];
+#endif
+                if (cancelled) stage=6; else {finish(@"completed");return;}
+            }
+        } else if (stage==7 && steady) {
+            secondGeneration=p->ownerGeneration;
+            report[@"actualOptionsCancelRestoresFrame"]=@(baselineBorder && [baselineBorder isEqualToData:edge]);
+            if (![report[@"actualOptionsCancelRestoresFrame"] boolValue]) {finish(@"cancel_did_not_restore_frame");return;}
+            if (!shot(@"original-options-reopen-check.png",nil) || !shot(@"original-options-preview-restored.png",self->_optionsPreview.image)) {finish(@"reopen_capture_failed");return;}
+            // Original new owner starts on row0: Up wraps to footer6; Left selects Confirm1.
+            if (!press(0x40)) {finish(@"footer_up_not_admitted");return;}stage=8;resetSteady();
+        } else if (stage==8 && steady) {
+            if (!press(0x20)) {finish(@"footer_confirm_left_not_admitted");return;}stage=9;resetSteady();
+        } else if (stage==9 && steady) {
+            if (!shot(@"original-options-confirm-check.png",nil)) {finish(@"confirm_capture_failed");return;}
+            if (!press(1)) {finish(@"confirm_a_not_admitted");return;}stage=10;resetSteady();
+        }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),step);
+    };
+    step();
+}
 - (void)checkSummaryFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
     __block NSUInteger stage=0,attempts=0,moveIndex=0; __block uint32_t originalPartyRevision=0,pages=0;
     __block void (^step)(void);
@@ -1905,6 +2076,150 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     }; step();
 }
 #endif
+- (void)checkOptionsControls:(NSMutableDictionary *)report {
+    // Synthetic geometry/input only. These RGBA bytes are not original-asset or gameplay evidence.
+    report[@"optionsSyntheticBeforeOwner"]=@(NSThread.isMainThread && !_game && !_env);
+    if (_game || _env) return;
+    NSData *oldFrame=_frame,*oldMenuFrame=_fieldMenuFrame,*oldOptions=_optionsUIState,*oldDisplayed=_displayedOptionsUIState;
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+    NSData *oldQA=_battleMenusQAState,*oldDisplayedQA=_displayedBattleMenusQAState;
+    BOOL oldFade=_paletteFadeFinished,oldDisplayedFade=_displayedPaletteFadeFinished;
+#endif
+    UIImage *oldCanvas=_canvas.image,*oldPreview=_optionsPreviewImage,*oldPreviewShown=_optionsPreview.image;
+    NSString *oldCanvasLabel=_canvas.accessibilityLabel,*oldCanvasValue=_canvas.accessibilityValue,*oldStickValue=_joystick.accessibilityValue,*oldStatus=_status.text;
+    NSArray *oldMenuElements=_fieldMenu.accessibilityElements; NSMutableArray *oldCompletions=_checkInputCompletions;
+    CGPoint oldThumb=_joystickThumb.center; BOOL oldCanvasElement=_canvas.isAccessibilityElement,oldStatusHidden=_status.hidden;
+    struct {
+        uint32_t keys,pending,submitted,stick,pendingStick,submittedStick,x,y,selected,frameEngine,displayedEngine,width,displayedWidth,map,icons,touchEngine,reads,viewWidth,battleWidth;
+        NSUInteger inputGeneration;
+        BOOL paused,inactive,interrupted,ended,stopping,touch,resetStick,menu,automatic;
+    } old={_keys,_pendingKeys,_submittedKeys,_joystickKeys,_pendingJoystickKeys,_submittedJoystickKeys,_touchX,_touchY,_selectedEngine,_frameEngine,_displayedEngine,_frameWidth,_displayedWidth,_fieldMapId,_fieldMenuIcons,_touchEngine,_lastPadReadCount,_preferredViewWidth,_preferredBattleWidth,
+        _inputGeneration,_paused,_inactive,_interrupted,_interruptionEnded,_stopping,_touchPressed,_joystickNeedsReset,_fieldMenuOpen,_automaticMenuEngine};
+    HGNativeOptionsUIState oldChoice=_optionsChoice,oldInput=_optionsInput;
+    struct {uint32_t owner,choiceKeys,inputKeys,inputReads,releaseReads;BOOL scene,pending,active,cooling;} oldLease={_optionsOwnerGeneration,_optionsChoiceKeys,_optionsInputKeys,_optionsInputReads,_optionsReleaseReads,_optionsScene,_optionsChoicePending,_optionsInputActive,_optionsInputCooling};
+    NSArray *views=@[_canvas,_optionsPreview,_status,_battleBar,_partyPanel,_partyBack,_bagPanel,_bagPage,_summaryPanel,_battleMenuPanel,_pokedexPanel,_fieldMenu,_fieldMenuShade,_joystick,_menuButton];
+    NSMutableArray *viewState=[NSMutableArray new],*buttonState=[NSMutableArray new],*gestureState=[NSMutableArray new];
+    for (UIGestureRecognizer *gesture in _canvas.gestureRecognizers) [gestureState addObject:@(gesture.enabled)];
+    for (UIView *view in views) [viewState addObject:@{@"hidden":@(view.hidden),@"interaction":@(view.userInteractionEnabled),@"frame":[NSValue valueWithCGRect:view.frame]}];
+    NSArray *buttons=[[_buttons.allValues arrayByAddingObject:_menuButton] arrayByAddingObjectsFromArray:[_bagNavigation arrayByAddingObjectsFromArray:_summaryNavigation]];
+    for (UIButton *button in buttons) [buttonState addObject:@{@"title":[button titleForState:UIControlStateNormal] ?: NSNull.null,@"configuration":button.configuration ?: NSNull.null,
+        @"label":button.accessibilityLabel ?: NSNull.null,@"hint":button.accessibilityHint ?: NSNull.null,@"hidden":@(button.hidden),@"enabled":@(button.enabled),@"alpha":@(button.alpha),@"frame":[NSValue valueWithCGRect:button.frame],
+        @"generation":@([button isKindOfClass:OriginalKeyButton.class] ? ((OriginalKeyButton *)button).inputGeneration : 0)}];
+    HGNativeOptionsUIState ready={1,7,11,1},zero={0};
+    NSData *readyData=[NSData dataWithBytes:&ready length:sizeof(ready)],*zeroData=[NSData dataWithBytes:&zero length:sizeof(zero)];
+    NSData *pixels=[NSMutableData dataWithLength:256*192*4]; UIImage *preview=OriginalFrameRegion(pixels,0,144,256,48);
+    [_condition lock]; [self clearOptionsInputLocked]; _paused=_inactive=_interrupted=_interruptionEnded=_stopping=NO;
+    _optionsOwnerGeneration=ready.ownerGeneration; _optionsUIState=readyData; _optionsPreviewImage=preview;
+    _frame=pixels; _frameWidth=256; _frameEngine=0; _selectedEngine=_displayedEngine=1;
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+    HGNativeBattleMenusQAState qa={.version=HG_BATTLE_MENUS_QA_VERSION,.byteSize=sizeof(qa),.revision=17,.fieldReady=1,.fieldFrame=31};
+    NSData *qaData=[NSData dataWithBytes:&qa length:sizeof(qa)]; _battleMenusQAState=qaData; _paletteFadeFinished=YES;
+#endif
+    _fieldMapId=MAP_ROUTE_29; _fieldMenuOpen=YES; _checkInputCompletions=[NSMutableArray new]; [_condition unlock];
+    [self displayFrame]; [self viewDidLayoutSubviews];
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+    BOOL paired=_displayedBattleMenusQAState==qaData && _displayedPaletteFadeFinished;
+    [_condition lock]; _battleMenusQAState=nil; _paletteFadeFinished=NO; [_condition unlock]; [self displayFrame];
+    paired&=_displayedBattleMenusQAState==qaData && _displayedPaletteFadeFinished;
+    [_condition lock]; _frame=pixels; [_condition unlock]; [self displayFrame];
+    paired&=!_displayedBattleMenusQAState && !_displayedPaletteFadeFinished;
+#endif
+    report[@"optionsSyntheticPublishedCanvas"]=@(_selectedEngine==1 && !_displayedEngine && !_frameEngine && _displayedWidth==256
+        && [_displayedOptionsUIState isEqualToData:readyData] && _canvas.image.size.width==256 && _canvas.image.size.height==192
+        && _optionsPreview.image==preview && preview.size.width==256 && preview.size.height==48 && !_canvas.hidden && !_optionsPreview.hidden
+        && fabs(_canvas.bounds.size.width*3-_canvas.bounds.size.height*4)<1 && fabs(_optionsPreview.bounds.size.width*48-_optionsPreview.bounds.size.height*256)<1
+        && fabs(_canvas.frame.origin.x-_optionsPreview.frame.origin.x)<1 && fabs(_canvas.bounds.size.width-_optionsPreview.bounds.size.width)<1
+        && CGRectGetMaxY(_canvas.frame)<=CGRectGetMinY(_optionsPreview.frame) && !_canvas.userInteractionEnabled && !_optionsPreview.userInteractionEnabled);
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+    report[@"optionsSyntheticPublishedCanvas"]=@([report[@"optionsSyntheticPublishedCanvas"] boolValue] && paired);
+#endif
+    BOOL visible=_optionsScene && _battleBar.hidden && _partyPanel.hidden && _partyBack.hidden && _bagPanel.hidden && _bagPage.hidden && _summaryPanel.hidden && _battleMenuPanel.hidden && _pokedexPanel.hidden
+        && _fieldMenu.hidden && _fieldMenuShade.hidden && _joystick.hidden && _menuButton.hidden && _buttons[@8].hidden && _buttons[@0x400].hidden;
+    for (UIButton *button in [_bagNavigation arrayByAddingObjectsFromArray:_summaryNavigation]) visible&=button.hidden;
+    for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10,@1,@2]) visible&=!_buttons[key].hidden && _buttons[key].enabled;
+    report[@"optionsSyntheticReadyControls"]=@(visible);
+    uint32_t keys=0; BOOL stale=YES;
+    for (NSUInteger i=0;i<2;i++) {
+        HGNativeOptionsUIState changed=ready; if (i) changed.revision++; else changed.ownerGeneration++;
+        _optionsUIState=[NSData dataWithBytes:&changed length:sizeof(changed)]; [self keyDown:(OriginalKeyButton *)_buttons[@1]];
+        [_condition lock]; stale&=!_optionsChoicePending && !_optionsInputActive;
+        _optionsUIState=readyData; [_condition unlock]; [self keyDown:(OriginalKeyButton *)_buttons[@1]];
+        [_condition lock]; stale&=_optionsChoicePending; [self takeOptionsInputLocked:&changed reads:50+(uint32_t)i keys:&keys];
+        stale&=!keys && !_optionsChoicePending && !_optionsInputActive; [self clearOptionsInputLocked]; [_condition unlock];
+    }
+    report[@"optionsSyntheticRejectsStaleTuple"]=@(stale);
+    BOOL leases=YES;
+    for (NSNumber *key in @[@1,@2]) {
+        uint32_t begin=key.unsignedIntValue==1 ? 100 : 120;
+        [self updateOptionsControls:readyData preview:preview paused:NO]; [self keyDown:(OriginalKeyButton *)_buttons[key]];
+        [_condition lock]; BOOL queued=_optionsChoicePending;
+        [self takeOptionsInputLocked:&ready reads:begin keys:&keys]; BOOL started=keys==key.unsignedIntValue && _optionsInputActive;
+        [self takeOptionsInputLocked:&ready reads:begin+3 keys:&keys]; BOOL held=keys==key.unsignedIntValue;
+        [self takeOptionsInputLocked:&ready reads:begin+4 keys:&keys]; BOOL released=!keys && !_optionsInputActive && _optionsInputCooling;
+        [self takeOptionsInputLocked:&ready reads:begin+5 keys:&keys]; BOOL cooling=!keys && _optionsInputCooling;
+        [self takeOptionsInputLocked:&ready reads:begin+6 keys:&keys]; leases&=queued && started && held && released && cooling && !keys && !_optionsInputCooling && !_optionsChoicePending;
+        [_condition unlock];
+    }
+    report[@"optionsSyntheticABFourPadLease"]=@(leases);
+    HGNativeOptionsUIState busy=ready; busy.ready=0; busy.revision++;
+    NSData *busyData=[NSData dataWithBytes:&busy length:sizeof(busy)]; _optionsUIState=busyData;
+    [self updateOptionsControls:busyData preview:preview paused:NO]; [self keyDown:(OriginalKeyButton *)_buttons[@1]];
+    BOOL blocked=_optionsScene && !_canvas.hidden && !_optionsPreview.hidden;
+    for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10,@1,@2]) blocked&=!_buttons[key].hidden && !_buttons[key].enabled;
+    [_condition lock]; [self takeOptionsInputLocked:&busy reads:140 keys:&keys]; blocked&=!keys && !_optionsChoicePending && !_optionsInputActive; [_condition unlock];
+    report[@"optionsSyntheticBusyBlocksInput"]=@(blocked);
+    _optionsUIState=readyData; [self updateOptionsControls:readyData preview:preview paused:NO];
+    [_condition lock]; _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=_touchX=_touchY=0; _touchPressed=NO;
+    NSUInteger generation=_inputGeneration; [_condition unlock];
+    [self toggleMenu]; [self tapAt:CGPointMake(CGRectGetMidX(_canvas.bounds),CGRectGetMidY(_canvas.bounds))];
+    for (dispatch_block_t completion in [_checkInputCompletions copy]) completion();
+    report[@"optionsSyntheticExclusiveInput"]=@(_selectedEngine==1 && !_frameEngine && !_displayedEngine && _fieldMenuOpen && _inputGeneration==generation
+        && !_keys && !_pendingKeys && !_submittedKeys && !_touchPressed && !_touchX && !_touchY && !_optionsChoicePending && _checkInputCompletions.count==1);
+    [self keyDown:(OriginalKeyButton *)_buttons[@1]]; [_condition lock]; _lastPadReadCount=200; BOOL beforePause=_optionsChoicePending; [_condition unlock];
+    [self pause]; [self keyDown:(OriginalKeyButton *)_buttons[@2]];
+    [_condition lock]; BOOL paused=beforePause && _paused && !_optionsChoicePending && !_optionsInputActive && _optionsInputCooling; [_condition unlock]; [self resume];
+    [_condition lock]; [self takeOptionsInputLocked:&ready reads:201 keys:&keys]; paused&=!keys && _optionsInputCooling;
+    [self takeOptionsInputLocked:&ready reads:202 keys:&keys]; paused&=!keys && !_optionsInputCooling; [_condition unlock];
+    [self updateOptionsControls:readyData preview:preview paused:NO]; [self keyDown:(OriginalKeyButton *)_buttons[@2]];
+    _optionsUIState=zeroData; _optionsPreviewImage=nil; _optionsOwnerGeneration=0; [self updateOptionsControls:zeroData preview:nil paused:NO];
+    [_condition lock]; [self takeOptionsInputLocked:&zero reads:210 keys:&keys];
+    BOOL retired=!keys && !_optionsScene && !_optionsChoicePending && !_optionsInputActive && !_optionsInputCooling && !_optionsOwnerGeneration
+        && !_optionsChoiceKeys && !_optionsInputKeys && !_optionsInputReads && !_optionsReleaseReads
+        && !memcmp(&_optionsChoice,&zero,sizeof(zero)) && !memcmp(&_optionsInput,&zero,sizeof(zero))
+        && [_optionsUIState isEqualToData:zeroData] && [_displayedOptionsUIState isEqualToData:zeroData] && !_optionsPreviewImage;
+    [_condition unlock]; report[@"optionsSyntheticRetireAndPauseClear"]=@(paused && retired && _optionsPreview.hidden && !_optionsPreview.image);
+    [_condition lock];
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+    _battleMenusQAState=oldQA; _displayedBattleMenusQAState=oldDisplayedQA; _paletteFadeFinished=oldFade; _displayedPaletteFadeFinished=oldDisplayedFade;
+#endif
+    _optionsUIState=oldOptions; _displayedOptionsUIState=oldDisplayed; _optionsPreviewImage=oldPreview; _optionsChoice=oldChoice; _optionsInput=oldInput;
+    _optionsOwnerGeneration=oldLease.owner; _optionsChoiceKeys=oldLease.choiceKeys; _optionsInputKeys=oldLease.inputKeys; _optionsInputReads=oldLease.inputReads; _optionsReleaseReads=oldLease.releaseReads;
+    _optionsScene=oldLease.scene; _optionsChoicePending=oldLease.pending; _optionsInputActive=oldLease.active; _optionsInputCooling=oldLease.cooling;
+    _frame=oldFrame; _fieldMenuFrame=oldMenuFrame; _keys=old.keys; _pendingKeys=old.pending; _submittedKeys=old.submitted;
+    _joystickKeys=old.stick; _pendingJoystickKeys=old.pendingStick; _submittedJoystickKeys=old.submittedStick; _touchX=old.x; _touchY=old.y;
+    _selectedEngine=old.selected; _frameEngine=old.frameEngine; _displayedEngine=old.displayedEngine; _frameWidth=old.width; _displayedWidth=old.displayedWidth;
+    _fieldMapId=old.map; _fieldMenuIcons=old.icons; _touchEngine=old.touchEngine; _lastPadReadCount=old.reads; _preferredViewWidth=old.viewWidth; _preferredBattleWidth=old.battleWidth;
+    _inputGeneration=old.inputGeneration; _paused=old.paused; _inactive=old.inactive; _interrupted=old.interrupted; _interruptionEnded=old.ended; _stopping=old.stopping;
+    _touchPressed=old.touch; _joystickNeedsReset=old.resetStick; _fieldMenuOpen=old.menu; _automaticMenuEngine=old.automatic; _checkInputCompletions=oldCompletions; [_condition unlock];
+    _canvas.image=oldCanvas; _canvas.accessibilityLabel=oldCanvasLabel; _canvas.accessibilityValue=oldCanvasValue; _canvas.isAccessibilityElement=oldCanvasElement;
+    _optionsPreview.image=oldPreviewShown; _joystick.accessibilityValue=oldStickValue; _joystickThumb.center=oldThumb; _status.text=oldStatus; _status.hidden=oldStatusHidden; _fieldMenu.accessibilityElements=oldMenuElements;
+    for (NSUInteger i=0;i<gestureState.count;i++) _canvas.gestureRecognizers[i].enabled=[gestureState[i] boolValue];
+    for (NSUInteger i=0;i<views.count;i++) {UIView *view=views[i]; NSDictionary *value=viewState[i]; view.hidden=[value[@"hidden"] boolValue]; view.userInteractionEnabled=[value[@"interaction"] boolValue]; view.frame=[value[@"frame"] CGRectValue];}
+    for (NSUInteger i=0;i<buttons.count;i++) {UIButton *button=buttons[i]; NSDictionary *value=buttonState[i];
+        button.configuration=value[@"configuration"]==NSNull.null ? nil : value[@"configuration"]; [button setTitle:value[@"title"]==NSNull.null ? nil : value[@"title"] forState:UIControlStateNormal];
+        button.accessibilityLabel=value[@"label"]==NSNull.null ? nil : value[@"label"]; button.accessibilityHint=value[@"hint"]==NSNull.null ? nil : value[@"hint"];
+        button.hidden=[value[@"hidden"] boolValue]; button.enabled=[value[@"enabled"] boolValue]; button.alpha=[value[@"alpha"] doubleValue]; button.frame=[value[@"frame"] CGRectValue];
+        if ([button isKindOfClass:OriginalKeyButton.class]) ((OriginalKeyButton *)button).inputGeneration=[value[@"generation"] unsignedIntegerValue];
+    }
+    report[@"optionsSyntheticRestoresTransientState"]=@(_frame==oldFrame && _fieldMenuFrame==oldMenuFrame && _optionsUIState==oldOptions && _displayedOptionsUIState==oldDisplayed && _optionsPreviewImage==oldPreview
+        && _selectedEngine==old.selected && _frameEngine==old.frameEngine && _displayedEngine==old.displayedEngine && _inputGeneration==old.inputGeneration && _lastPadReadCount==old.reads
+        && _optionsOwnerGeneration==oldLease.owner && _optionsScene==oldLease.scene && _optionsChoicePending==oldLease.pending && _optionsInputActive==oldLease.active && _optionsInputCooling==oldLease.cooling
+        && !memcmp(&_optionsChoice,&oldChoice,sizeof(oldChoice)) && !memcmp(&_optionsInput,&oldInput,sizeof(oldInput)) && _checkInputCompletions==oldCompletions);
+#ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
+    report[@"optionsSyntheticRestoresTransientState"]=@([report[@"optionsSyntheticRestoresTransientState"] boolValue]
+        && _battleMenusQAState==oldQA && _displayedBattleMenusQAState==oldDisplayedQA && _paletteFadeFinished==oldFade && _displayedPaletteFadeFinished==oldDisplayedFade);
+#endif
+}
 - (void)checkControls {
     NSString *privateCase=NSProcessInfo.processInfo.environment[@"HEARTGOLD_CHECK_CASE"];
 #ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
@@ -1913,6 +2228,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
 #endif
     if ([privateCase isEqual:@"field-potion"] || [privateCase isEqual:@"forced-switch"] || [privateCase isEqual:@"learn-moves"]) { [self checkPrivateNativeCase:privateCase]; return; }
     NSMutableDictionary *report = [NSMutableDictionary new];
+    [self checkOptionsControls:report];
     report[@"actualCapturesComplete"]=@YES;
     uint8_t tiles[65]={0}; tiles[1]=0x21; tiles[33]=0x03;
     HGNativePartyUIWindow window={.pixelBuffer=1,.tileWidth=2,.tileHeight=1,.clearColor=0};
@@ -2610,6 +2926,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                          [self checkBagFlow:report completion:^{
                          [self checkSummaryFlow:report completion:^{
                          [self checkBattleMenusFlow:report completion:^{
+                          [self checkOptionsFlow:report completion:^{
                           report[@"actualBattleMenusPreserveSave"]=@(saveBeforeReset && [saveBeforeReset isEqualToData:[NSData dataWithContentsOfURL:saveURL]]);
                           [self->_condition lock]; NSDictionary *menusAudio=self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
                           NSDictionary *producerAfterMenus=[self checkAudioProducerSnapshot];
@@ -2667,6 +2984,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                             [data writeToURL:[folder URLByAppendingPathComponent:@"original-app-check.json"] options:NSDataWritingAtomic error:nil];
                             NSLog(@"Original app checks: %@",report);
                           });
+                          }];
                          }];
                          }];
                          }];

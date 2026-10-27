@@ -2,6 +2,16 @@
 
 This target runs the compiled original C/C++ engine in UIKit. The earlier Swift/Metal target in `App/`, its JSON save and screenshots are retained prototype work; they do not describe the current original-engine target. The executable contains native arm64 code generated at build time; it does not load a DS CPU interpreter, JIT or WebAssembly module at runtime.
 
+## Original Options checkpoint (2026-10-27)
+
+Options now reuses its original six-setting screen, text, cursor and complete window-frame preview in one landscape canvas. The original game still handles previews, confirmation and cancellation. A read-only 16-byte owner packet gates short native button leases; its lifetime counter lives outside the reloadable Options overlay. Native cleanup removes VBlank before freeing its dependencies and caches the heap ID before freeing app data, fixing two original lifetime hazards exposed by the native run.
+
+The strict audit passed 97 checks, 1,600 unit records (1,592 compiled and 8 explicit exclusions), 136 data proofs and the 26-export shipping interface without private QA exports. The native original-game case passed three Options lifetimes: changing all six settings and cancelling restores the originals; confirming and reopening reads the changed values through the real getters; a final cancellation returns cleanly. Party, PC, Bag, flags and money stay unchanged. Keypad exits retain the original parent menu, which the test closes with original B input; touch confirmation returns directly.
+
+The latest shared UIKit run passed 262 individual checks and 42 captures, all visually reviewed, including two actual Options lifetimes and return to field controls. Its field captures wait for the original fade-completion result paired with the displayed frame. This adds a default-CHECK-only read-only export, not a shipping API. The final UIKit build includes that check correction; the preceding audit's game inputs are unchanged. The arm64 iPhoneOS production build passed static verification before the three CHECK-only host corrections, whose production-disabled source is equivalent; it was not rerun or installed on physical hardware afterward.
+
+These muted tests preserved the user tree and original saves. All five current audio epochs recorded zero drops and underruns; the earlier intermittent stall remains unresolved. Confirmation/reopen coverage checks saved RAM values, not persistence across a disk-save/relaunch. Physical gestures, audible output, all remaining menus, full-story completion and 1:1 DS fidelity remain unverified. This is a development checkpoint, not final acceptance.
+
 ## Capture, Pokédex and Naming checkpoint (2026-10-27)
 
 The original Pokédex now has a single-screen bridge for its lists, search criteria, Area/time display, forms and comparison. Original window ownership prevents stale species text during transitions. Its native and UIKit regressions passed before the latest Naming addition; they are historical evidence, not a new full-game run.

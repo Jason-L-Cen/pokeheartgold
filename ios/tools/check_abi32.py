@@ -103,7 +103,7 @@ def link_engine(link,listing,destination,native_content=None):
     command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--export=HGNativeRegisterAddress',
              '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D',
              '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth','-Wl,--export=HGNativeGeometryFrame',
-             '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativeCaptureUIGetState','-Wl,--export=HGNativeNamingUIGetState','-Wl,--export=HGNativePartyUIGetState','-Wl,--export=HGNativePartyUIGetStats',
+             '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativeCaptureUIGetState','-Wl,--export=HGNativeNamingUIGetState','-Wl,--export=HGNativeOptionsUIGetState','-Wl,--export=HGNativePartyUIGetState','-Wl,--export=HGNativePartyUIGetStats',
              '-Wl,--export=HGNativeBagUIGetState','-Wl,--export=HGNativeSummaryUIGetState','-Wl,--export=HGNativeEvolutionUIGetState','-Wl,--export=HGNativePokedexUIGetState',
              '-Wl,--export=HGNativeBattleBagUIGetState','-Wl,--export=HGNativeBattlePartyUIGetState',
              '-Wl,--export=HGNativeFieldMap','-Wl,--export=HGNativeFieldMenuIcons','-Wl,--error-limit=0',
@@ -587,6 +587,7 @@ def main():
     sources.append('ios/Original/tests/evolution_ui_check.c')
     sources.append('ios/Original/tests/pokedex_ui_check.c')
     sources.append('ios/Original/tests/naming_ui_check.c')
+    sources.append('ios/Original/tests/options_ui_check.c')
     sources.append('src/pokedex.c')
     sources += ['src/mail.c', 'src/seal_case.c', 'src/move.c', 'src/msgdata.c', 'src/pm_string.c', 'src/item.c']
     sources.append('ios/Original/tests/ball_pocket_check.c')
@@ -1013,6 +1014,7 @@ def main():
     exports.append('CheckOriginalEvolutionUI')
     exports.append('CheckPokedexUI')
     exports.append('CheckNativeNamingUI')
+    exports.append('CheckNativeOptionsUI')
     exports.append('CheckOriginalBallPocket')
     exports.append('CheckOriginalItemReply')
     exports.append('HGSoundMusicAction')
