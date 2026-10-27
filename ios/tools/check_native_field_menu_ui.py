@@ -54,14 +54,14 @@ def main():
             for folder in ('ios/build-original-host/include','include','files','src','lib/include','lib/include/cw','lib/include/nitro','lib/include/nnsys','lib/include/nitro/os','include/library','lib/NitroSDK/include','lib/NitroSDK/include-pokediamond'):flags+=['-I',str(root/folder)]
             for index,name in enumerate((*PRODUCERS,'ios/Original/tests/field_menu_ui_check.c')):run([args.wasi_sdk/'bin/clang',*flags,'-fsyntax-only',candidate/name],f'wasi-syntax-{index}.log')
         tree=ast.parse((candidate/'ios/tools/check_native_pc_box.py').read_text());functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in ('shipping_exports_passed','normal_checks_passed')];scope={};exec(compile(ast.Module(body=functions,type_ignores=[]),'candidate-count-contract','exec'),scope)
-        exports=['HGNativePCBoxUIGetState','HGNativeFieldChoiceUIGetState','HGNativeTrainerCardUIGetState','HGNativeFieldMenuUIGetState',*('public'+str(i) for i in range(26))]
-        checks=['CheckNativePCBoxUI','CheckOriginalSummaryUI','CheckNativeFieldChoiceUI','CheckNativeTrainerCardUI','CheckNativeFieldMenuUI']
-        require(scope['shipping_exports_passed'](exports,sorted(exports)) and not scope['shipping_exports_passed'](exports[:-1],sorted(exports[:-1])),'Shipping30 contract')
-        require(scope['normal_checks_passed'](checks,5) and not scope['normal_checks_passed'](checks[:-1],4),'Normal FieldMenu check gate')
+        exports=['HGNativePCBoxUIGetState','HGNativeFieldChoiceUIGetState','HGNativeTrainerCardUIGetState','HGNativeFieldMenuUIGetState','HGNativePokegearUIGetState',*('public'+str(i) for i in range(26))]
+        checks=['CheckNativePCBoxUI','CheckOriginalSummaryUI','CheckNativeFieldChoiceUI','CheckNativeTrainerCardUI','CheckNativeFieldMenuUI','CheckNativePokegearUI']
+        require(scope['shipping_exports_passed'](exports,sorted(exports)) and not scope['shipping_exports_passed'](exports[:-1],sorted(exports[:-1])),'Shipping31 contract')
+        require(scope['normal_checks_passed'](checks,6) and not scope['normal_checks_passed'](checks[:-1],5),'Normal FieldMenu check gate')
         for path in (candidate/'ios/tools').glob('*.py'):compile(path.read_text(),str(path),'exec')
         report.update(passed=True,packetBytes=36,originalSchedulerExecuted=True,actualProducerWithRealSDKStructsExecuted=True,
             actualButtonsTouchReturnBranchExecuted=True,actualFourFreeCaseFragmentsExecuted=True,actualFifthRetireActionExecuted=True,
-            menuReadyWhileMovementBlocked=True,hudPendingInputReadinessRevoked=True,shippingExportsProposed=30,normalChecksProposed=101,
+            menuReadyWhileMovementBlocked=True,hudPendingInputReadinessRevoked=True,shippingExportsProposed=31,normalChecksProposed=102,
             limitations=['Producer fixture uses real SDK types but controlled field/bottom-app/fade service bindings; no game or graphical assets run.',
                 'Four modified free case fragments and the fifth whole retire action execute at recorded teardown/free/jump/script boundaries.'])
     except BaseException as error:report['firstFailure']=dict(type=type(error).__name__,message=str(error))

@@ -1,4 +1,8 @@
 #include "application/pokegear/configure/pokegear_configure_internal.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pokegear_ui.h"
+_Static_assert(PGCONF_MAIN_STATE_HANDLE_INPUT==1 && PGCONF_MAIN_STATE_CONTEXT_MENU==3,"original Configure input phases");
+#endif
 
 #include "brightness.h"
 #include "pokegear_apps.h"
@@ -27,6 +31,9 @@ BOOL PokegearConfigure_Init(OverlayManager *man, int *state) {
     configureApp->pokegear = pokegearApp;
     configureApp->heapId = HEAP_ID_POKEGEAR_APP;
     PokegearConfigure_InitInternal(configureApp);
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIBeginView(pokegearApp,configureApp,HG_POKEGEAR_CONFIGURE);
+#endif
     return TRUE;
 }
 
@@ -65,7 +72,13 @@ BOOL PokegearConfigure_Main(OverlayManager *man, int *state) {
     case PGCONF_MAIN_STATE_QUIT:
         return TRUE;
     }
-
+#ifdef HEARTGOLD_NATIVE
+    BOOL ready=(*state==PGCONF_MAIN_STATE_HANDLE_INPUT || (*state==PGCONF_MAIN_STATE_CONTEXT_MENU
+        && configureApp->contextMenu && configureApp->contextMenu->windows && !configureApp->contextMenu->animActive
+        && configureApp->contextMenu->header.bgConfig==configureApp->pokegear->bgConfig))
+        && configureApp->scrnData && configureApp->sprites[0];
+    PokegearApp_PublishNativeUI(configureApp->pokegear,configureApp,*state,ready);
+#endif
     return FALSE;
 }
 
@@ -74,6 +87,9 @@ BOOL PokegearConfigure_Exit(OverlayManager *man, int *state) {
     enum HeapID heapID;
 
     configureApp = OverlayManager_GetData(man);
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(configureApp->pokegear,configureApp);
+#endif
     PokegearConfigure_ExitInternal(configureApp);
     configureApp->pokegear->isSwitchApp = TRUE;
     heapID = configureApp->heapId;
@@ -136,6 +152,9 @@ static int PokegearConfigure_MainTask_HandleInput(PokegearConfigureAppData *conf
 }
 
 static int PokegearConfigure_MainTask_UnloadGFX(PokegearConfigureAppData *configureApp) {
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(configureApp->pokegear,configureApp);
+#endif
     if (PokegearConfigure_UnloadGFX(configureApp)) {
         return PGCONF_MAIN_STATE_QUIT;
     }

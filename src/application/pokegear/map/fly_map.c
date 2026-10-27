@@ -1,4 +1,8 @@
 #include "application/pokegear/map/pokegear_map_internal.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pokegear_ui.h"
+_Static_assert(PGMAP_MAIN_STATE_HANDLE_INPUT==1 && PGMAP_MAIN_STATE_FLY_CONTEXT_MENU==12,"original standalone Map input phases");
+#endif
 
 #include "phonebook_dat.h"
 #include "poke_overlay.h"
@@ -44,6 +48,10 @@ BOOL FlyMap_Init(OverlayManager *man, int *state) {
     FlyMap_InitParam(mapApp);
     mapApp->locationSpecs = sLocationSpecs;
     mapApp->numLocationSpecs = NELEMS(sLocationSpecs);
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIBegin(mapApp->pokegear,args->isScriptedLaunch<2 ? args->isScriptedLaunch+2 : 0);
+    NativePokegearUIBeginView(mapApp->pokegear,mapApp,HG_POKEGEAR_STANDALONE_MAP);
+#endif
     return TRUE;
 }
 
@@ -72,12 +80,28 @@ BOOL FlyMap_Main(OverlayManager *man, int *state) {
     case PGMAP_MAIN_STATE_QUIT:
         return TRUE;
     }
+#ifdef HEARTGOLD_NATIVE
+    BOOL ready=(*state==PGMAP_MAIN_STATE_HANDLE_INPUT || (*state==PGMAP_MAIN_STATE_FLY_CONTEXT_MENU && mapApp->listMenu
+        && mapApp->listMenu->windows && !mapApp->listMenu->animActive && mapApp->listMenu->header.bgConfig==mapApp->pokegear->bgConfig))
+        && mapApp->mapData && mapApp->objManager && mapApp->objManager->objects
+        && mapApp->windows[0].bgConfig==mapApp->pokegear->bgConfig && mapApp->windows[0].pixelBuffer;
+    if(*state==PGMAP_MAIN_STATE_LOAD) {
+        // The shared Pokegear overlay is still loading asynchronously during the original LOAD steps.
+        HGNativePokegearUIState facts={.parentPhase=*state,.phase=*state,.app=mapApp->pokegear->app,
+            .registeredCards=mapApp->pokegear->registeredCards,.scriptedLaunch=mapApp->pokegear->args->isScriptedLaunch};
+        NativePokegearUIParentState(mapApp->pokegear,&facts);NativePokegearUIPublish(mapApp->pokegear,mapApp,&facts);
+    } else PokegearApp_PublishNativeUI(mapApp->pokegear,mapApp,*state,ready);
+#endif
     return FALSE;
 }
 
 BOOL FlyMap_Exit(OverlayManager *man, int *state) {
     PokegearMapAppData *mapApp = OverlayManager_GetData(man);
     enum HeapID heapID;
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(mapApp->pokegear,mapApp);
+    NativePokegearUIRetire(mapApp->pokegear);
+#endif
     FlyMap_DecouplePokegear(mapApp);
     MapMatrix_MapData_Free(mapApp->mapData);
     if (mapApp->pokegear->appReturnCode != GEAR_RETURN_CANCEL) {
@@ -183,6 +207,9 @@ static int FlyMap_MainTask_HandleInput(PokegearMapAppData *mapApp) {
 }
 
 static int FlyMap_MainTask_GraphicsDeinit(PokegearMapAppData *mapApp) {
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(mapApp->pokegear,mapApp);
+#endif
     if (!FlyMap_UnloadGFX(mapApp)) {
         return PGMAP_MAIN_STATE_UNLOAD;
     }

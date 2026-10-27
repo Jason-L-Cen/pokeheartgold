@@ -3,6 +3,10 @@
 #include "constants/maps.h"
 
 #include "application/pokegear/map/pokegear_map_internal.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pokegear_ui.h"
+_Static_assert(PGMAP_MAIN_STATE_HANDLE_INPUT==1 && PGMAP_MAIN_STATE_HANDLE_INPUT_MARKING_MODE==9,"original Map input phases");
+#endif
 #include "msgdata/msg/msg_0273.h"
 
 #include "brightness.h"
@@ -50,6 +54,9 @@ BOOL PokegearMap_Init(OverlayManager *man, int *state) {
     PokegearMap_InitInternal(mapApp);
     mapApp->locationSpecs = sLocationSpecs;
     mapApp->numLocationSpecs = NELEMS(sLocationSpecs);
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIBeginView(pokegearApp,mapApp,HG_POKEGEAR_MAP);
+#endif
     return TRUE;
 }
 
@@ -93,14 +100,21 @@ BOOL PokegearMap_Main(OverlayManager *man, int *state) {
     case PGMAP_MAIN_STATE_QUIT:
         return TRUE;
     }
-
+#ifdef HEARTGOLD_NATIVE
+    BOOL ready=(*state==PGMAP_MAIN_STATE_HANDLE_INPUT || (*state==PGMAP_MAIN_STATE_HANDLE_INPUT_MARKING_MODE && mapApp->inMarkingsMode))
+        && mapApp->mapData && mapApp->objManager && mapApp->objManager->objects
+        && mapApp->windows[0].bgConfig==mapApp->pokegear->bgConfig && mapApp->windows[0].pixelBuffer;
+    PokegearApp_PublishNativeUI(mapApp->pokegear,mapApp,*state,ready);
+#endif
     return FALSE;
 }
 
 BOOL PokegearMap_Exit(OverlayManager *man, int *state) {
     enum HeapID heapID;
     PokegearMapAppData *mapApp = OverlayManager_GetData(man);
-
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(mapApp->pokegear,mapApp);
+#endif
     PokegearMap_ExitInternal(mapApp);
     MapMatrix_MapData_Free(mapApp->mapData);
     if (mapApp->pokegear->appReturnCode != GEAR_RETURN_CANCEL) {
@@ -263,6 +277,9 @@ static int PokegearMap_MainTask_HandleInput(PokegearMapAppData *mapApp) {
 }
 
 static int PokegearMap_MainTask_UnloadGFX(PokegearMapAppData *mapApp) {
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(mapApp->pokegear,mapApp);
+#endif
     if (!PokegearMap_UnloadGFX(mapApp)) {
         return PGMAP_MAIN_STATE_UNLOAD;
     }

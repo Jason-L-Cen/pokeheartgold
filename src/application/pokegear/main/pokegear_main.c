@@ -1,4 +1,7 @@
 #include "application/pokegear/pokegear_main.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pokegear_ui.h"
+#endif
 
 #include "application/pokegear/pokegear_internal.h"
 
@@ -28,6 +31,11 @@ typedef enum PokegearAppMainState {
     POKEGEAR_APP_MAIN_STATE_RUN_PHONE,
     POKEGEAR_APP_MAIN_STATE_QUIT,
 } PokegearAppMainState;
+#ifdef HEARTGOLD_NATIVE
+_Static_assert(POKEGEAR_APP_MAIN_STATE_RUN_CONFIGURE==3 && POKEGEAR_APP_MAIN_STATE_RUN_RADIO==5
+    && POKEGEAR_APP_MAIN_STATE_RUN_MAP==7 && POKEGEAR_APP_MAIN_STATE_LAUNCH_DEBUG==8
+    && POKEGEAR_APP_MAIN_STATE_RUN_DEBUG==9 && POKEGEAR_APP_MAIN_STATE_RUN_PHONE==11,"original Pokegear owner phases");
+#endif
 
 static BOOL PokegearApp_RunSubapp(OverlayManager **ppOvyMan);
 static PokegearAppMainState Pokegear_MainStep_Setup(PokegearAppData *pokegearApp);
@@ -90,6 +98,9 @@ BOOL Pokegear_Init(OverlayManager *man, int *state) {
     pokegearApp->returnFromEasyChat = 0;
     pokegearApp->mapSessionState.word = EC_WORD_NULL;
     pokegearApp->cursorInAppSwitchZone = 1;
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIBegin(pokegearApp,HG_POKEGEAR_OWNER_GEAR);
+#endif
     Sound_SetSceneAndPlayBGM(0x37, 0, 0);
     return TRUE;
 }
@@ -136,11 +147,19 @@ BOOL Pokegear_Main(OverlayManager *man, int *state) {
     case POKEGEAR_APP_MAIN_STATE_QUIT:
         return TRUE;
     }
+#ifdef HEARTGOLD_NATIVE
+    HGNativePokegearUIState facts={.parentPhase=*state,.app=pokegearApp->app,.registeredCards=pokegearApp->registeredCards,
+        .scriptedLaunch=pokegearApp->args->isScriptedLaunch};
+    NativePokegearUIParentState(pokegearApp,&facts);
+#endif
     return FALSE;
 }
 
 BOOL Pokegear_Exit(OverlayManager *man, int *state) {
     PokegearAppData *pokegearApp = OverlayManager_GetData(man);
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIRetire(pokegearApp);
+#endif
     SavePokegear_SetLastUsedApp(pokegearApp->savePokegear, pokegearApp->app);
     MenuInputStateMgr_SetState(pokegearApp->args->menuInputStatePtr, pokegearApp->menuInputState);
     enum HeapID heapID = pokegearApp->heapID;

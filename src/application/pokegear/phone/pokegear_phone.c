@@ -1,6 +1,11 @@
 #include "global.h"
 
 #include "application/pokegear/phone/phone_internal.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pokegear_ui.h"
+_Static_assert(PHONE_MAIN_STATE_INPUT_LOOP==1 && PHONE_MAIN_STATE_PLAY_CALL==6 && PHONE_MAIN_STATE_CONTEXT_MENU==7
+    && PHONE_MAIN_STATE_SORT_CONTEXT_MENU==8 && PHONE_MAIN_STATE_MOVING_CONTACTS==9,"original Phone input phases");
+#endif
 
 #include "brightness.h"
 #include "pokegear_apps.h"
@@ -34,6 +39,9 @@ BOOL PokegearPhone_Init(OverlayManager *man, int *state) {
     phoneApp->heapID = HEAP_ID_POKEGEAR_APP;
     Sound_SetSceneAndPlayBGM(55, 0, 0);
     PokegearPhone_LoadContactsAndInitFromArgs(phoneApp);
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIBeginView(pokegearApp,phoneApp,HG_POKEGEAR_PHONE);
+#endif
     return TRUE;
 }
 
@@ -86,13 +94,22 @@ BOOL PokegearPhone_Main(OverlayManager *man, int *state) {
     case PHONE_MAIN_STATE_QUIT:
         return TRUE;
     }
-
+#ifdef HEARTGOLD_NATIVE
+    BOOL ready=HGNativePokegearUIIsInputPhase(HG_POKEGEAR_PHONE,*state) && phoneApp->callContext
+        && phoneApp->windows[0].bgConfig==phoneApp->pokegear->bgConfig && phoneApp->windows[0].pixelBuffer;
+    if(*state==PHONE_MAIN_STATE_CONTEXT_MENU || *state==PHONE_MAIN_STATE_SORT_CONTEXT_MENU)
+        ready=ready && phoneApp->touchscreenListMenu && phoneApp->touchscreenListMenu->windows && !phoneApp->touchscreenListMenu->animActive
+            && phoneApp->touchscreenListMenu->header.bgConfig==phoneApp->pokegear->bgConfig;
+    PokegearApp_PublishNativeUI(phoneApp->pokegear,phoneApp,*state,ready);
+#endif
     return FALSE;
 }
 
 BOOL PokegearPhone_Exit(OverlayManager *man, int *state) {
     PokegearPhoneAppData *phoneApp = OverlayManager_GetData(man);
-
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(phoneApp->pokegear,phoneApp);
+#endif
     PokegearPhone_UnloadContactsAndDeregisterCallbacks(phoneApp);
     phoneApp->pokegear->isSwitchApp = TRUE;
     enum HeapID heapID = phoneApp->heapID;
@@ -169,6 +186,9 @@ int PokegearPhone_MainTask_HandleInput(PokegearPhoneAppData *phoneApp) {
 }
 
 int PokegearPhone_MainTask_TearDown(PokegearPhoneAppData *phoneApp) {
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(phoneApp->pokegear,phoneApp);
+#endif
     if (PokegearPhone_TearDown(phoneApp)) {
         return PHONE_MAIN_STATE_QUIT;
     } else {

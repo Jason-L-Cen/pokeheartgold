@@ -1895,6 +1895,9 @@ int main(int argc,char **argv) {
     u32 fieldMenuUI=w2c_hg32_CheckNativeFieldMenuUI(&first);
     if (fieldMenuUI) fprintf(stderr,"Native field menu UI qualification check line %u\n",fieldMenuUI);
     CHECK(!fieldMenuUI && !w2c_hg32_CheckNativeFieldMenuUI(&second));
+    u32 pokegearUI=w2c_hg32_CheckNativePokegearUI(&first);
+    if (pokegearUI) fprintf(stderr,"Native Pokegear UI qualification check line %u\n",pokegearUI);
+    CHECK(!pokegearUI && !w2c_hg32_CheckNativePokegearUI(&second));
     u32 ballPocket=w2c_hg32_CheckOriginalBallPocket(&first);
     if (ballPocket) fprintf(stderr,"Original ball pocket check line %u\n",ballPocket);
     CHECK(!ballPocket && !w2c_hg32_CheckOriginalBallPocket(&second));

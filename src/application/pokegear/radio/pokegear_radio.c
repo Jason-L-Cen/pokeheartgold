@@ -3,6 +3,10 @@
 #include "constants/maps.h"
 
 #include "application/pokegear/radio/radio_internal.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pokegear_ui.h"
+_Static_assert(RADIO_MAIN_STATE_INPUT_LOOP==1,"original Radio input phase");
+#endif
 
 #include "brightness.h"
 #include "map_header.h"
@@ -33,6 +37,9 @@ BOOL PokegearRadio_Init(OverlayManager *man, int *state) {
     radioApp->pokegear = pokegearApp;
     radioApp->heapID = HEAP_ID_POKEGEAR_APP;
     Radio_Load(radioApp);
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIBeginView(pokegearApp,radioApp,HG_POKEGEAR_RADIO);
+#endif
     return TRUE;
 }
 
@@ -64,13 +71,19 @@ BOOL PokegearRadio_Main(OverlayManager *man, int *state) {
     case RADIO_MAIN_STATE_QUIT:
         return TRUE;
     }
-
+#ifdef HEARTGOLD_NATIVE
+    BOOL ready=*state==RADIO_MAIN_STATE_INPUT_LOOP && radioApp->showData && radioApp->sprites[0]
+        && radioApp->windows[0].bgConfig==radioApp->pokegear->bgConfig && radioApp->windows[0].pixelBuffer;
+    PokegearApp_PublishNativeUI(radioApp->pokegear,radioApp,*state,ready);
+#endif
     return FALSE;
 }
 
 BOOL PokegearRadio_Exit(OverlayManager *man, int *state) {
     PokegearRadioAppData *radioApp = OverlayManager_GetData(man);
-
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(radioApp->pokegear,radioApp);
+#endif
     Radio_Unload(radioApp);
     radioApp->pokegear->isSwitchApp = TRUE;
     enum HeapID heapID = radioApp->heapID;
@@ -215,6 +228,9 @@ int PokegearRadio_MainTask_InputLoop(PokegearRadioAppData *radioApp) {
 }
 
 int PokegearRadio_MainTask_Unload(PokegearRadioAppData *radioApp) {
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(radioApp->pokegear,radioApp);
+#endif
     if (Radio_VideoUnload(radioApp)) {
         return RADIO_MAIN_STATE_QUIT;
     } else {

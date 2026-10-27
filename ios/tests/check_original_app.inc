@@ -2247,6 +2247,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     [report addEntriesFromDictionary:[self checkPCBoxHostPrimitives]];
     [report addEntriesFromDictionary:[self checkTrainerCardHostPrimitives]];
     [report addEntriesFromDictionary:[self checkStartMenuHostPrimitives]];
+    [report addEntriesFromDictionary:[self checkPokegearHostPrimitives]];
 #endif
     report[@"actualCapturesComplete"]=@YES;
     uint8_t tiles[65]={0}; tiles[1]=0x21; tiles[33]=0x03;

@@ -70,14 +70,19 @@ The new native case passed with seven Summary records, two lifetimes, stale-inpu
 
 These additions affect CHECK dispatch, fixtures, driver/builder options and the new CHECK include. All 1,600 audited production source hashes still match the previous audit; Main is byte-equivalent when the new CHECK macro is disabled. The existing normal94, native5/default and production ARM64 evidence is reused for those unchanged compiled inputs, without claiming a fresh audit of the expanded source bank. The fixture starts with zero PP-Ups and does not prove a three-to-zero PP-Up transition. Full-game, physical-device, audible-audio and DS parity limits above still apply.
 
-Build after the strict ABI32 audit and native content preparation:
+From a fresh checkout, use Python 3 on Apple Silicon macOS with Xcode and its iPhoneOS SDK. The source converters also need `pkg-config`, libpng and zlib; see the existing prerequisites in [INSTALL.md](../../INSTALL.md) and [ios/README.md](../README.md).
+
+Run from the repository root, using the same user-provided ROM path for `--rom` and `HG_ORIGINAL_ROM`:
 
 ```sh
-HG_ABI32_TOOLS=/absolute/path/to/abi32-tools python3 ios/tools/build_original_app.py
-HG_ABI32_TOOLS=/absolute/path/to/abi32-tools python3 ios/tools/build_original_app.py --sdk iphoneos
+python3 ios/tools/import_original_content.py --rom /absolute/path/to/heartgold.nds
+HG_ORIGINAL_ROM=/absolute/path/to/heartgold.nds python3 ios/tools/check_abi32.py --audit
+python3 ios/tools/build_original_app.py --sdk iphoneos
 ```
 
-The outputs are `ios/build-original-abi32/app-<sdk>/HeartGoldOriginal.app`. An iPhoneOS build artifact is not physical-device validation; deployment signing, provisioning and installation are outside the completed checks. The private verified content pack is copied into the bundle; do not commit or redistribute it. The existing Swift target and its resources are untouched. Private fixture UI checks use `--check --check-case field-potion`, `--check --check-case forced-switch` or `--check --check-case learn-moves`, with the matching `HEARTGOLD_CHECK_CASE` and `HEARTGOLD_TEST_MUTE=1`. The separate TM Summary case uses `--check --check-case summary-tm --summary-tm-report /absolute/path/to/native-summary-menu-tm-learn-existing-starter/report.json`; the builder validates its matching sealed native report before using that private module. The Candy case uses `--check --check-case summary-candy --summary-candy-report /absolute/path/to/native-summary-menu-candy-typed-v2/report.json` with the matching sealed Candy report. These are separate test builds, not production modes.
+The audit bootstraps its checksum-pinned toolchain. `HG_ABI32_TOOLS` is optional; when selecting an existing cache, use the same value for the audit and App build. Omit `--sdk iphoneos` for the default Simulator build.
+
+The outputs are `ios/build-original-abi32/app-<sdk>/HeartGoldOriginal.app`. The App builder only builds and ad-hoc signs the app; it does not install or launch it. Physical-device installation or distribution still requires valid signing and provisioning; a build artifact is not physical-device validation. The private verified content pack is copied into the bundle; do not commit or redistribute it. The existing Swift target and its resources are untouched. Private fixture UI checks use `--check --check-case field-potion`, `--check --check-case forced-switch` or `--check --check-case learn-moves`, with the matching `HEARTGOLD_CHECK_CASE` and `HEARTGOLD_TEST_MUTE=1`. The separate TM Summary case uses `--check --check-case summary-tm --summary-tm-report /absolute/path/to/native-summary-menu-tm-learn-existing-starter/report.json`; the builder validates its matching sealed native report before using that private module. The Candy case uses `--check --check-case summary-candy --summary-candy-report /absolute/path/to/native-summary-menu-candy-typed-v2/report.json` with the matching sealed Candy report. These are separate test builds, not production modes.
 
 The game owns one native `NSThread`, with requested `NSQualityOfServiceUserInteractive` set before `start`. UIKit queues input under a condition lock, and the owner applies it between display events. Frames are copied into immutable `NSData`; the main thread displays the latest frame without building a callback backlog. Backgrounding clears held input and suspends the owner and display clock. Foregrounding restarts the clock and observer. Scene disconnection requests the existing original reset/drain path before freeing the module. The original 512 KiB save is stored separately at `Application Support/HeartGoldOriginal/heartgold.sav`; prototype JSON saves are not migrated or overwritten.
 

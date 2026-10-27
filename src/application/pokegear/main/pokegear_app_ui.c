@@ -2,6 +2,25 @@
 
 #include "application/pokegear/pgear_gra.naix"
 #include "application/pokegear/pokegear_internal.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_pokegear_ui.h"
+#include "screen_fade.h"
+void PokegearApp_PublishNativeUI(PokegearAppData *pokegearApp,void *view,int phase,BOOL ready) {
+    HGNativePokegearUIState facts={.phase=phase,.app=pokegearApp->app,.registeredCards=pokegearApp->registeredCards,
+        .scriptedLaunch=pokegearApp->args->isScriptedLaunch};
+    if(HGNativePokegearUIGetState()->ownerKind!=HG_POKEGEAR_OWNER_GEAR) {
+        facts.parentPhase=phase;NativePokegearUIParentState(pokegearApp,&facts);
+    }
+    facts.ready=ready && pokegearApp->childAppdata==view && pokegearApp->bgConfig && pokegearApp->plttData
+        && pokegearApp->spriteSystem && pokegearApp->spriteManager && IsPaletteFadeFinished()
+        && !PaletteData_GetSelectedBuffersBitmask(pokegearApp->plttData);
+    if(HGNativePokegearUIGetState()->ownerKind==HG_POKEGEAR_OWNER_GEAR)
+        facts.ready=facts.ready && pokegearApp->childApplication && pokegearApp->uiManager
+            && pokegearApp->uiManager->spriteList && pokegearApp->cursorManager && pokegearApp->appButtonsScreen;
+    for(int i=0;i<8 && facts.ready;++i)facts.ready=pokegearApp->bgConfig->bgs[i].tilemapBuffer!=NULL;
+    NativePokegearUIPublish(pokegearApp,view,&facts);
+}
+#endif
 
 #include "map_header.h"
 #include "screen_fade.h"
@@ -257,6 +276,9 @@ BOOL PokegearApp_LoadGFX(PokegearAppData *pokegearApp) {
 }
 
 BOOL PokegearApp_UnloadGFX(PokegearAppData *pokegearApp) {
+#ifdef HEARTGOLD_NATIVE
+    NativePokegearUIEndView(pokegearApp,pokegearApp->childAppdata);
+#endif
     GF_TouchpadStopSampling();
     Main_SetVBlankIntrCB(NULL, pokegearApp);
     Pokegear_RemoveAppSwitchButtons(pokegearApp);

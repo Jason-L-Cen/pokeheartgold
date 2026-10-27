@@ -5,6 +5,7 @@
 #include "native_options_ui.h"
 #include "native_pc_box_ui.h"
 #include "native_trainer_card_ui.h"
+#include "native_pokegear_ui.h"
 #include "native_field_menu_ui.h"
 #include "sys_task_api.h"
 #include "native_field_choice_ui.h"
@@ -918,6 +919,83 @@ void NativeFieldMenuUIRetire(const void *owner) {
 }
 void NativeFieldMenuUIReset(void){NativeFieldMenuUIRetire(sNativeFieldMenuOwner);}
 // Native field menu resident state end.
+
+// Native Pokegear resident state begin.
+static HGNativePokegearUIState sNativePokegearUIState;
+static const void *sNativePokegearOwner,*sNativePokegearView;
+static SysTask *sNativePokegearUploadTask;
+static uint32_t sNativePokegearUploaded;
+static void NativePokegearUICancelUpload(void) {
+    sNativePokegearUploaded=0;
+    if(sNativePokegearUploadTask)SysTask_Destroy(sNativePokegearUploadTask);
+    sNativePokegearUploadTask=NULL;
+}
+static void NativePokegearUIUploaded(SysTask *task,void *view) {
+    if(task==sNativePokegearUploadTask && view==sNativePokegearView) {
+        sNativePokegearUploadTask=NULL;sNativePokegearUploaded=1;
+    }
+    SysTask_Destroy(task);
+}
+const HGNativePokegearUIState *HGNativePokegearUIGetState(void){return &sNativePokegearUIState;}
+void NativePokegearUIBegin(const void *owner,uint32_t kind) {
+    if(!owner || kind<1 || kind>3 || owner==sNativePokegearOwner)return;
+    NativePokegearUICancelUpload();
+    uint32_t generation=sNativePokegearUIState.ownerGeneration+1,revision=sNativePokegearUIState.revision+1;
+    sNativePokegearOwner=owner;sNativePokegearView=NULL;
+    sNativePokegearUIState=(HGNativePokegearUIState){.active=1,.ownerKind=kind,.viewKind=HG_POKEGEAR_NO_VIEW,
+        .ownerGeneration=generation ? generation : 1,.revision=revision ? revision : 1};
+}
+void NativePokegearUIBeginView(const void *owner,void *view,uint32_t kind) {
+    if(!owner || owner!=sNativePokegearOwner || !view || sNativePokegearView || kind>HG_POKEGEAR_STANDALONE_MAP)return;
+    NativePokegearUICancelUpload();sNativePokegearView=view;
+    sNativePokegearUIState.viewKind=kind;sNativePokegearUIState.viewActive=1;sNativePokegearUIState.ready=0;
+    sNativePokegearUIState.phase=UINT32_MAX;
+    if(!++sNativePokegearUIState.ownerGeneration)++sNativePokegearUIState.ownerGeneration;
+    if(!++sNativePokegearUIState.revision)++sNativePokegearUIState.revision;
+}
+void NativePokegearUIParentState(const void *owner,const HGNativePokegearUIState *facts) {
+    if(!owner || owner!=sNativePokegearOwner || !facts)return;
+    HGNativePokegearUIState next=sNativePokegearUIState;
+    next.parentPhase=facts->parentPhase;next.app=facts->app;next.registeredCards=facts->registeredCards;next.scriptedLaunch=facts->scriptedLaunch;
+    if(!next.viewActive)next.viewKind=next.ownerKind==HG_POKEGEAR_OWNER_GEAR && (next.parentPhase==8 || next.parentPhase==9)
+        ? HG_POKEGEAR_EASY_CHAT : HG_POKEGEAR_NO_VIEW;
+    if(!HGNativePokegearUIInputAllowed(&next,next.ownerGeneration,next.revision))next.ready=0;
+    if(!memcmp(&next,&sNativePokegearUIState,sizeof(next)))return;
+    sNativePokegearUIState=next;
+    if(!++sNativePokegearUIState.revision)++sNativePokegearUIState.revision;
+}
+void NativePokegearUIPublish(const void *owner,void *view,const HGNativePokegearUIState *facts) {
+    if(!owner || owner!=sNativePokegearOwner || !view || view!=sNativePokegearView || !facts)return;
+    HGNativePokegearUIState next=*facts;
+    next.active=next.viewActive=1;next.ownerGeneration=sNativePokegearUIState.ownerGeneration;
+    next.revision=sNativePokegearUIState.revision;next.ownerKind=sNativePokegearUIState.ownerKind;
+    next.viewKind=sNativePokegearUIState.viewKind;next.parentPhase=sNativePokegearUIState.parentPhase;
+    if(next.phase!=sNativePokegearUIState.phase) {
+        NativePokegearUICancelUpload();
+        // Original touchscreen-list graphics upload at priority128 on this same VWait queue.
+        if(HGNativePokegearUIIsInputPhase(next.viewKind,next.phase))
+            sNativePokegearUploadTask=SysTask_CreateOnVWaitQueue(NativePokegearUIUploaded,view,129);
+    }
+    next.ready=next.ready==1 && sNativePokegearUploaded && HGNativePokegearUIInputAllowed(&next,next.ownerGeneration,next.revision);
+    if(!memcmp(&next,&sNativePokegearUIState,sizeof(next)))return;
+    sNativePokegearUIState=next;
+    if(!++sNativePokegearUIState.revision)++sNativePokegearUIState.revision;
+}
+void NativePokegearUIEndView(const void *owner,const void *view) {
+    if(!owner || owner!=sNativePokegearOwner || !view || view!=sNativePokegearView)return;
+    sNativePokegearView=NULL;sNativePokegearUIState.viewActive=sNativePokegearUIState.ready=0;
+    sNativePokegearUIState.phase=UINT32_MAX;
+    NativePokegearUICancelUpload();
+    if(!++sNativePokegearUIState.revision)++sNativePokegearUIState.revision;
+}
+void NativePokegearUIRetire(const void *owner) {
+    if(!owner || owner!=sNativePokegearOwner)return;
+    sNativePokegearOwner=sNativePokegearView=NULL;
+    sNativePokegearUIState.active=sNativePokegearUIState.viewActive=sNativePokegearUIState.ready=0;
+    NativePokegearUICancelUpload();
+    if(!++sNativePokegearUIState.revision)++sNativePokegearUIState.revision;
+}
+// Native Pokegear resident state end.
 
 // Native field choice resident state begin.
 // OVY_27 is restored on reload; the original SysTask owner and lease counters must stay resident.

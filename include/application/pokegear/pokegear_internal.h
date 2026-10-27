@@ -189,6 +189,9 @@ typedef enum PokegearRegion {
 
 PokegearRegion Pokegear_RegionFromCoords(u16 x, u16 y);
 int Pokegear_GetCurrentRegion(PokegearAppData *pokegearApp);
+#ifdef HEARTGOLD_NATIVE
+void PokegearApp_PublishNativeUI(PokegearAppData *pokegearApp,void *view,int phase,BOOL ready);
+#endif
 BOOL PokegearApp_HandleInputModeChangeToButtons(PokegearAppData *pokegearApp);
 int PokegearApp_HandleTouchInput_SwitchApps(PokegearAppData *pokegearApp);
 int PokegearApp_HandleKeyInput_SwitchApps(PokegearAppData *pokegearApp);

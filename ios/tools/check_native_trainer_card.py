@@ -352,7 +352,7 @@ def main():
     sys.path.insert(0,str(root/'ios/tools'));sys.path.insert(0,str(root/'ios/tests'))
     require(not args.output.exists(),'Select a new output attempt; prior evidence is retained');args.output.mkdir(parents=True)
     report=dict(passed=False,complete=False,gameRuntimeExecuted=False,moduleBuilt=False,commands=[],remainingGaps=[],
-        noAutomaticRetry=True,syntheticSaveSetters=False,privateExports=list(QA_EXPORTS),expectedPrivateExportCount=32,expectedSteps=55)
+        noAutomaticRetry=True,syntheticSaveSetters=False,privateExports=list(QA_EXPORTS),expectedPrivateExportCount=33,expectedSteps=55)
     def run(command,log,timeout=60):
         command=['nice','-n','10',*map(str,command)];result=subprocess.run(command,cwd=root,capture_output=True,text=True,timeout=timeout)
         (args.output/log).write_text(result.stdout+result.stderr);report['commands'].append(dict(command=command,returnCode=result.returncode,log=log,allChildrenWaited=True,timedOut=False))
@@ -414,7 +414,7 @@ def execute(root,args,output,copies,report,source_pins):
         for name in QA_EXPORTS:command.insert(command.index('-o'),'-Wl,--export='+name)
         runner(command,guest/'strict-link.log');report['moduleBuilt']=True
         exports=wasm_exports(module.read_bytes())
-        require(len(exports)==32 and exports==sorted([*context['formal']['shipping']['exports'],*QA_EXPORTS]),'Exactly shipping30 plus private2 required')
+        require(len(exports)==33 and exports==sorted([*context['formal']['shipping']['exports'],*QA_EXPORTS]),'Exactly shipping31 plus private2 required')
         native=output/'native';native.mkdir();generated,writes,restores=h['generate_engine'](native,module,lambda argv,log:runner(argv,native/log))
         cflags,runtime=h['native_build_settings'](native);cflags+=['-I',str(HERE),'-I',str(root/'ios/tests'),'-I',str(root/'ios/Original/abi32'),'-g','-fsanitize=address,undefined','-fno-sanitize-recover=all']
         native_objects=[]
