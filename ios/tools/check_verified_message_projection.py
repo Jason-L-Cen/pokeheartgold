@@ -8,7 +8,7 @@ from pathlib import Path
 import struct
 import sys
 
-PROOF_SHA256='95829965d520fecfa0b583eb234827413b8ecf127a49f39a063d21ae044b5c55'
+PROOF_SHA256='625a9f1c56f90cd7a40fe30933dc6761ccaa183474e3b23a3da4236f76e71afd'
 
 def sha(data): return hashlib.sha256(data).hexdigest()
 
@@ -94,7 +94,7 @@ def main():
     proved=proof['provenEntryCorrespondences']
     expected={(row['sourceBank'],row['sourceId'],row['romBank'],row['romId']) for row in proved}
     actual={(source_id,a,record[0],b) for source_id,record in module.ENTRY_PROJECTIONS.items() for a,b in record[3]}
-    assert actual==expected and len(actual)==8
+    assert actual==expected and len(actual)==12 and len(module.ENTRY_PROJECTIONS)==4
     report=dict(scope='Read-only raw-code-unit entry projection checks; no build or runtime',imageSha256=image_sha,
         proofSha256=sha(proof_bytes),candidateSha256=sha(candidate.read_bytes()),banks=[],entries=[],
         pending=['Fresh content generation/audit/link','Full gameplay/dialogue and regional compatibility','Glyph/font rendering and layout'])
@@ -106,6 +106,16 @@ def main():
         assert baseline[source_id]==source[source_id] and baseline_choices[source_id]['rom'] is None
         assert selected[source_id][:4]==source[source_id][:4]
         assert choices[source_id]['rom'] is None and choices[source_id]['kind']=='entry-projection'
+        if source_id==197:
+            source_slots=module.message_identity(source[source_id])[2]
+            rom_slots=module.message_identity(original[rom_id])[2]
+            mismatches={row:(source_slots[row],rom_slots[row]) for row in range(len(source_slots)) if source_slots[row]!=rom_slots[row]}
+            assert mismatches=={843:((),(None,0)),844:((),(None,0)),845:((),(None,0)),1110:((0,2),(0,1,2)),1111:((0,2),(0,1,2))}
+            for row in mismatches:
+                rejects(lambda row=row:module.project_message_entries(source[source_id],original[rom_id],((row,row),)))
+            mapped,mapped_choices=module.select_messages(source,original,map_banks={197:{195}},image_sha256=image_sha)
+            assert mapped[source_id]==selected[source_id] and mapped_choices[source_id]==choices[source_id]
+            assert sha(selected[source_id])==proof['battleOriginalCodeAndData']['expectedProjectedBankSha256']
         replacements=dict(entries); count=struct.unpack_from('<H',source[source_id])[0]
         for row in range(count):
             words,ciphertext=raw_row(selected[source_id],row)
@@ -132,10 +142,14 @@ def main():
     members=[*original,*([b'']*(module.SOURCE_BASE-len(original))),*selected]
     projected_archive=output/'entry-projected-messages.narc'; projected_archive.write_bytes(module.write_narc(members))
     assert narc(projected_archive)==members
+    fallback_rows=sum(record['fallbackEntries'] for record in report['banks'])
+    other_banks=len(source)-len(module.ENTRY_PROJECTIONS)
+    assert (fallback_rows,other_banks)==(1428,825)
     report.update(archiveSha256=sha(projected_archive.read_bytes()),archivePath=str(projected_archive),
-        originalRomMembersUnchanged=len(original),sourceFallbackRowsUnchanged=156)
+        originalRomMembersUnchanged=len(original),sourceFallbackRowsUnchanged=fallback_rows,otherBanksUnchanged=other_banks,
+        wholeBankProjectionRejectedRows=[843,844,845,1110,1111])
     report.update(status='pass',synthetic='raw/packed/rekey/duplicate-slot preservation; malformed and changed-slot rejection',
-        actual='8 exact original-ROM raw-u16 rows; 156 other rows retain source words/table/ciphertext; all 826 other banks match prior selector')
+        actual=f'{len(actual)} exact original-ROM raw-u16 rows; {fallback_rows} other rows retain source words/table/ciphertext; all {other_banks} other banks match prior selector')
     (output/'check-report.json').write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(dict(status='pass',entries=len(actual),projectedBanks=len(report['banks']),report=str(output/'check-report.json'))))
 

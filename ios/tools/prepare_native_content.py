@@ -18,10 +18,11 @@ ROOT=Path(__file__).resolve().parents[2]
 SOURCE_BASE=1024
 MESSAGE_PATH=Path('a/0/2/7')
 POKEDEX_GRAPHICS_PATH=Path('a/0/6/8')
-# Original ARM9/overlay source proof: message-bank-region-source-proof-r1.json (95829965d520fecfa0b583eb234827413b8ecf127a49f39a063d21ae044b5c55).
+# Original ARM9/overlay source proof: message-bank-standard-battle-prompt-source-proof-r1.json (625a9f1c56f90cd7a40fe30933dc6761ccaa183474e3b23a3da4236f76e71afd).
 ENTRY_PROJECTION_ROM_SHA256='3bd743e8ab963a6fe56669fbf49c4bfebd22418498d0f9f2ae177f33ee68d101'
 ENTRY_PROJECTIONS={
     40:(38,'5c71338a091b23e622ce653d5626e1ee93c0f9e82cb5598d2fb16c5694d32bc2','f91f8093e6ed5349c70eefc4cd42a4d5a0809198bfa47c9db74d1c5be3f66bec',((15,15),(21,21),(81,80),(82,81))),
+    197:(195,'cd45ea9f6ad249508c562c7c8967ee3929bec616a6aaa2034d329131180780bf','fe1bbf650b0618262966def2c746e6970155b18db263aca933a446709f27b7ab',((867,867),(1226,1226),(1227,1227),(921,921))),
     423:(416,'91adc9e75d88b21436e056f0bf2f8a1598f92f7d9966da754c7f986e94f081b4','d4a12dd5685c420e449a8689d84619235e85db5150144bcd35380e6b801dd156',((5,5),(6,6),(8,8))),
     664:(655,'ab6f7dcca6c372b4a9e16216fff55a475f0ac3eecb4aadd5b036d64b6f46dfa7','490a5f6db29643b66079d343338edebedd4e5d7e57414dc2419648d6bbdca98c',((0,0),)),
 }
