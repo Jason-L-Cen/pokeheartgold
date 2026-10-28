@@ -491,6 +491,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',choices=('iphonesimulator','iphoneos'),default='iphonesimulator')
     parser.add_argument('--check',action='store_true',help='Run UIKit input, frame, pause/resume and reset checks after launching')
+    parser.add_argument('--check-no-audio-device',action='store_true',help='CHECK only: suppress the audio device and validate UI only; audio remains untested')
     parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves','summary-tm','summary-candy','evolution','evolution-cancel','evolution-learn','pokedex','capture-registration','naming','pc-box'),help='Select an independent private UIKit case; requires --check')
     parser.add_argument('--pc-box-native-report',type=Path,help='Separately approved passed native PC report; only --check-case pc-box')
     parser.add_argument('--summary-tm-report',type=Path,help='Sealed passed native TM report.json; only --check-case summary-tm')
@@ -500,6 +501,8 @@ def main():
     parser.add_argument('--capture-report',type=Path,help='Approved sealed passed native Capture R4 report.json; only --check-case capture-registration')
     parser.add_argument('--naming-report',type=Path,help='Corrected approved native Naming report.json; only --check-case naming')
     args=parser.parse_args()
+    if args.check_no_audio_device and not args.check:
+        parser.error('--check-no-audio-device requires --check; production playback cannot suppress the audio device')
     if args.check_case and not args.check:
         parser.error('--check-case requires --check; production builds cannot select a private case')
     if (args.check_case=='summary-tm')!=bool(args.summary_tm_report):
@@ -577,6 +580,7 @@ def main():
     generated,writes,restores=generate_engine(destination,module,run)
     flags,sources=native_build_settings(destination)
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
+    if args.check_no_audio_device: check_flags.append('-DHEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE')
     if args.check and not args.check_case: check_flags.append('-DHEARTGOLD_ORIGINAL_DEFAULT_CHECK')
     if args.check_case=='pc-box':
         check_flags += ['-DHEARTGOLD_ORIGINAL_PC_BOX_CHECK',
@@ -616,8 +620,9 @@ def main():
          '-c',ROOT/'ios/OriginalApp/main.m','-o',entry],'entry.log')
     run(['xcrun','--sdk',args.sdk,'clang','-target',target,'-std=c11','-O2',*check_flags,'-fobjc-arc',
          '-c',ROOT/'ios/OriginalApp/OriginalAudio.m','-o',audio],'audio.log')
+    audio_framework=[] if args.check_no_audio_device else ['-framework','AVFAudio']
     run(['xcrun','--sdk',args.sdk,'clang','-target',target,*objects,entry,audio,
-         '-framework','UIKit','-framework','QuartzCore','-framework','CoreGraphics','-framework','Foundation','-framework','AVFAudio',
+         '-framework','UIKit','-framework','QuartzCore','-framework','CoreGraphics','-framework','Foundation',*audio_framework,
          '-o',app/'HeartGoldOriginal'],'link.log')
     plist=plistlib.loads((ROOT/'ios/Info.plist').read_bytes())
     plist['UIApplicationSceneManifest']={'UIApplicationSupportsMultipleScenes':False,
@@ -628,6 +633,9 @@ def main():
                  CFBundleName='HeartGoldOriginal',CFBundleDisplayName='心金 · 原版引擎',UIDeviceFamily=[1,2],MinimumOSVersion='16.0')
     if args.check:
         plist['HGPrivateCheckCase']=args.check_case or 'default'
+    if args.check_no_audio_device:
+        plist['HGPrivateAudioValidation']='skipped_no_audio_device'
+        plist['HGPrivateValidationScope']='UIKit/game UI only; audio untested'
     if args.check_case=='pc-box':
         plist['HGPrivatePCBoxNativeReportSha256']=private_guest['sourceReportSha256']
         plist['HGPrivatePCBoxNativeModuleSha256']=private_guest['privateGuestModuleSha256']
@@ -684,6 +692,8 @@ def main():
                 executableSha256=hashlib.sha256((app/'HeartGoldOriginal').read_bytes()).hexdigest(),
                 entryCommandJournal=str(destination/'entry.log.command.json'),
                 entryCommandJournalSha256=hashlib.sha256((destination/'entry.log.command.json').read_bytes()).hexdigest())
+    if args.check_no_audio_device:
+        report.update(audioDeviceAvailable=False,audioValidation='skipped_no_audio_device',validationScope='UIKit/game UI only; audio untested')
     if args.check and not args.check_case: report['privateReadOnlyExports']=['IsPaletteFadeFinished']
     if args.check_case=='summary-tm': report['summaryTm']=True
     if args.check_case=='summary-candy': report['rareCandyLearn']=True

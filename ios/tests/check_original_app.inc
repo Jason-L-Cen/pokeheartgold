@@ -8,10 +8,105 @@ static NSMutableSet *sPrivateVisibleHP;
 static BOOL sPrivateObserving, sPrivateOverflow;
 static uint32_t sPrivateDisplayFrame;
 static const NSUInteger sPrivateSampleLimit=1024;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
+static NSString *const OriginalCheckSilenceKey=@"audioDeviceSuppressed";
+static NSString *const OriginalCheckSilenceFailure=@"audio_device_suppression_not_admitted";
+#else
+static NSString *const OriginalCheckSilenceKey=@"muted";
+static NSString *const OriginalCheckSilenceFailure=@"audio_not_muted";
+#endif
+static BOOL OriginalCheckSilenceVerified(NSDictionary *audio) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
+    return audio && audio[@"available"] && ![audio[@"available"] boolValue]
+        && [audio[@"audioDeviceSuppressed"] boolValue] && [audio[@"opened"] boolValue]
+        && audio[@"closed"] && ![audio[@"closed"] boolValue];
+#else
+    return [audio[@"muted"] boolValue];
+#endif
+}
+static NSArray *OriginalCheckSilenceRequirements(NSArray *keys) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
+    NSMutableArray *required=[keys mutableCopy];
+    for (NSUInteger i=0;i<required.count;i++) if ([required[i] isEqual:@"muted"]) required[i]=OriginalCheckSilenceKey;
+    return required;
+#else
+    return keys;
+#endif
+}
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
+static NSArray *OriginalCheckAudioMetricKeys(void) {
+    return @[@"activationDoesNotOverrideInterruption",@"interruptionWaitsForUser",@"userResumesWithoutSendingStart",
+        @"testAudioMuted",@"audioSubmitted",@"audioRendered",@"originalAudioNonzero",@"audioQueueBounded",@"pauseStopsAudio",
+        @"audioSnapshotsAvailable",@"resumeAudio",@"resumeAudioQueueBounded",@"resumeAudioWithoutUnderrun",
+        @"normalResetReopensMutedAudio",@"normalResetAudioStatisticsAvailable",@"audioFirstShortCaptureConsistent"];
+}
+#endif
+static void OriginalCheckLimitToUI(NSMutableDictionary *report,NSArray *audioEpochs) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
+    for (NSString *key in OriginalCheckAudioMetricKeys()) [report removeObjectForKey:key];
+    BOOL suppressed=audioEpochs.count==5;
+    for (NSDictionary *audio in audioEpochs) suppressed&=OriginalCheckSilenceVerified(audio);
+    report[OriginalCheckSilenceKey]=@(suppressed);
+#else
+    (void)report; (void)audioEpochs;
+#endif
+}
+static NSDictionary *OriginalCheckAudioResult(NSDictionary *result) {
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
+    NSMutableDictionary *scoped=[result mutableCopy];
+    scoped[@"validationScope"]=@"ui_only";
+    scoped[@"audioValidation"]=@{@"status":@"not_tested",@"reason":@"CHECK build suppresses the audio device",
+        @"skippedKeys":result[@"requiredKeys"] ? @[@"muted"] : OriginalCheckAudioMetricKeys(),
+        @"audioDeviceAvailable":@NO,@"deviceMetricsValidated":@NO,@"audibleAudioValidated":@NO};
+    return scoped;
+#else
+    return result;
+#endif
+}
 #ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
 static void (^sCaptureRegistrationDisplay)(uint32_t);
 #endif
 @implementation OriginalController (Checks)
+- (BOOL)checkRequestFieldChild:(uint32_t)icon {
+    [_condition lock];
+    NSData *rawData=[_startMenuRawUIState copy],*liveData=[_startMenuUIState copy];
+    const HGNativeFieldMenuUIState *raw=rawData.length==sizeof(*raw) ? rawData.bytes : NULL;
+    const HGNativeFieldMenuUIState *live=liveData.length==sizeof(*live) ? liveData.bytes : NULL;
+    BOOL idle=!_paused && !_stopping && !_failure && !_startMenuChoicePending && !_startMenuInputActive
+        && !_startMenuInputCooling && !_startMenuReleasePending;
+    BOOL field=_fieldMapId==MAP_ROUTE_29,open=_fieldMenuOpen,touch=_touchPressed;
+    NSUInteger generation=_inputGeneration;
+    [_condition unlock];
+    if (!field || !idle || !raw || !live) return NO;
+    NSData *shownData=_displayedStartMenuUIState;
+    const HGNativeFieldMenuUIState *shown=shownData.length==sizeof(*shown) ? shownData.bytes : NULL;
+    UIButton *button=_menuButton;
+    BOOL attached=button.window && button.window==self.view.window && [button isDescendantOfView:self.view];
+    if (raw->active || live->active || _startMenuScene || (shown && shown->active)) {
+        if (shown && !memcmp(raw,shown,sizeof(*raw)) && !memcmp(live,shown,sizeof(*live))
+            && HGNativeFieldMenuUIInputAllowed(shown,shown->ownerGeneration,shown->revision)
+            && _startMenuScene && _startMenuBlocksInput && _touchEngine==_displayedStartMenuEngine
+            && attached && !button.hidden && button.enabled && button.userInteractionEnabled)
+            [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+        return NO;
+    }
+    if (touch) return NO;
+    if (!open) {
+        if (attached && !button.hidden && button.enabled && button.userInteractionEnabled)
+            [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+        return NO;
+    }
+    if (_fieldMenu.hidden || !_fieldMenu.userInteractionEnabled || !_fieldMenu.window
+        || _fieldMenu.window!=self.view.window || ![_fieldMenu isDescendantOfView:self.view]) return NO;
+    for (NSUInteger i=0;i<MIN((NSUInteger)7,_fieldMenuElements.count);i++) {
+        OriginalMenuElement *element=_fieldMenuElements[i];
+        if (((_fieldMenuIcons>>(i*4))&15)!=icon || ![_fieldMenu.accessibilityElements containsObject:element]) continue;
+        if (![element accessibilityActivate]) return NO;
+        [_condition lock]; BOOL admitted=_touchPressed && _inputGeneration!=generation; [_condition unlock];
+        return admitted;
+    }
+    return NO;
+}
 #ifndef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
 - (BOOL)checkGlyph:(UIImage *)glyph inCard:(UIImage *)card x:(NSInteger)x y:(NSInteger)y {
     CGImageRef g=glyph.CGImage,c=card.CGImage;
@@ -550,9 +645,10 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
         if (ready && lastCanvas!=self->_canvas.image) stableFrames++;
         lastCanvas=self->_canvas.image; lastBorder=edge;
         BOOL steady=ready && stableFrames>=3 && CFAbsoluteTimeGetCurrent()-steadySince>=0.5;
-        BOOL field=valid && !active && map==MAP_ROUTE_29 && !self->_optionsScene && self->_optionsPreview.hidden && !self->_displayedEngine
+        BOOL fieldOwner=valid && !active && map==MAP_ROUTE_29 && !self->_optionsScene && self->_optionsPreview.hidden && !self->_displayedEngine
             && !self->_battleMode && !self->_battleScene && !self->_battleMenuScene && !self->_partyScene && !self->_bagScene && !self->_summaryScene
-            && !self->_canvas.hidden && [self checkPrivatePixels:self->_canvas.image] && !self->_menuButton.hidden && self->_menuButton.enabled && self->_menuButton.window
+            && !self->_canvas.hidden && [self checkPrivatePixels:self->_canvas.image];
+        BOOL field=fieldOwner && !self->_menuButton.hidden && self->_menuButton.enabled && self->_menuButton.window
             && (menu ? !self->_fieldMenu.hidden && self->_fieldMenu.image!=nil : !self->_joystick.hidden);
         NSData *startMenuData=self->_displayedStartMenuUIState;
         const HGNativeFieldMenuUIState *startMenu=startMenuData.length==sizeof(*startMenu) ? startMenuData.bytes : NULL;
@@ -561,16 +657,8 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
             if (!button.hidden && button.enabled && button.userInteractionEnabled && button.window
                 && button.window==self.view.window && [button isDescendantOfView:self.view])
                 [button sendActionsForControlEvents:UIControlEventTouchUpInside];
-        } else if ((stage==0 || stage==6) && field) {
-            if (!menu) {
-                UIButton *button=self->_menuButton;
-                if (!button.hidden && button.enabled && button.window && [button isDescendantOfView:self.view]) [button sendActionsForControlEvents:UIControlEventTouchUpInside];
-            } else if (!self->_fieldMenu.hidden && self->_fieldMenu.window && self->_fieldMenu.userInteractionEnabled) {
-                for (NSUInteger i=0;i<MIN((NSUInteger)7,self->_fieldMenuElements.count);i++) if (((self->_fieldMenuIcons>>(i*4))&15)==6
-                    && [self->_fieldMenu.accessibilityElements containsObject:self->_fieldMenuElements[i]]) {
-                    if ([self->_fieldMenuElements[i] accessibilityActivate]) {stage=stage==0 ? 1 : 7;resetSteady();} break;
-                }
-            }
+        } else if ((stage==0 || stage==6) && fieldOwner) {
+            if ([self checkRequestFieldChild:6]) {stage=stage==0 ? 1 : 7;resetSteady();}
         } else if (stage==1 && steady) {
             firstGeneration=p->ownerGeneration;baselineBorder=edge;baselineMain=CFBridgingRelease(CGDataProviderCopyData(CGImageGetDataProvider(self->_canvas.image.CGImage)));
             if (!shot(@"original-options-first-ready-check.png",nil) || !shot(@"original-options-preview-baseline.png",self->_optionsPreview.image)) {finish(@"first_capture_failed");return;}
@@ -643,8 +731,8 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
         BOOL native=ready && !self->_summaryPanel.hidden && self->_canvas.hidden && !self->_canvas.userInteractionEnabled && self->_buttons[@1].hidden;
         if (native && summary->phase==HG_SUMMARY_UI_INPUT && summary->page<=2) pages|=1u<<summary->page;
         NSString *capture=nil; dispatch_block_t action=nil;
-        if (!stage && map==MAP_ROUTE_29 && !self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
-            for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==1 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=1; break; }
+        if (!stage && map==MAP_ROUTE_29) {
+            if ([self checkRequestFieldChild:1]) stage=1;
         } else if (stage==1 && partyReady && party->phase==HG_PARTY_UI_ROSTER) {
             for (NSUInteger i=0;i<HG_PARTY_UI_SLOTS;i++) if (party->mons[i].active && !party->mons[i].isEgg && self->_partyMons[i].enabled) {
                 originalPartyRevision=party->revision; action=^{ [self->_partyMons[i] sendActionsForControlEvents:UIControlEventTouchUpInside]; }; stage=2; break;
@@ -716,8 +804,8 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
             if (firstItemPocket==UINT32_MAX && bag->visibleCount && bag->itemMask) firstItemPocket=bag->pocketIndex;
         }
         NSString *capture=nil; dispatch_block_t action=nil;
-        if (!stage && map==MAP_ROUTE_29 && !self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
-            for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==2 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=1; break; }
+        if (!stage && map==MAP_ROUTE_29) {
+            if ([self checkRequestFieldChild:2]) stage=1;
         } else if (stage==1 && ready && bag->phase==HG_BAG_UI_INPUT) {
             capture=@"original-bag-pockets-check.png"; stage=2;
         } else if (stage==2 && ready && bag->phase==HG_BAG_UI_INPUT) {
@@ -769,6 +857,23 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
 }
 - (void)checkPartyFlow:(NSMutableDictionary *)report completion:(dispatch_block_t)completion {
     __block NSUInteger stage=0,attempts=0,slot=0,waitPolls=0; __block uint32_t pickerRevision=0,continued=0; __block void (^step)(void);
+    __block NSUInteger witnessCount=0,lastWitnessStage=NSNotFound;
+    void (^witness)(const char *)=^(const char *action) {
+        if (witnessCount++>=32) return;
+        [self->_condition lock];
+        const HGNativePartyUIState *party=self->_partyUIState.length==sizeof(*party) ? self->_partyUIState.bytes : NULL;
+        const HGNativePartyUIState *shownParty=self->_displayedPartyUIState.length==sizeof(*shownParty) ? self->_displayedPartyUIState.bytes : NULL;
+        const HGNativeFieldMenuUIState *native=self->_startMenuRawUIState.length==sizeof(*native) ? self->_startMenuRawUIState.bytes : NULL;
+        const HGNativeFieldMenuUIState *shownNative=self->_displayedStartMenuUIState.length==sizeof(*shownNative) ? self->_displayedStartMenuUIState.bytes : NULL;
+        fprintf(stderr,"CHECK Party navigation stage=%lu polls=%lu action=%s party=%u/%u/%u shownParty=%u/%u/%u partyPending=%d/%d field=%u menu=%d/%d/%d native=%u/%u/%u/%u/%u/%u shownNative=%u/%u/%u/%u scene=%d/%d nativePending=%d/%d/%d/%d engines=%u/%u\n",
+            (unsigned long)stage,(unsigned long)attempts,action,party ? party->active : 0,party ? party->phase : 0,party ? party->revision : 0,
+            shownParty ? shownParty->active : 0,shownParty ? shownParty->phase : 0,shownParty ? shownParty->revision : 0,
+            self->_partyChoicePending,self->_partyTouchActive,self->_fieldMapId,self->_fieldMenuOpen,self->_fieldMenu.hidden,self->_fieldMenu.userInteractionEnabled,
+            native ? native->active : 0,native ? native->ownerGeneration : 0,native ? native->revision : 0,native ? native->phase : 0,native ? native->ready : 0,native ? native->childActive : 0,
+            shownNative ? shownNative->ownerGeneration : 0,shownNative ? shownNative->revision : 0,shownNative ? shownNative->phase : 0,shownNative ? shownNative->ready : 0,self->_startMenuScene,self->_startMenuBlocksInput,
+            self->_startMenuChoicePending,self->_startMenuInputActive,self->_startMenuInputCooling,self->_startMenuReleasePending,self->_touchEngine,self->_displayedStartMenuEngine);
+        [self->_condition unlock];
+    };
     for (NSString *key in @[@"actualPartySingleScreenFlow",@"actualPartyGivePicker",@"actualPartyGiveCancelPreservesHeldItem",
         @"actualPartyGiveOriginalMessage",@"actualPartyGiveHeldPotion",@"actualPartyGiveBagQuantity",@"actualPartyTakeOriginalMessage",
         @"actualPartyTakeRestoresHeldItem",@"actualPartyTakeBagQuantity",@"actualPartyGiveTakeFlow",@"actualPartyGiveOriginalItemGlyph"]) report[key]=@NO;
@@ -779,7 +884,8 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
         BOOL ready=valid && party->active && !party->context && party->ready;
         BOOL bagReady=self->_displayedBagUIState.length==sizeof(*bag) && bag->active && HGNativeBagUIIsList(bag) && bag->ready;
         [self->_condition lock]; BOOL failed=self->_failure!=nil || self->_finished; uint32_t map=self->_fieldMapId; [self->_condition unlock];
-        if (failed || ++attempts>900) { step=nil; completion(); return; }
+        if (failed || ++attempts>900) {witness("timeout_or_engine_failure"); step=nil; completion(); return; }
+        if (stage>=12 && stage<=14 && stage!=lastWitnessStage) {witness("stage");lastWitnessStage=stage;}
         NSString *capture=nil; dispatch_block_t action=nil;
         uint32_t continueBit=stage==12 ? 1 : 2;
         if ((stage==12 || stage==19) && !(continued&continueBit) && valid && HGNativePartyUIIsItemProgress(party)
@@ -797,8 +903,8 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                 action=^{ [self->_partyBack sendActionsForControlEvents:UIControlEventTouchUpInside]; };
             }
         }
-        if (!stage && map==MAP_ROUTE_29 && !self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
-            for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==1 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=1; break; }
+        if (!stage && map==MAP_ROUTE_29) {
+            if ([self checkRequestFieldChild:1]) stage=1;
         } else if (stage==1 && ready && party->phase==HG_PARTY_UI_ROSTER) {
             BOOL native=!self->_partyPanel.hidden && self->_menuButton.hidden && self->_canvas.hidden && !self->_canvas.userInteractionEnabled;
             for (NSUInteger i=0;i<HG_PARTY_UI_SLOTS;i++) if (party->mons[i].active && !party->mons[i].isEgg && !party->mons[i].heldItem) {
@@ -851,11 +957,14 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                 && (hit==self->_partyBack || [hit isDescendantOfView:self->_partyBack]);
             report[stage==12 ? @"actualPartyGiveHeldPotion" : @"actualPartyTakeRestoresHeldItem"]=@(held && back && (continued&(stage==12 ? 1 : 2)) && self->_partyMessage.hidden && !self->_partyMessage.image);
             capture=stage==12 ? @"original-party-held-potion-check.png" : @"original-party-taken-potion-check.png";
-            action=^{ [self->_partyBack sendActionsForControlEvents:UIControlEventTouchUpInside]; }; stage++;
-        } else if ((stage==13 || stage==15 || stage==20) && valid && !party->active && map==MAP_ROUTE_29
-            && !self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
+            action=^{witness("back_before"); [self->_partyBack sendActionsForControlEvents:UIControlEventTouchUpInside];witness("back_after");}; stage++;
+        } else if ((stage==13 || stage==15 || stage==20) && valid && !party->active && map==MAP_ROUTE_29) {
             uint32_t icon=stage==15 ? 1 : 2;
-            for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==icon && [self->_fieldMenuElements[i] accessibilityActivate]) { stage++; break; }
+            [self->_condition lock];NSUInteger before=self->_inputGeneration;BOOL wasOpen=self->_fieldMenuOpen;[self->_condition unlock];
+            BOOL requested=[self checkRequestFieldChild:icon];
+            [self->_condition lock];BOOL changed=before!=self->_inputGeneration || wasOpen!=self->_fieldMenuOpen;[self->_condition unlock];
+            if (changed) witness(requested ? "child_touch_admitted" : "navigation_transition");
+            if (requested) stage++;
         } else if ((stage==14 || stage==21) && bagReady && !bag->mode && bag->phase==HG_BAG_UI_INPUT) {
             if (bag->pocketId!=1) {
                 for (NSUInteger i=0;i<HG_BAG_UI_POCKETS;i++) if (bag->pockets[i].pocketId==1 && self->_bagPockets[i].enabled) {
@@ -981,6 +1090,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
         : @[@"private-field-potion-bag.png",@"private-field-potion-target-cancel.png",@"private-field-potion-cancel-bag.png",@"private-field-potion-target-heal.png",
             @"private-field-potion-healed-result.png",@"private-field-potion-consumed-bag.png",@"private-field-potion-fullhp-target.png",
             @"private-field-potion-noeffect-result.png",@"private-field-potion-final-bag.png",@"private-field-potion-return.png"];
+    requiredKeys=OriginalCheckSilenceRequirements(requiredKeys);
     NSMutableDictionary *checks=[NSMutableDictionary new]; for (NSString *key in requiredKeys) checks[key]=@NO;
     void (^record)(NSString *,BOOL)=^(NSString *key,BOOL value) { checks[key]=@(value); };
     NSMutableArray *events=[NSMutableArray new];
@@ -1023,7 +1133,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
             NSDictionary *audio=self->_audioChanging ? nil : [self->_audio statistics];
             [self->_condition unlock];
             if (!field && !failed && ++resetPolls<200) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),resetStep); return; }
-            record(@"resetQuiescent",field && clean); record(@"muted",[checks[@"muted"] boolValue] && [audio[@"muted"] boolValue]);
+            record(@"resetQuiescent",field && clean); record(OriginalCheckSilenceKey,[checks[OriginalCheckSilenceKey] boolValue] && OriginalCheckSilenceVerified(audio));
             resetStep=nil; [self stop];
             __block NSUInteger stopPolls=0; __block void (^stopStep)(void);
             stopStep=^{
@@ -1049,7 +1159,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                     @"learningStaleRejects":@(learnStale),@"privateLearnRawInputDiagnostic":@YES}];
                 NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
                 NSString *file=learn ? @"private-learn-moves-check.json" : forced ? @"private-forced-switch-check.json" : @"private-field-potion-check.json";
-                [[NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:file] options:NSDataWritingAtomic error:nil];
+                [[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(result) options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:file] options:NSDataWritingAtomic error:nil];
                 stopStep=nil;
             }; stopStep();
         }; resetStep();
@@ -1089,7 +1199,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
             lastStage=stage; }
         NSString *capture=nil; dispatch_block_t action=nil;
         if (stage==0 && q && q->fieldReady && map==MAP_ROUTE_29) {
-            record(@"muted",[audio[@"muted"] boolValue]);
+            record(OriginalCheckSilenceKey,OriginalCheckSilenceVerified(audio));
             if (menuOpen) [self toggleMenu]; stage=1;
         } else if (stage==0 && polls>=120 && !(polls%20) && !self->_buttons[@1].hidden) [self->_buttons[@1] accessibilityActivate];
         else if (stage==1 && q && q->fieldReady && !q->requested && !menuOpen && self->_fieldMenu.hidden) {
@@ -1256,10 +1366,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                 record(@"runSettled",q->outcome==5 && q->battleResult==5 && q->lifecycleCleared && q->semanticsMask==63); stage=8;
             } else if (stage==7 && command && battle->revision!=runRevision) stage=6;
             if (stage==8) {
-                if (!menuOpen) action=^{ [self->_menuButton sendActionsForControlEvents:UIControlEventTouchUpInside]; };
-                else if (!self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
-                    for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==2 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=9; break; }
-                }
+                if ([self checkRequestFieldChild:2]) stage=9;
             }
             if ((stage==9 || stage==12 || stage==16 || stage==20) && bagReady && bag->phase==HG_BAG_UI_INPUT) {
                 if (bag->pocketId!=1) {
@@ -1400,6 +1507,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
         @"private-summary-tm-retry-list.png",@"private-summary-tm-hm-warning.png",@"private-summary-tm-confirm.png",
         @"private-summary-tm-back-to-list.png",@"private-summary-tm-final-bag.png",@"private-summary-tm-bag-continue.png",
         @"private-summary-tm-bag-question.png",@"private-summary-tm-party-target.png",@"private-summary-tm-party-continue.png",@"private-summary-tm-party-question.png"];
+    requiredKeys=OriginalCheckSilenceRequirements(requiredKeys);
     NSMutableDictionary *checks=[NSMutableDictionary new]; for (NSString *key in requiredKeys) checks[key]=@NO;
     NSMutableArray *events=[NSMutableArray new];
     NSURL *support=[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
@@ -1432,7 +1540,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
             BOOL clean=self->_resetQuiesced && self->_restartClean,failed=self->_failure!=nil || self->_finished;
             NSDictionary *audio=self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
             if (!field && !failed && ++resetPolls<200) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),resetStep); return; }
-            checks[@"resetQuiescent"]=@(field && clean); checks[@"muted"]=@([checks[@"muted"] boolValue] && [audio[@"muted"] boolValue]);
+            checks[@"resetQuiescent"]=@(field && clean); checks[OriginalCheckSilenceKey]=@([checks[OriginalCheckSilenceKey] boolValue] && OriginalCheckSilenceVerified(audio));
             resetStep=nil; [self stop];
             __block NSUInteger stopPolls=0; __block void (^stopStep)(void);
             stopStep=^{
@@ -1457,7 +1565,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                     @"bagInputKinds":@(bagKinds),@"bagTMRoles":@(bagRoles),@"partyInputKinds":@(partyKinds),@"partyTMRoles":@(partyRoles),
                     @"scope":@"Actual native Bag/Party and Summary controls on the private TM17 route. Original bounded boot input is unchanged. Twelve UIKit captures; no full-game, all TM/HM, full-animation, audible-audio or physical-device claim."};
                 NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-                [[NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:nil]
+                [[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(result) options:NSJSONWritingPrettyPrinted error:nil]
                     writeToURL:[folder URLByAppendingPathComponent:@"private-summary-tm-check.json"] options:NSDataWritingAtomic error:nil];
                 stopStep=nil;
             }; stopStep();
@@ -1540,7 +1648,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                 if (![capturedNames containsObject:@"private-summary-tm-party-continue.png"]) capture=@"private-summary-tm-party-continue.png";
             }
         } else if (!stage && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && bootStep==3 && !bootFrame) {
-            checks[@"muted"]=@([audio[@"muted"] boolValue]);
+            checks[OriginalCheckSilenceKey]=@(OriginalCheckSilenceVerified(audio));
             if ([self queueSummaryTMFixture:q->revision]) stage=TM_OPEN_BAG;
         } else if (stage==TM_OPEN_BAG && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && accepted && [facts[@"fixturePrepared"] boolValue]) {
             BOOL fixture=[facts[@"species"] unsignedIntValue]==152 && [facts[@"partyCount"] unsignedIntValue]==1 && unchanged(facts);
@@ -1552,10 +1660,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                 && [facts[@"originalPersonality"] isKindOfClass:NSNumber.class] && [facts[@"originalOtId"] isKindOfClass:NSNumber.class] && [facts[@"mapSection"] unsignedIntValue];
             checks[@"completeFixture"]=@(fixture); checks[@"otNameMatchesProfile"]=@(ot);
             if (!fixture || !ot) { finish(@"original_fixture_mismatch"); return; }
-            if (!self->_fieldMenuOpen) action=^{ [self->_menuButton sendActionsForControlEvents:UIControlEventTouchUpInside]; };
-            else if (!self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
-                for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==2 && [self->_fieldMenuElements[i] accessibilityActivate]) { stage=TM_POCKET; break; }
-            }
+            if ([self checkRequestFieldChild:2]) stage=TM_POCKET;
         } else if (stage==TM_POCKET && bagReady && HGNativeBagUIIsList(bag)) {
             for (uint32_t i=0;i<HG_BAG_UI_POCKETS;i++) if (bag->pockets[i].enabled && bag->pockets[i].pocketId==3
                 && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_POCKET,i,&touchX,&touchY)) {
@@ -1711,6 +1816,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
         C_HM_RESULT,C_OLD_MOVE,C_CONFIRM_BACK,C_OLD_AGAIN,C_CONFIRM_REPLACE,C_RETURN_BAG,C_CLOSE_BAG,C_FIELD,C_FIELD_VISIBLE };
     NSArray *requiredKeys=@[@"caseBinding",@"muted",@"completeFixture",@"otNameMatchesProfile",@"targetCancelPreservesAll",@"targetReopenRejectsStale",@"originalLevelUp",@"originalStatsDifference",@"originalStatsTotal",@"statsDisplayCoherence",@"busyInputBlocked",@"nativeFiveMoveList",@"fifthCancelled",@"continuedTrying",@"secondSummaryLifetime",@"originalHMWarning",@"hmRejected",@"originalConfirm",@"confirmBack",@"replacementRazorLeaf",@"replacementPP",@"consumedOneCandy",@"ctx8ContinuationPreservesUpgrade",@"otherStatePreserved",@"rawLeaseReleased",@"staleRejected",@"nativeSummaryButtons",@"returnedField",@"privateSave4Preserved",@"resetQuiescent",@"capturesComplete",@"nativeBagButtons",@"nativePartyButtons"];
     NSArray *requiredPNGs=@[@"private-candy-target-cancel.png",@"private-candy-cancel-bag.png",@"private-candy-target-use.png",@"private-candy-level-up-message.png",@"private-candy-stats-difference.png",@"private-candy-stats-total.png",@"private-candy-forget-question.png",@"private-candy-first-list.png",@"private-candy-fifth-cancel.png",@"private-candy-stop-question.png",@"private-candy-retry-list.png",@"private-candy-hm-warning.png",@"private-candy-confirm.png",@"private-candy-back-to-list.png",@"private-candy-return-message.png",@"private-candy-final-bag.png",@"private-candy-field-return.png"];
+    requiredKeys=OriginalCheckSilenceRequirements(requiredKeys);
     NSMutableDictionary *checks=[NSMutableDictionary new]; for (NSString *key in requiredKeys) checks[key]=@NO;
     NSMutableArray *events=[NSMutableArray new];
     NSURL *support=[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
@@ -1753,7 +1859,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
             BOOL clean=self->_resetQuiesced && self->_restartClean,failed=self->_failure!=nil || self->_finished;
             NSDictionary *audio=self->_audioChanging ? nil : [self->_audio statistics]; [self->_condition unlock];
             if (!field && !failed && ++resetPolls<200) { dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/10),dispatch_get_main_queue(),resetStep); return; }
-            checks[@"resetQuiescent"]=@(field && clean); checks[@"muted"]=@([checks[@"muted"] boolValue] && [audio[@"muted"] boolValue]);
+            checks[@"resetQuiescent"]=@(field && clean); checks[OriginalCheckSilenceKey]=@([checks[OriginalCheckSilenceKey] boolValue] && OriginalCheckSilenceVerified(audio));
             resetStep=nil; [self stop];
             __block NSUInteger stopPolls=0; __block void (^stopStep)(void);
             stopStep=^{
@@ -1779,7 +1885,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                     @"statSamples":statSamples,@"statsChangedPixels":@(statsChangedPixels),@"busySamples":@(busySamples),
                     @"scope":@"Actual native Candy target/cancel, original level5-to6 statistics, Summary cancel/HM/retry/replace and ctx8 continuation on one valid private starter. Uses the one read-only shipping HGNativePartyUIGetStats(revision) getter; Party1480/QA232 unchanged. UIKit button-sent events are not CQA accepted records. Seventeen captures; no evolution, other species/items, full-game, audible-audio or physical-device claim."};
                 NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-                [[NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:nil]
+                [[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(result) options:NSJSONWritingPrettyPrinted error:nil]
                     writeToURL:[folder URLByAppendingPathComponent:@"private-summary-candy-check.json"] options:NSDataWritingAtomic error:nil];
                 stopStep=nil;
             }; stopStep();
@@ -1891,7 +1997,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                 if (![capturedNames containsObject:@"private-candy-return-message.png"]) capture=@"private-candy-return-message.png";
             }
         } else if (!stage && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && bootStep==3 && !bootFrame) {
-            checks[@"muted"]=@([audio[@"muted"] boolValue]);
+            checks[OriginalCheckSilenceKey]=@(OriginalCheckSilenceVerified(audio));
             if ([self queueSummaryTMFixture:q->revision]) stage=C_OPEN_BAG;
         } else if (stage==C_OPEN_BAG && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && accepted && [facts[@"fixturePrepared"] boolValue]) {
             BOOL fixture=[facts[@"fixtureCase"] isEqual:@"summary-candy"] && [facts[@"species"] unsignedIntValue]==152
@@ -1903,10 +2009,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                 && [facts[@"fixtureUsesExistingStarter"] boolValue] && [facts[@"originalIdentityPreserved"] boolValue] && [facts[@"mapSection"] unsignedIntValue];
             checks[@"completeFixture"]=@(fixture);checks[@"otNameMatchesProfile"]=@(ot);
             if (!fixture || !ot) { finish(@"original_candy_fixture_mismatch");return; }
-            if (!menuOpen) action=^{ [self->_menuButton sendActionsForControlEvents:UIControlEventTouchUpInside]; };
-            else if (!self->_fieldMenu.hidden && self->_fieldMenu.userInteractionEnabled) {
-                for (NSUInteger i=0;i<7;i++) if (((self->_fieldMenuIcons>>(i*4))&15)==2 && [self->_fieldMenuElements[i] accessibilityActivate]) {stage=C_POCKET;break;}
-            }
+            if ([self checkRequestFieldChild:2]) stage=C_POCKET;
         } else if (stage==C_POCKET && bagReady && HGNativeBagUIIsList(bag)) {
             for (uint32_t i=0;i<HG_BAG_UI_POCKETS;i++) if (bag->pockets[i].enabled && bag->pockets[i].pocketId==POCKET_MEDICINE
                 && HGNativeBagUIResolveTouch(bag,bag->revision,bag->phase,HG_BAG_UI_TOUCH_POCKET,i,&touchX,&touchY)) {
@@ -2811,6 +2914,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     battle->active=0; [self updateBattleControls:[battleData copy]];
     report[@"nativeBattleRestoresFieldControls"] = @(_battleBar.hidden && !_buttons[@1].hidden);
     [self checkBattleMenuControls:report];
+#ifndef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
     NSNotification *begin = [NSNotification notificationWithName:AVAudioSessionInterruptionNotification object:nil userInfo:@{AVAudioSessionInterruptionTypeKey:@(AVAudioSessionInterruptionTypeBegan)}];
     [self audioInterruption:begin]; [self resume];
     [_condition lock]; report[@"activationDoesNotOverrideInterruption"] = @(_paused && _interrupted); [_condition unlock];
@@ -2819,6 +2923,7 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     [_condition lock]; report[@"interruptionWaitsForUser"] = @(_paused && _interruptionEnded); [_condition unlock];
     [_buttons[@8] sendActionsForControlEvents:UIControlEventTouchDown];
     [_condition lock]; report[@"userResumesWithoutSendingStart"] = @(!_paused && !_keys); [_condition unlock];
+#endif
     BOOL activated=[_buttons[@1] accessibilityActivate];
     [_condition lock]; report[@"accessibilityPress"] = @(activated && (_keys&1)); [_condition unlock];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,200*NSEC_PER_MSEC),dispatch_get_main_queue(), ^{
@@ -2911,7 +3016,13 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                         [self->_condition unlock];
                         BOOL audioReady=audioReplaced && [resetAudio[@"muted"] boolValue] &&
                             [resetAudio[@"submitted"] unsignedLongLongValue]>0 && [resetAudio[@"rendered"] unsignedLongLongValue]>0;
-                        if ((!restarted || !audioReady || !field) && wait && --attempts) {
+                        BOOL resetReady=restarted && field;
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
+                        resetReady&=audioReplaced && OriginalCheckSilenceVerified(resetAudio);
+#else
+                        resetReady&=audioReady;
+#endif
+                        if (!resetReady && wait && --attempts) {
                             dispatch_after(dispatch_time(DISPATCH_TIME_NOW,NSEC_PER_SEC/2),dispatch_get_main_queue(),verifyReset);
                             return;
                         }
@@ -2981,13 +3092,14 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                                 if ((eventNs || [consumer[@"firstShortFrames"] unsignedLongLongValue]) && !matched) [pendingFirstShort addObject:epochNames[i]];
                             }
                             report[@"audioFirstShortCaptureConsistent"]=@(firstShortCaptureValid);
+                            OriginalCheckLimitToUI(report,audioEpochs);
                             BOOL passed=YES;
                             for (NSNumber *value in report.allValues) if (!value.boolValue) passed=NO;
                             report[@"passed"]=@(passed);
                             NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-                            NSData *audioData=[NSJSONSerialization dataWithJSONObject:@{@"beforePause":audio ?: @{},@"whilePaused":heldAudio ?: @{},@"afterResume":resumedAudio ?: @{},@"afterReset":resetAudio ?: @{},@"afterMenus":menusAudio ?: @{}} options:NSJSONWritingPrettyPrinted error:nil];
+                            NSData *audioData=[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(@{@"beforePause":audio ?: @{},@"whilePaused":heldAudio ?: @{},@"afterResume":resumedAudio ?: @{},@"afterReset":resetAudio ?: @{},@"afterMenus":menusAudio ?: @{}}) options:NSJSONWritingPrettyPrinted error:nil];
                             [audioData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-metrics.json"] options:NSDataWritingAtomic error:nil];
-                            NSData *producerData=[NSJSONSerialization dataWithJSONObject:@{@"version":@(HG_AUDIO_CHECK_VERSION),@"clock":@"CLOCK_MONOTONIC",
+                            NSData *producerData=[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(@{@"version":@(HG_AUDIO_CHECK_VERSION),@"clock":@"CLOCK_MONOTONIC",
                                 @"threadCpuClock":@"CLOCK_THREAD_CPUTIME_ID",
                                 @"synthOutputCMeaning":@"Version 2+ SYNTH/OUTPUT record c is elapsed owner-thread CPU nanoseconds. Zero means unavailable or below resolution, not evidence of zero CPU work. Wall time includes scheduling and blocking.",
                                 @"serviceGapCpuMeaning":@"Version 3 SERVICE_GAP CPU covers cpuWallStartNs (previous completed service end) through record endNs (current service entry), not the full start-to-start interval. Zero CPU or zero/invalid idle wall is unknown; non-CPU wall may include scheduling or blocking.",
@@ -2998,11 +3110,11 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
                                 @"sourceNames":@[@"none",@"hostRealtime",@"sdkPump",@"setOutput",@"detachOutput",@"modeChange"],
                                 @"appSceneBits":@{@"field":@1,@"battle":@2,@"party":@4,@"bag":@8,@"summary":@16,@"subEngine":@32,@"battleBag":@64,@"battleParty":@128},
                                 @"epochs":@{@"beforePause":producerBeforePause,@"whilePaused":producerWhilePaused,@"afterResume":producerAfterResume,
-                                    @"afterReset":producerAfterReset,@"afterMenus":producerAfterMenus}} options:NSJSONWritingPrettyPrinted error:nil];
+                                    @"afterReset":producerAfterReset,@"afterMenus":producerAfterMenus}}) options:NSJSONWritingPrettyPrinted error:nil];
                             [producerData writeToURL:[folder URLByAppendingPathComponent:@"original-audio-producer-trace.json"] options:NSDataWritingAtomic error:nil];
-                            NSData *data=[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil];
+                            NSData *data=[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(report) options:NSJSONWritingPrettyPrinted error:nil];
                             [data writeToURL:[folder URLByAppendingPathComponent:@"original-app-check.json"] options:NSDataWritingAtomic error:nil];
-                            NSLog(@"Original app checks: %@",report);
+                            NSLog(@"Original app checks: %@",OriginalCheckAudioResult(report));
                           });
                           }];
                          }];
@@ -3125,6 +3237,7 @@ enum { CaptureCheckFirstVariant=HG_CAPTURE_QA_PARTY, CaptureCheckLastVariant=HG_
         @"namingStaleRejected",@"namingPauseClearsPending",@"namingPages",@"namingDelete",@"namingTenPlusExtra",
         @"startOnlyLocatesOK",@"originalOKTouch",@"guestNamingStorageAssertions",@"namingLeaseReleased"]];
 #endif
+    requiredKeys=OriginalCheckSilenceRequirements(requiredKeys);
     NSMutableDictionary *checks=[NSMutableDictionary new]; for (NSString *key in requiredKeys) checks[key]=@NO;
     NSMutableArray *requiredPNGs=[NSMutableArray new],*events=[NSMutableArray new],*variants=[NSMutableArray new];
     for (uint32_t variant=CaptureCheckFirstVariant;variant<=CaptureCheckLastVariant;variant++) for (NSString *role in roles) [requiredPNGs addObject:[NSString stringWithFormat:@"%@-v%u-%@.png",prefix,variant,role]];
@@ -3211,7 +3324,7 @@ enum { CaptureCheckFirstVariant=HG_CAPTURE_QA_PARTY, CaptureCheckLastVariant=HG_
                 @"fullGameComplete":@NO,@"audioStabilityEstablished":@NO,@"audibleAudioValidated":@NO,
                 @"scope":caseScope};
             NSURL *documents=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-            [[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[documents URLByAppendingPathComponent:reportFile] options:NSDataWritingAtomic error:nil];
+            [[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(report) options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[documents URLByAppendingPathComponent:reportFile] options:NSDataWritingAtomic error:nil];
             stopped=nil; finish=nil;
         }; stopped();
     };
@@ -3249,7 +3362,7 @@ enum { CaptureCheckFirstVariant=HG_CAPTURE_QA_PARTY, CaptureCheckLastVariant=HG_
         if (failed || ++polls>36000 || frame-stageFrame>7200 || events.count>=2048 || (q && q->errorLine)) {finish(failed ? @"engine_failed" : q && q->errorLine ? @"native_guest_failed" : @"flow_timeout");return;}
         if (!q || q->version!=HG_CAPTURE_QA_VERSION || q->byteSize!=HG_CAPTURE_QA_BYTES) return;
         checks[@"qa244"]=@YES;
-        if (audio && ![audio[@"muted"] boolValue]) {finish(@"audio_not_muted");return;} if (audio) checks[@"muted"]=@YES;
+        if (audio && !OriginalCheckSilenceVerified(audio)) {finish(OriginalCheckSilenceFailure);return;} if (audio) checks[OriginalCheckSilenceKey]=@YES;
         BOOL paired=p && owner.length==sizeof(*p) && !memcmp(p,owner.bytes,sizeof(*p));
 #ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
         const HGNativeNamingUIState *n=namingData.length==sizeof(*n) ? namingData.bytes : NULL;

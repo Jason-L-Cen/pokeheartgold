@@ -197,6 +197,7 @@ static uint32_t PokedexCheckControl(const HGNativePokedexUIState *s,uint32_t rol
 }
 - (void)checkPokedexCase {
     NSArray *requiredKeys=@[@"caseBinding",@"muted",@"fixtureHistory",@"all16Families",@"all8DragPhases",@"nativeButtons",@"originalGlyphs",@"rawInputBlocked",@"staleGenerationRejected",@"pauseClearsLease",@"threeVariants",@"returnedField",@"fieldControlsRestored",@"partyBagHistoryPreserved",@"privateSave4Preserved",@"resetQuiescent",@"capturesComplete"];
+    requiredKeys=OriginalCheckSilenceRequirements(requiredKeys);
     NSMutableDictionary *checks=[NSMutableDictionary new];for (NSString *key in requiredKeys) checks[key]=@NO;
     NSString *nativeReportSha256=[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivatePokedexNativeReportSha256"];
     NSString *nativeModuleSha256=[NSBundle.mainBundle objectForInfoDictionaryKey:@"HGPrivatePokedexNativeModuleSha256"];
@@ -248,7 +249,7 @@ static uint32_t PokedexCheckControl(const HGNativePokedexUIState *s,uint32_t rol
                     @"noResultsEvidence":[noResultsEvidence copy],@"noResultsSemanticTextVerified":@NO,@"layoutEvidence":[layoutEvidence copy],
                     @"rootVisualReviewPending":@YES,@"productionAllowed":@NO,@"scope":@"Actual original normal Pokédex, three private history variants, sixteen page families and eight production pan-callback leases. No popup, physical recognizer, full-story or audible-audio claim."};
                 NSURL *documents=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-                [[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[documents URLByAppendingPathComponent:@"private-pokedex-check.json"] options:NSDataWritingAtomic error:nil];
+                [[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(report) options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[documents URLByAppendingPathComponent:@"private-pokedex-check.json"] options:NSDataWritingAtomic error:nil];
                 stopped=nil;finish=nil;
             };stopped();
         };reset();
@@ -431,7 +432,7 @@ static uint32_t PokedexCheckControl(const HGNativePokedexUIState *s,uint32_t rol
         BOOL advance=NO;
         if (!stage) {
             if (boot!=3 || bootFrame || s->active) return;
-            checks[@"muted"]=@([audio[@"muted"] boolValue]);BOOL visibleDex=NO;
+            checks[OriginalCheckSilenceKey]=@(OriginalCheckSilenceVerified(audio));BOOL visibleDex=NO;
             for (uint32_t i=0;i<7;i++) visibleDex|=((self->_fieldMenuIcons>>(4*i))&15)==0;
             if (!bootstrap && map==MAP_ROUTE_29 && q->fieldReady && !q->owner) {
                 if (visibleDex) {if ([self queuePokedexFixture:variant restoring:NO revision:q->revision]) bootstrap=2;}

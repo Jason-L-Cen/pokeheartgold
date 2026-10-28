@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #import <UIKit/UIKit.h>
+#if defined(HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE) && !defined(HEARTGOLD_ORIGINAL_APP_CHECK)
+#error "No-audio-device output is available only in CHECK builds"
+#endif
+#ifndef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
 #import <AVFAudio/AVFAudio.h>
+#endif
 #import "OriginalAudio.h"
 #include "hgengine.h"
 #include "hgengine-impl.h"
@@ -1086,8 +1091,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSNotificationCenter *notifications = NSNotificationCenter.defaultCenter;
     [notifications addObserver:self selector:@selector(pause) name:UIApplicationWillResignActiveNotification object:nil];
     [notifications addObserver:self selector:@selector(resume) name:UIApplicationDidBecomeActiveNotification object:nil];
+#ifndef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
     [notifications addObserver:self selector:@selector(audioInterruption:) name:AVAudioSessionInterruptionNotification object:nil];
     [notifications addObserver:self selector:@selector(audioRouteChanged:) name:AVAudioSessionRouteChangeNotification object:nil];
+#endif
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
 #if defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
     [self beginPCBoxUIKitCheck];
@@ -3666,6 +3673,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)pause { [_condition lock]; _inactive = YES; [self updatePauseLocked]; [_condition unlock]; }
 - (void)resume { [_condition lock]; _inactive = NO; [self updatePauseLocked]; [_condition unlock]; }
 - (void)audioInterruption:(NSNotification *)notification {
+#ifndef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
     AVAudioSessionInterruptionType type = [notification.userInfo[AVAudioSessionInterruptionTypeKey] unsignedIntegerValue];
     [_condition lock];
     if (type == AVAudioSessionInterruptionTypeBegan) { _interrupted = YES; _interruptionEnded = NO; }
@@ -3674,10 +3682,17 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if ([notification.userInfo[AVAudioSessionInterruptionOptionKey] unsignedIntegerValue] & AVAudioSessionInterruptionOptionShouldResume) _interrupted = NO;
     }
     [self updatePauseLocked]; [_condition unlock];
+#else
+    (void)notification;
+#endif
 }
 - (void)audioRouteChanged:(NSNotification *)notification {
+#ifndef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
     if ([notification.userInfo[AVAudioSessionRouteChangeReasonKey] unsignedIntegerValue] != AVAudioSessionRouteChangeReasonOldDeviceUnavailable) return;
     [_condition lock]; _interrupted = _interruptionEnded = YES; [self updatePauseLocked]; [_condition unlock];
+#else
+    (void)notification;
+#endif
 }
 - (void)stop {
     [_condition lock];

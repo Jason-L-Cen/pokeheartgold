@@ -71,6 +71,7 @@
     NSArray *requiredKeys=@[@"caseBinding",@"muted",@"fixtureIdentity",@"fixtureLevel15",@"originalLevel16",@"statsDifference",@"statsTotal",@"originalEvolutionScene",@"canonicalWidth",@"typedCancelAvailable",@"originalOutcome",@"nativeEvolutionButtons",@"rawInputZero",@"staleRejected",@"inputLeaseReleased",@"returnedBag",@"returnedField",@"fieldRunButtonRouting",@"privateSave4Preserved",@"resetQuiescent",@"capturesComplete"];
     NSArray *suffixes=@[@"target.png",@"level-message.png",@"stats-difference.png",@"stats-total.png",@"oscillate.png",@"oscillate-later.png",@"result.png",@"final-bag.png",@"field-return.png"];
     NSMutableArray *requiredPNGs=[NSMutableArray new];for (NSString *name in suffixes) [requiredPNGs addObject:[prefix stringByAppendingString:name]];
+    requiredKeys=OriginalCheckSilenceRequirements(requiredKeys);
     NSMutableDictionary *checks=[NSMutableDictionary new];for (NSString *key in requiredKeys) checks[key]=@NO;
     NSMutableArray *events=[NSMutableArray new];NSMutableSet *captured=[NSMutableSet new];
     NSURL *support=[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
@@ -103,7 +104,7 @@
                     @"cancelRequested":@(cancel),@"evolutionButtonActions":@(evolutionActions),@"ackButtonActions":@(ackActions),@"cancelButtonActions":@(cancelActions),@"busySamples":@(busySamples),@"resultSourceDisplayFrame":@(resultFrame),@"particleContributionVerified":@NO,@"learningMenusCovered":@NO,@"summaryChildCovered":@NO,
                     @"productionAllowed":@NO,@"rootVisualReviewPending":@YES,@"scope":@"Actual private Lv15-to16 original Candy/Evolution UIKit route. No Evolution-learning menus, SPL contribution, full-game, audible-audio or physical-device claim."};
                 NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-                [[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:[@"private-" stringByAppendingFormat:@"%@-check.json",kind]] options:NSDataWritingAtomic error:nil];stopStep=nil;
+                [[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(report) options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:[@"private-" stringByAppendingFormat:@"%@-check.json",kind]] options:NSDataWritingAtomic error:nil];stopStep=nil;
             };stopStep();
         };resetStep();
     };
@@ -132,7 +133,7 @@
         BOOL partyReady=party && party->ready && HGNativePartyUIIsRareCandy(party) && q->owner==HG_SUMMARY_LEARN_PARTY && q->phase==party->phase && q->graphicsReady && q->fadeFinished
             && ownerParty.length==sizeof(*party) && !memcmp(party,ownerParty.bytes,sizeof(*party));
         NSString *capture=nil;UIImage *captureImage=nil;UIButton *button=nil;BOOL evoButton=NO;uint32_t x,y,k;
-        if (!stage && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && boot==3 && !bootInput) {checks[@"muted"]=@([audio[@"muted"] boolValue]);if ([self queueSummaryTMFixture:q->revision]) stage=1;}
+        if (!stage && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && boot==3 && !bootInput) {checks[OriginalCheckSilenceKey]=@(OriginalCheckSilenceVerified(audio));if ([self queueSummaryTMFixture:q->revision]) stage=1;}
         else if (stage==1 && accepted && [facts[@"fixturePrepared"] boolValue] && q->fieldReady && !q->owner) {
             checks[@"fixtureIdentity"]=@([facts[@"originalIdentityPreserved"] boolValue] && [facts[@"otNameLength"] unsignedIntValue]>=1 && [facts[@"otNameLength"] unsignedIntValue]<=7);
             checks[@"fixtureLevel15"]=@([facts[@"initialUnchanged"] boolValue] && [facts[@"species"] unsignedIntValue]==152 && [facts[@"level"] unsignedIntValue]==15 && [facts[@"experience"] unsignedIntValue]==2035);

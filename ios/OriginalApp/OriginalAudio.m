@@ -1,4 +1,60 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#if defined(HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE) && !defined(HEARTGOLD_ORIGINAL_APP_CHECK)
+#error "No-audio-device output is available only in CHECK builds"
+#endif
+#ifdef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
+#import "OriginalAudio.h"
+#include <stdatomic.h>
+
+enum { OriginalAudioNew, OriginalAudioOpen, OriginalAudioPaused, OriginalAudioClosed };
+
+@implementation OriginalAudio {
+    _Atomic(unsigned) _state;
+}
+- (BOOL)open:(NSError **)error {
+    unsigned expected=OriginalAudioNew;
+    if (!atomic_compare_exchange_strong(&_state,&expected,OriginalAudioOpen) && expected==OriginalAudioClosed) {
+        if (error) *error=[NSError errorWithDomain:@"HeartGoldNoAudioDeviceCheck" code:1 userInfo:nil];
+        return NO;
+    }
+    if (error) *error=nil;
+    return YES;
+}
+- (BOOL)resume:(NSError **)error {
+    unsigned expected=OriginalAudioPaused;
+    if (!atomic_compare_exchange_strong(&_state,&expected,OriginalAudioOpen)
+        && expected!=OriginalAudioOpen) {
+        if (error) *error=[NSError errorWithDomain:@"HeartGoldNoAudioDeviceCheck" code:1 userInfo:nil];
+        return NO;
+    }
+    if (error) *error=nil;
+    return YES;
+}
+- (void)pause {
+    unsigned expected=OriginalAudioOpen;
+    atomic_compare_exchange_strong(&_state,&expected,OriginalAudioPaused);
+}
+- (void)close { atomic_store(&_state,OriginalAudioClosed); }
+- (void)enqueue:(const int16_t *)stereo frames:(size_t)frames {
+    // UI checks deliberately discard borrowed PCM without measuring or opening an output device.
+    (void)stereo; (void)frames;
+}
+- (NSString *)failure { return nil; }
+- (uint64_t)firstShortTimeNs { return 0; }
+- (NSDictionary<NSString *, NSNumber *> *)statistics {
+    unsigned state=atomic_load(&_state);
+    NSMutableDictionary<NSString *,NSNumber *> *stats=[NSMutableDictionary new];
+    for (NSString *key in @[@"muted",@"queued",@"submitted",@"consumed",@"nonzeroSamples",@"dropped",@"underrunFrames",@"rendered",@"firstShortTimeNs",@"firstShortFrames",@"firstShortAvailable",@"firstShortRead",@"firstShortRendered",@"largestCallback",@"rejectedCapacityFrames",@"rejectedInvalidFrames",@"rejectedConvertFrames",@"firstRejectReason",@"firstRejectFrames",@"firstRejectQueued",@"firstRejectSubmitted",@"firstRejectConsumed",@"firstRejectRendered",@"largestEnqueueBatch",@"lastEnqueueNs",@"largestEnqueueGapConsistent",@"largestEnqueueGapNs",@"largestEnqueueGapEndNs",@"largestEnqueueGapSubmitted",@"largestEnqueueGapConsumed",@"largestEnqueueGapRendered",@"largestEnqueueGapQueued",@"reprimeCount",@"firstReprimeAvailable",@"firstReprimeRead",@"firstReprimeRendered",@"renderedNonzeroSamples"]) stats[key]=@0;
+    stats[@"available"]=@NO;
+    stats[@"audioDeviceSuppressed"]=@YES;
+    stats[@"opened"]=@(state==OriginalAudioOpen || state==OriginalAudioPaused);
+    stats[@"paused"]=@(state==OriginalAudioPaused);
+    stats[@"closed"]=@(state==OriginalAudioClosed);
+    return [stats copy];
+}
+@end
+#else // HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
+// SPDX-License-Identifier: GPL-3.0-or-later
 #import "OriginalAudio.h"
 #import <AVFAudio/AVFAudio.h>
 #include <stdatomic.h>
@@ -247,3 +303,4 @@ static AVAudioPCMBuffer *convertPCM(const int16_t *stereo, size_t frames, AVAudi
               @"renderedNonzeroSamples": @(atomic_load(&_renderedNonzero)) };
 }
 @end
+#endif // HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE

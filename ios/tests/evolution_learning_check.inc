@@ -75,6 +75,7 @@
     NSArray *requiredKeys=@[@"caseBinding",@"muted",@"fixtureIdentity",@"fixtureLevel31",@"originalLevel32",@"statsDifference",@"statsTotal",@"originalChoiceGlyphs",@"keepOldMoves",@"dontGiveUp",@"nestedType0Summary",@"fifthCancelled",@"secondSummaryLifetime",@"hmRejected",@"originalHMBody",@"confirmBack",@"replacementSweetScent",@"replacementPP",@"resumedEvolution",@"nativeEvolutionButtons",@"nativeSummaryButtons",@"rawInputZero",@"staleRejected",@"inputLeaseReleased",@"returnedBag",@"returnedField",@"fieldRunButtonRouting",@"privateSave4Preserved",@"resetQuiescent",@"capturesComplete"];
     NSArray *suffixes=@[@"target.png",@"stats-difference.png",@"stats-total.png",@"keep-menu.png",@"stop-menu.png",@"forget-menu.png",@"first-summary.png",@"fifth-selected.png",@"fifth-stop-menu.png",@"retry-forget-menu.png",@"second-summary.png",@"hm-warning.png",@"confirm.png",@"back-to-list.png",@"resume.png",@"final-bag.png",@"field-return.png"];
     NSMutableArray *requiredPNGs=[NSMutableArray new];for (NSString *name in suffixes) [requiredPNGs addObject:[prefix stringByAppendingString:name]];
+    requiredKeys=OriginalCheckSilenceRequirements(requiredKeys);
     NSMutableDictionary *checks=[NSMutableDictionary new];for (NSString *key in requiredKeys) checks[key]=@NO;
     NSMutableArray *events=[NSMutableArray new];NSMutableSet *captured=[NSMutableSet new];
     NSURL *support=[NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask].firstObject;
@@ -108,7 +109,7 @@
                     @"evolutionLearn":@YES,@"evolutionButtonActions":@(evolutionActions),@"choiceButtonActions":@(choiceActions),@"summaryButtonActions":@(summaryActions),@"summaryLifetimes":@(summaryLifetimes),@"hmCallsObserved":@(hmObserved),@"ackButtonActions":@(ackActions),@"busySamples":@(busySamples),@"particleContributionVerified":@NO,@"learningMenusCovered":@(choiceActions==5),@"summaryChildCovered":@(summaryLifetimes==2),@"productionApiAdded":@NO,
                     @"productionAllowed":@NO,@"rootVisualReviewPending":@YES,@"scope":@"Actual private Lv31-to32 original Evolution learning UIKit route, including real choices and nested type0 Summary. No SPL-pixel attribution, 3-to0 PP-Up transition, full-game, audible-audio or physical-device claim."};
                 NSURL *folder=[NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject;
-                [[NSJSONSerialization dataWithJSONObject:report options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:[@"private-" stringByAppendingFormat:@"%@-check.json",kind]] options:NSDataWritingAtomic error:nil];stopStep=nil;
+                [[NSJSONSerialization dataWithJSONObject:OriginalCheckAudioResult(report) options:NSJSONWritingPrettyPrinted error:nil] writeToURL:[folder URLByAppendingPathComponent:[@"private-" stringByAppendingFormat:@"%@-check.json",kind]] options:NSDataWritingAtomic error:nil];stopStep=nil;
             };stopStep();
         };resetStep();
     };
@@ -149,7 +150,7 @@
             return !self->_summaryNavigation[0].hidden && self->_summaryNavigation[0].enabled && [self checkSummaryRasterBack];
         };
         NSString *capture=nil;UIButton *button=nil;BOOL evoButton=NO,summaryButton=NO;uint32_t k,x,y;HGNativeSummaryUIInput ignored;
-        if (!stage && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && boot==3 && !bootInput) {checks[@"muted"]=@([audio[@"muted"] boolValue]);if ([self queueSummaryTMFixture:q->revision]) stage=1;}
+        if (!stage && q->fieldReady && !q->owner && map==MAP_ROUTE_29 && boot==3 && !bootInput) {checks[OriginalCheckSilenceKey]=@(OriginalCheckSilenceVerified(audio));if ([self queueSummaryTMFixture:q->revision]) stage=1;}
         else if (stage==1 && accepted && [facts[@"fixturePrepared"] boolValue] && q->fieldReady && !q->owner) {
             checks[@"fixtureIdentity"]=@([facts[@"originalIdentityPreserved"] boolValue] && [facts[@"otNameLength"] unsignedIntValue]>=1 && [facts[@"otNameLength"] unsignedIntValue]<=7);
             checks[@"fixtureLevel31"]=@([facts[@"initialUnchanged"] boolValue] && [facts[@"level"] unsignedIntValue]==31 && [facts[@"experience"] unsignedIntValue]==24294);
