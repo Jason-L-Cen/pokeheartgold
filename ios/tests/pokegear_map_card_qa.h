@@ -54,6 +54,44 @@ static inline uint32_t HGMapRunReady(const HGNativeBattleUIState *ui,uint32_t at
     return ui && ui->active==1 && ui->ready==1 && ui->mode==HG_BATTLE_UI_COMMAND && (ui->enabledMask&8)
         && attempts<HG_PG_MAP_RUN_ATTEMPT_CAP && (!attempts || ui->revision!=lastRevision);
 }
+#ifdef HG_PG_MR_EXTENSION
+enum {HG_PG_MR_VERSION=1,HG_PG_MR_START=0x202,HG_PG_MR_FINISH=0x203};
+typedef struct HGPokegearMrPokemonQAState {
+    uint32_t version,byteSize,revision,error,started,done;
+    uint32_t routeScene,houseScene,embeddedTower,apricornBox,mysteryEgg,pokedexEnabled,oakRegistered,partyHealed;
+    uint32_t apricornScriptSeen,apricornCompletedSeen,houseScriptSeen,doorAnchorSeen;
+} HGPokegearMrPokemonQAState;
+static const HGPokegearMapRouteSegment hgMrApricornRoute[]={
+    {64,550,385,550,374},{16,550,374,558,374},{64,558,374,558,354}
+};
+static const HGPokegearMapRouteSegment hgMrHouseRoute[]={
+    {16,556,356,559,356},{64,559,356,559,333},{16,559,333,565,333},
+    {64,565,333,565,323},{32,565,323,559,323},{64,559,323,559,307},
+    {16,559,307,561,307},{64,561,307,561,299},{16,561,299,562,299},
+    {64,562,299,562,295},{16,562,295,568,295}
+};
+static const HGPokegearMapRouteSegment hgMrDoorRoute[]={{64,568,295,568,294}};
+static inline uint32_t HGMrMapAllowed(const HGPokegearMapCardQAState *s,const HGPokegearMrPokemonQAState *q) {
+    if(!q->started)return (s->mapId==33 || s->mapId==67) && s->cards<=1 && s->scene<=2;
+    return s->done && s->cards==1 && s->scene>=2 && s->scene<=3 && (s->mapId==67 || s->mapId==34 || s->mapId==143);
+}
+static inline uint32_t HGMrTextQualified(const HGPokegearMapCardQAState *s,const HGPokegearMrPokemonQAState *q,uint32_t id,uint32_t serial) {
+    if(HGMapTextAllowed(s,id,serial))return 1;
+    return q && q->started && !q->done && !q->error && s && s->started && s->done && !s->error
+        && s->scriptActive && s->scriptId==id && (s->scriptWait==2 || s->scriptWait==3)
+        && serial && s->scriptSerial==serial && !s->battleLive && !s->phone.ui.active && q->embeddedTower!=1
+        && ((s->mapId==34 && id==3 && q->routeScene==0 && q->houseScene==0)
+            || (s->mapId==143 && id==2 && q->houseScene==0 && q->apricornCompletedSeen && q->doorAnchorSeen));
+}
+static inline uint32_t HGMrEndpoint(const HGPokegearMapCardQAState *s,const HGPokegearMrPokemonQAState *q) {
+    return s && q && q->started && !q->error && !s->error && s->started && s->done && HGMapStationary(s) && !s->scriptActive
+        && !s->battleLive && !s->phone.ui.active && !s->phone.ringActive && s->mapId==143 && s->x==5 && s->z==6 && s->facing==2
+        && s->cards==1 && s->scene==3 && q->routeScene==2 && q->houseScene==1 && q->embeddedTower!=1
+        && q->apricornBox==1 && q->mysteryEgg==1 && q->pokedexEnabled==1 && q->oakRegistered==1 && q->partyHealed==1
+        && q->apricornScriptSeen && q->apricornCompletedSeen && q->houseScriptSeen && q->doorAnchorSeen;
+}
+const HGPokegearMrPokemonQAState *HGNativeMrPokemonQAGetState(void);
+#endif
 #ifdef HG_POKEGEAR_QA_GUEST
 struct FieldSystem;
 void PokegearQAFieldObserved(struct FieldSystem *field);

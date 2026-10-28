@@ -6,6 +6,19 @@
 #include "constants/battle.h"
 enum {MAP_START,MAP_GUIDE_ROUTE,MAP_TOUR,MAP_CARD_ROUTE,MAP_GIFT,MAP_MENU,MAP_ICON,MAP_PHONE,MAP_VIEW,MAP_CLOSE,MAP_FIELD,MAP_FINISH};
 static HGPokegearMapCardQAState mapFinal;
+#ifdef HG_PG_MR_EXTENSION
+enum {MR_START=12,MR_ROUTE,MR_APRICORN,MR_NORTH,MR_DOOR,MR_INDOOR,MR_FINISH};
+static HGPokegearMrPokemonQAState mrFinal;
+static u32 mrMapCardSteps;
+static HGPokegearMrPokemonQAState mrRead(void) {
+    u32 address=w2c_hgengine_HGNativeMrPokemonQAGetState(pgCapture->game);HGPokegearMrPokemonQAState state;
+    memcpy(&state,pgGuest(address,sizeof(state)),sizeof(state));
+    PG_CHECK(state.version==HG_PG_MR_VERSION && state.byteSize==sizeof(state) && !state.error);
+    PG_CHECK(w2c_hgengine_HGNativeMrPokemonQAGetState(pgCapture->game)==address && !memcmp(&state,pgGuest(address,sizeof(state)),sizeof(state)));
+    return state;
+}
+#define HGMapTextAllowed(s,i,r) HGMrTextQualified((s),&mrFinal,(i),(r))
+#endif
 static u32 mapStage,mapStageFrame,mapSegment,mapPending,mapTextSerial,mapTextId,mapRunLaunch,mapRunRevision,mapRunAttempts,mapRuns,mapMenuCloses,mapClosePresses;
 static u32 mapLease,mapReads,mapReleaseReads,mapOwner,mapGen,mapRev,mapLCD,mapLeaseScript,mapLeaseSerial;
 static u32 mapMovePending,mapMoveKey,mapMoveX,mapMoveZ,mapBlocked,mapSteps;
@@ -26,6 +39,13 @@ static BOOL mapSnapshot(void) {
     HGPokegearMapCardQAState after=mapRead();if(memcmp(&before,&after,sizeof(before)))return FALSE;
     char path[4096];PG_CHECK(snprintf(path,sizeof(path),"%s/map-%03u-state.bin",pgCapture->folder,pgSnapshots-1)<sizeof(path));
     FILE *file=fopen(path,"wbx");PG_CHECK(file && fwrite(&after,1,sizeof(after),file)==sizeof(after) && !fclose(file));
+#ifdef HG_PG_MR_EXTENSION
+    if(mrFinal.started){HGPokegearMrPokemonQAState state=mrRead();
+        PG_CHECK(!memcmp(&state,&mrFinal,sizeof(state)));
+        PG_CHECK(snprintf(path,sizeof(path),"%s/mr-%03u-state.bin",pgCapture->folder,pgSnapshots-1)<sizeof(path));
+        file=fopen(path,"wbx");PG_CHECK(file && fwrite(&state,1,sizeof(state),file)==sizeof(state) && !fclose(file));
+        printf("MR snapshot: {\"sequence\":%u,\"stage\":%u,\"routeScene\":%u,\"houseScene\":%u}\n",pgSnapshots-1,mapStage,state.routeScene,state.houseScene);}
+#endif
     printf("MAP snapshot: {\"sequence\":%u,\"stage\":%u,\"cards\":%u,\"scene\":%u,\"script\":%u,\"wait\":%u,\"serial\":%u}\n",pgSnapshots-1,mapStage,after.cards,after.scene,after.scriptId,after.scriptWait,after.scriptSerial);return TRUE;
 }
 static void mapNext(void) {++mapStage;mapStageFrame=OS_GetVBlankCount();mapPending=0;}
@@ -93,13 +113,60 @@ static void mapNavigate(const HGPokegearMapRouteSegment *route,u32 count) {
     u32 key=HGMapRouteKey(&route[mapSegment],mapFinal.x,mapFinal.z);PG_CHECK(key);
     mapMovePending=1;mapMoveKey=key;mapMoveX=mapFinal.x;mapMoveZ=mapFinal.z;mapPulse(key,0,0,FALSE,0);
 }
+#ifdef HG_PG_MR_EXTENSION
+static void MrPokemonPresent(void) {
+    if(mapStage==MR_START){
+        if(!HGMapStationary(&mapFinal) || mapFinal.scriptActive)return;
+        if(!mapPending){PG_CHECK(mapFinal.mapId==67 && mapFinal.x==550 && mapFinal.z==385 && mapFinal.done);
+            PG_CHECK(w2c_hgengine_HGNativePokegearQARequest(pgCapture->game,mapFinal.revision,HG_PG_MR_START));mapPending=1;return;}
+        if(!mrFinal.started)return;if(!mapSnapshot())return;mapNext();return;
+    }
+    if(mapStage==MR_ROUTE){
+        if(mapFinal.mapId==34 && mapFinal.scriptId==3){
+            PG_CHECK(mapFinal.x==558 && mapFinal.z==354 && mapSegment==2);
+            if(mapMovePending){PG_CHECK(mapFinal.x!=mapMoveX || mapFinal.z!=mapMoveZ);
+                PG_CHECK(HGMapStepValid(mapMoveKey,mapMoveX,mapMoveZ,mapFinal.x,mapFinal.z));++mapSteps;}
+            mapMovePending=0;mapSegment=0;mapNext();return;}
+        mapNavigate(hgMrApricornRoute,sizeof(hgMrApricornRoute)/sizeof(*hgMrApricornRoute));return;
+    }
+    if(mapStage==MR_APRICORN){
+        if(HGMapStationary(&mapFinal) && !mapFinal.scriptActive && mrFinal.routeScene==1){
+            PG_CHECK(mapFinal.mapId==34 && mapFinal.x==556 && mapFinal.z==356 && mrFinal.apricornBox==1
+                && mrFinal.apricornScriptSeen && mrFinal.apricornCompletedSeen);
+            if(!mapSnapshot())return;mapNext();return;}
+        mapText(3);return;
+    }
+    if(mapStage==MR_NORTH){mapNavigate(hgMrHouseRoute,sizeof(hgMrHouseRoute)/sizeof(*hgMrHouseRoute));return;}
+    if(mapStage==MR_DOOR){
+        if(mapFinal.mapId==143){if(!mrFinal.doorAnchorSeen)return;
+            PG_CHECK(mrFinal.doorAnchorSeen && mapFinal.x==4 && mapFinal.z==9);
+            mapMovePending=0;mapSegment=0;if(!mapSnapshot())return;mapNext();return;}
+        PG_CHECK(mapFinal.mapId==34);mapNavigate(hgMrDoorRoute,1);return;
+    }
+    if(mapStage==MR_INDOOR){
+        if(HGMrEndpoint(&mapFinal,&mrFinal)){PG_CHECK(mapSteps==mrMapCardSteps+124);if(!mapSnapshot())return;mapNext();return;}
+        mapText(2);return;
+    }
+    if(mapStage==MR_FINISH){
+        if(!HGMrEndpoint(&mapFinal,&mrFinal))return;
+        if(!mapPending){PG_CHECK(w2c_hgengine_HGNativePokegearQARequest(pgCapture->game,mapFinal.revision,HG_PG_MR_FINISH));mapPending=1;return;}
+        if(!mrFinal.done)return;if(!mapSnapshot())return;pgFinish("passed_original_mr_pokemon",TRUE);
+    }
+}
+#endif
 static void MapCardPresent(void *argument) {
     pgCapture=argument;if(!pgStep){PGQAPresent(argument);return;}
     mapFinal=mapRead();u32 frame=OS_GetVBlankCount();if(!mapStageFrame)mapStageFrame=frame;
+#ifdef HG_PG_MR_EXTENSION
+    mrFinal=mrRead();
+#endif
     if(frame-mapStageFrame>12000u)pgFinish("map_stage_timeout",FALSE);
     if(!mapSettle())return;
     if(mapHandleBattle())return;
     if(mapFinal.battleReturns){PG_CHECK(mapFinal.battleOutcome==BATTLE_OUTCOME_PLAYER_FLED && mapRuns>=mapFinal.battleLaunches);}
+#ifdef HG_PG_MR_EXTENSION
+    if(mapStage>MAP_FINISH){MrPokemonPresent();return;}
+#endif
     if(mapStage==MAP_START) {
         if(!HGMapStationary(&mapFinal))return;
         if(!mapPending){if(!mapStartCanRequest(&mapFinal))return;
@@ -157,7 +224,12 @@ static void MapCardPresent(void *argument) {
         if(!HGMapStationary(&mapFinal))return;
         if(!mapPending){PG_CHECK(w2c_hgengine_HGNativePokegearQARequest(pgCapture->game,mapFinal.revision,HG_PG_MAP_FINISH));mapPending=1;return;}
         if(!mapFinal.done)return;PG_CHECK(mapFinal.cards==1 && mapFinal.scene==2 && mapFinal.mapReadySeen && mapFinal.parentEntries==1 && mapFinal.parentExits==1);
+#ifdef HG_PG_MR_EXTENSION
+        PG_CHECK(mapSteps>=178 && mapSteps<=180);mrMapCardSteps=mapSteps;
+        if(!mapSnapshot())return;mapNext();return;
+#else
         pgFinish("passed_original_map_card",TRUE);
+#endif
     }
 }
 int main(int argc,char **argv) {
@@ -180,5 +252,11 @@ int main(int argc,char **argv) {
     BOOL quiescent=FALSE;if(pgResetExpected && env->resetRequested){HGNativeFinishReset(env);quiescent=env->resetFinished && !env->pendingDMA && !env->dmaAffineWrites && !env->pendingRTC && !env->pendingMIC && !env->pendingCARD && !env->pendingPOWER && !env->pendingINPUT && !env->irqTable && !env->threads && !env->rasterFunction;}
     printf("MAP evidence: {\"status\":\"%s\",\"stage\":%u,\"done\":%u,\"qaBytes\":%zu,\"cards\":%u,\"scene\":%u,\"steps\":%u,\"runs\":%u,\"runAttempts\":%u,\"runAttemptCap\":%u,\"battleLaunches\":%u,\"battleReturns\":%u,\"outcome\":%u,\"mapReadySeen\":%u,\"parentEntries\":%u,\"parentExits\":%u,\"lastApp\":%u,\"menuCloses\":%u,\"fieldReady\":%u,\"menuActive\":%u,\"privateSaveWrites\":false,\"resetQuiescent\":%s}\n",pgStatus,mapStage,mapFinal.done,sizeof(mapFinal),mapFinal.cards,mapFinal.scene,mapSteps,mapRuns,mapRuns,HG_PG_MAP_RUN_ATTEMPT_CAP,mapFinal.battleLaunches,mapFinal.battleReturns,mapFinal.battleOutcome,mapFinal.mapReadySeen,mapFinal.parentEntries,mapFinal.parentExits,mapFinal.lastApp,mapMenuCloses,pgFinal.fieldReady,pgMenu.active,quiescent ? "true" : "false");
     BOOL passed=pgPassed && quiescent && mapFinal.done && mapFinal.cards==1 && mapFinal.scene==2 && mapFinal.lastApp==2 && mapRuns>=mapFinal.battleLaunches && mapFinal.battleLaunches==mapFinal.battleReturns && mapMenuCloses==1 && !pgMenu.active && pgFinal.fieldReady;
+#ifdef HG_PG_MR_EXTENSION
+    printf("MR evidence: {\"status\":\"%s\",\"stage\":%u,\"done\":%u,\"qaBytes\":%zu,\"map\":%u,\"x\":%u,\"z\":%u,\"facing\":%u,\"mapCardSteps\":%u,\"manualTiles\":%u,\"routeScene\":%u,\"houseScene\":%u,\"apricornBox\":%u,\"mysteryEgg\":%u,\"pokedex\":%u,\"oakContact\":%u,\"partyHealed\":%u,\"apricornScriptSeen\":%u,\"apricornCompletedSeen\":%u,\"houseScriptSeen\":%u,\"doorAnchorSeen\":%u}\n",pgStatus,mapStage,mrFinal.done,sizeof(mrFinal),mapFinal.mapId,mapFinal.x,mapFinal.z,mapFinal.facing,mrMapCardSteps,mapSteps-mrMapCardSteps,mrFinal.routeScene,mrFinal.houseScene,mrFinal.apricornBox,mrFinal.mysteryEgg,mrFinal.pokedexEnabled,mrFinal.oakRegistered,mrFinal.partyHealed,mrFinal.apricornScriptSeen,mrFinal.apricornCompletedSeen,mrFinal.houseScriptSeen,mrFinal.doorAnchorSeen);
+    passed=pgPassed && quiescent && mapStage==MR_FINISH && mrFinal.done && HGMrEndpoint(&mapFinal,&mrFinal)
+        && mapFinal.lastApp==2 && mapRuns>=mapFinal.battleLaunches && mapFinal.battleLaunches==mapFinal.battleReturns
+        && mapMenuCloses==1 && !pgMenu.active && mapSteps==mrMapCardSteps+124;
+#endif
     wasm2c_hgengine_free(game);for(u32 i=0;i<3;++i)close(wasi->fds[i]);free(game);free(env);free(wasi);free(capture);wasm_rt_free();return passed ? 0 : 1;
 }

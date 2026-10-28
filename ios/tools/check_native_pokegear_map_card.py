@@ -24,6 +24,7 @@ C_CHECK=r'''
 #include "battle/battle_setup.h"
 #include "constants/battle.h"
 #include "field_system.h"
+#include "script.h"
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -32,6 +33,10 @@ static Capture *pgCapture;
 static HGPokegearMapCardQAState mapFinal;
 static HGNativePokegearQAState pgFinal;
 static HGNativeFieldMenuUIState pgMenu;
+#ifdef HG_PG_MR_EXTENSION
+static HGPokegearMrPokemonQAState mrFinal;
+#define HGMapTextAllowed(s,i,r) HGMrTextQualified((s),&mrFinal,(i),(r))
+#endif
 static u32 mapLease,mapReads,mapReleaseReads,mapOwner,mapGen,mapRev,mapLCD,mapLeaseScript,mapLeaseSerial;
 static u32 mapMovePending,mapMoveX,mapMoveZ;
 static u32 inputReads,inputKeys,inputPressed,inputCalls,inputLCD;
@@ -42,6 +47,17 @@ int HGNativeSetInput(struct w2c_env *env,uint32_t keys,int folded,uint32_t x,uin
 uint32_t HGNativeInputPadReads(struct w2c_env *env){assert(env==pgCapture->env);return inputReads;}
 #include "actual_map_settle.inc"
 static HGPokegearMapCardQAState sPGMap;
+#ifdef HG_PG_MR_EXTENSION
+static HGPokegearMrPokemonQAState sPGMr;
+#include "actual_mr_running.inc"
+#include "actual_mr_context.inc"
+static BOOL mrWaitTag(ScriptContext *ctx){return ctx!=NULL;}
+#endif
+static u32 sPGMapPending;
+#ifdef HG_PG_MR_EXTENSION
+static u32 sPGMrPending;
+#endif
+#include "actual_map_request.inc"
 static const BattleSetup *sPGMapBattle;
 static FieldSystem field;
 static FieldSystem *sPGQAField=&field;
@@ -109,6 +125,58 @@ int main(void){
  gNativeBattleUIState.revision=3;gNativeBattleUIState.mode=HG_BATTLE_UI_MOVES;
  assert(!HGMapRunReady(&gNativeBattleUIState,attempts,lastRevision) && sNativeBattleChoice==-1);
  gNativeBattleUIState.mode=HG_BATTLE_UI_COMMAND;assert(!HGMapRunReady(&gNativeBattleUIState,HG_PG_MAP_RUN_ATTEMPT_CAP,lastRevision));
+#ifdef HG_PG_MR_EXTENSION
+ route(hgMrApricornRoute,sizeof(hgMrApricornRoute)/sizeof(*hgMrApricornRoute),39,39);
+ route(hgMrHouseRoute,sizeof(hgMrHouseRoute)/sizeof(*hgMrHouseRoute),85,85);
+ _Static_assert(sizeof(HGPokegearMrPokemonQAState)==72,"Separate private Mr packet");
+ Location location={.mapId=143};field.location=&location;
+ ScriptContext parent={.id=0,.mode=SCRIPT_MODE_NATIVE,.native_ptr=mrWaitTag,.fieldSystem=&field,.taskman=field.taskman};
+ ScriptContext child={.id=1,.mode=SCRIPT_MODE_NATIVE,.native_ptr=mrWaitTag,.fieldSystem=&field,.taskman=field.taskman};
+ ScriptEnvironment context={.activeScriptContextCount=1,.activeScriptNumber=2,.scriptContexts={&parent,NULL,NULL}};
+ assert(PGMrTextContext(&field,&context,&parent)==&parent);
+ context.scriptContexts[1]=&child;assert(!PGMrTextContext(&field,&context,&parent));context.scriptContexts[1]=NULL;
+ context.scriptContexts[2]=&child;assert(!PGMrTextContext(&field,&context,&parent));context.scriptContexts[2]=NULL;
+ context.activeScriptContextCount=2;context.scriptContexts[1]=&child;context.stdScriptWaitFlags=1;sPGMr=(HGPokegearMrPokemonQAState){.started=1,.apricornCompletedSeen=1,.doorAnchorSeen=1};
+ assert(PGMrTextContext(&field,&context,&parent)==&child);
+ context.scriptContexts[2]=&child;assert(!PGMrTextContext(&field,&context,&parent));context.scriptContexts[2]=NULL;
+ child.id=2;assert(!PGMrTextContext(&field,&context,&parent));child.id=1;
+ child.fieldSystem=NULL;assert(!PGMrTextContext(&field,&context,&parent));child.fieldSystem=&field;
+ context.stdScriptWaitFlags=0;assert(!PGMrTextContext(&field,&context,&parent));context.stdScriptWaitFlags=1;
+ context.activeScriptContextCount=3;assert(!PGMrTextContext(&field,&context,&parent));context.activeScriptContextCount=2;
+ context.activeScriptNumber=2033;assert(!PGMrTextContext(&field,&context,&parent));context.activeScriptNumber=2;
+ child.mode=SCRIPT_MODE_STOPPED;assert(!PGMrTextContext(&field,&context,&parent));child.mode=SCRIPT_MODE_NATIVE;
+ sPGMr=(HGPokegearMrPokemonQAState){0};
+ HGPokegearMrPokemonQAState q={.started=1,.routeScene=0};
+ HGPokegearMapCardQAState m={.started=1,.done=1,.mapId=34,.scene=2,.cards=1,.scriptActive=1,.scriptId=3,.scriptWait=2,.scriptSerial=10};
+ assert(HGMrMapAllowed(&m,&q) && HGMrTextQualified(&m,&q,3,10));
+ assert(!HGMrTextQualified(&m,&q,3,9));m.scriptWait=1;assert(!HGMrTextQualified(&m,&q,3,10));m.scriptWait=3;
+ assert(HGMrTextQualified(&m,&q,3,10));q.routeScene=1;assert(!HGMrTextQualified(&m,&q,3,10));
+ q.houseScene=0;q.apricornCompletedSeen=1;q.doorAnchorSeen=1;m.mapId=143;m.scriptId=2;
+ assert(HGMrTextQualified(&m,&q,2,10));q.houseScene=1;assert(!HGMrTextQualified(&m,&q,2,10));
+ m.scene=3;assert(HGMrMapAllowed(&m,&q));q.started=0;assert(!HGMrMapAllowed(&m,&q));q.started=1;
+ q=(HGPokegearMrPokemonQAState){.started=1,.routeScene=2,.houseScene=1,.apricornBox=1,.mysteryEgg=1,.pokedexEnabled=1,.oakRegistered=1,.partyHealed=1,.apricornScriptSeen=1,.apricornCompletedSeen=1,.houseScriptSeen=1,.doorAnchorSeen=1};
+ m=(HGPokegearMapCardQAState){.started=1,.done=1,.mapId=143,.x=5,.z=6,.facing=2,.scene=3,.cards=1,.betweenSteps=1,.phone.fieldReady=1};
+ assert(HGMrEndpoint(&m,&q));q.routeScene=1;assert(!HGMrEndpoint(&m,&q));q.routeScene=2;
+ q.houseScene=0;assert(!HGMrEndpoint(&m,&q));q.houseScene=1;q.mysteryEgg=0;assert(!HGMrEndpoint(&m,&q));q.mysteryEgg=1;
+ m.scriptActive=1;assert(!HGMrEndpoint(&m,&q));m.scriptActive=0;m.mapId=34;assert(!HGMrEndpoint(&m,&q));m.mapId=143;
+ sPGMap=m;sPGMap.revision=20;sPGMr=(HGPokegearMrPokemonQAState){0};
+ assert(!HGNativePokegearQARequest(20,HG_PG_MR_START));sPGMap.mapId=67;sPGMap.x=550;sPGMap.z=385;sPGMap.scene=2;
+ assert(!HGNativePokegearQARequest(19,HG_PG_MR_START));assert(HGNativePokegearQARequest(20,HG_PG_MR_START));
+ assert(!HGNativePokegearQARequest(20,HG_PG_MR_START));sPGMrPending=0;
+ setup=(BattleSetup){.winFlag=BATTLE_OUTCOME_PLAYER_FLED};original=setup;sPGMap.error=0;sPGMr.started=1;
+ __wrap_Battle_LaunchApp(&field,&setup);assert(launchCalls==3 && sPGMap.battleLive && !memcmp(&setup,&original,sizeof(setup)));
+ __wrap_BattleSetup_Delete(&setup);assert(deleteCalls==3 && !sPGMap.battleLive && !sPGMap.error);
+ sPGMr.done=1;__wrap_Battle_LaunchApp(&field,&setup);assert(launchCalls==4 && !sPGMap.battleLive && !sPGMapBattle);
+ mapFinal=(HGPokegearMapCardQAState){.started=1,.done=1,.mapId=34,.scene=2,.cards=1,.scriptActive=1,.scriptId=3,.scriptWait=2,.scriptSerial=40};
+ mrFinal=(HGPokegearMrPokemonQAState){.started=1};mapOwner=3;mapLCD=inputLCD=0;mapLease=1;mapReads=inputReads=900;mapLeaseScript=3;mapLeaseSerial=40;
+ u32 priorCalls=inputCalls;assert(!mapSettle() && inputCalls==priorCalls);inputReads=904;
+ assert(!mapSettle() && inputCalls==priorCalls+1 && mapLease==2);inputReads=905;assert(!mapSettle());inputReads=906;assert(mapSettle());
+ mapLease=1;mapReads=inputReads=910;mapFinal.scriptSerial=41;assert(!mapSettle() && mapLease==2);
+ puts("PASS Mr 124-tile route, qualified waits/4+2 leases, scene transitions, gift endpoint and original RUN observer continuation");
+#else
+ sPGMap=(HGPokegearMapCardQAState){.revision=1,.started=1,.done=1,.mapId=67,.x=550,.z=385,.scene=2,.cards=1,.betweenSteps=1,.phone.fieldReady=1};
+ assert(!HGNativePokegearQARequest(1,0x202));
+#endif
  puts("PASS actual original Choose: COMMAND rev1 -> pending -> new COMMAND rev2 retries; stale/duplicate/unknown mode/cap rejected");
  printf("MAP_LAYOUT {\"stateBytes\":%zu,\"prefixBytes\":%zu,\"mapOffset\":%zu,\"uiOffset\":%zu}\n",sizeof(HGPokegearMapCardQAState),sizeof(HGNativePokegearQAState),offsetof(HGPokegearMapCardQAState,version),offsetof(HGNativePokegearQAState,ui));
  puts("PASS actual route/one-way ledge/qualified waits/stale owner+serial/LCD/4-read press+2-read release");return 0;
@@ -139,9 +207,18 @@ def evidence_self_check(layout):
     good=dict(status='passed_original_map_card',stage=11,done=1,qaBytes=layout['stateBytes'],cards=1,scene=2,mapReadySeen=1,parentEntries=1,parentExits=1,lastApp=2,menuCloses=1,fieldReady=1,menuActive=0,privateSaveWrites=False,resetQuiescent=True,runs=2,runAttempts=2,runAttemptCap=8,battleLaunches=1,battleReturns=1,outcome=5,steps=180)
     require(evidence_passed(good,layout),'Genuine Map evidence contract rejected')
     for k,v in [('cards',3),('scene',1),('done',0),('outcome',2),('battleReturns',0),('fieldReady',0),('privateSaveWrites',True),('resetQuiescent',False),('runAttempts',9),('runAttemptCap',0)]:require(not evidence_passed({**good,k:v},layout),'False Map success accepted: '+k)
-def trace_passed(rows,runs,run_count,launch_count=0):
+def mr_evidence_passed(row,mr,layout):
+    fixed=dict(status='passed_original_mr_pokemon',stage=18,done=1,qaBytes=layout['stateBytes'],cards=1,scene=3,mapReadySeen=1,runAttemptCap=8,
+               parentEntries=1,parentExits=1,lastApp=2,menuCloses=1,fieldReady=1,menuActive=0,privateSaveWrites=False,resetQuiescent=True)
+    endpoint=dict(status='passed_original_mr_pokemon',stage=18,done=1,qaBytes=72,map=143,x=5,z=6,facing=2,manualTiles=124,
+        routeScene=2,houseScene=1,apricornBox=1,mysteryEgg=1,pokedex=1,oakContact=1,partyHealed=1,
+        apricornScriptSeen=1,apricornCompletedSeen=1,houseScriptSeen=1,doorAnchorSeen=1)
+    if not isinstance(row,dict) or not isinstance(mr,dict) or any(type(row.get(k)) is not type(v) or row[k]!=v for k,v in fixed.items()) or any(type(mr.get(k)) is not type(v) or mr[k]!=v for k,v in endpoint.items()):return False
+    n=row.get('battleLaunches');a=row.get('runAttempts');before=mr.get('mapCardSteps')
+    return type(before) is int and 178<=before<=180 and all(type(row.get(k)) is int for k in ('steps','battleReturns','runs','outcome')) and row['steps']==before+124 and type(n) is int and 0<=n<=32 and type(a) is int and row['battleReturns']==n and row['runs']==a and ((not n and not a) or n>0 and n<=a<=8*n and row['outcome']==5)
+def trace_passed(rows,runs,run_count,launch_count=0,mr=False):
     if not rows or len(rows)%3 or len(runs)!=run_count:return False
-    serials=set();guide=gift=False;previous=0
+    serials=set();guide=gift=apricorn=house=False;previous=0
     for i in range(0,len(rows),3):
         a,b,c=rows[i:i+3]
         if [r.get('event') for r in (a,b,c)]!=['press','release','settled']:return False
@@ -156,6 +233,8 @@ def trace_passed(rows,runs,run_count,launch_count=0):
             if a['key']!=1 or a['touch'] or a.get('wait') not in (2,3) or type(token[1]) is not int or token[1]<=0 or token in serials:return False
             if token[0]==2 and a['stage']==2:guide=True
             elif token[0]==3 and a['stage']==4:gift=True
+            elif mr and token[0]==3 and a['stage']==14 and a.get('map')==34:apricorn=True
+            elif mr and token[0]==2 and a['stage']==17 and a.get('map')==143:house=True
             else:return False
             serials.add(token)
         previous=c['padReads']
@@ -165,7 +244,7 @@ def trace_passed(rows,runs,run_count,launch_count=0):
         if r['launch']==launch+1:launch+=1;attempt=0;last_revision=None
         if r['launch']!=launch or r['attempt']!=attempt+1 or r['attempt']>8 or r['totalAttempts']!=i+1 or r['revision']==last_revision or r['index']!=3 or r['battleType'] or r['battleSpecial']:return False
         attempt+=1;last_revision=r['revision']
-    return guide and gift and launch==launch_count
+    return guide and gift and launch==launch_count and (not mr or apricorn and house)
 def trace_self_check():
     rows=[]
     for script,stage,start in ((2,2,10),(3,4,20)):
@@ -178,7 +257,25 @@ def trace_self_check():
         bad=[dict(r) for r in runs];bad[index][key]=value;require(not trace_passed(rows,bad,3,2),'Invalid RUN retry trace accepted')
     for index,key,value in ((0,'script',1),(0,'wait',0),(2,'padReads',15),(3,'key',2),(3,'serial',0)):
         bad=[dict(r) for r in rows];bad[index][key]=value;require(not trace_passed(bad,[],0),'Malformed script/release trace accepted')
-def snapshots_passed(folder,rows,maprows,layout):
+def mr_contract_self_check(layout):
+    row=dict(status='passed_original_mr_pokemon',stage=18,done=1,qaBytes=layout['stateBytes'],cards=1,scene=3,mapReadySeen=1,
+        parentEntries=1,parentExits=1,lastApp=2,menuCloses=1,fieldReady=1,menuActive=0,privateSaveWrites=False,resetQuiescent=True,
+        runs=0,runAttempts=0,runAttemptCap=8,battleLaunches=0,battleReturns=0,outcome=0,steps=304)
+    mr=dict(status='passed_original_mr_pokemon',stage=18,done=1,qaBytes=72,map=143,x=5,z=6,facing=2,mapCardSteps=180,manualTiles=124,
+        routeScene=2,houseScene=1,apricornBox=1,mysteryEgg=1,pokedex=1,oakContact=1,partyHealed=1,
+        apricornScriptSeen=1,apricornCompletedSeen=1,houseScriptSeen=1,doorAnchorSeen=1)
+    require(mr_evidence_passed(row,mr,layout) and not evidence_passed(row,layout),'Mr/legacy endpoints were conflated')
+    for key,value in [('scene',2),('resetQuiescent',False),('steps',303),('privateSaveWrites',True),('runAttemptCap',9)]:
+        require(not mr_evidence_passed({**row,key:value},mr,layout),'Bad Mr common evidence admitted: '+key)
+    for key,value in [('routeScene',1),('houseScene',0),('map',34),('doorAnchorSeen',0),('mysteryEgg',0),('oakContact',0),('mapCardSteps',181)]:
+        require(not mr_evidence_passed(row,{**mr,key:value},layout),'Bad Mr endpoint admitted: '+key)
+    rows=[]
+    for script,stage,start,map_id in ((2,2,10,67),(3,4,20,67),(3,14,30,34),(2,17,40,143)):
+        a=dict(event='press',padReads=start,owner=3,generation=0,revision=0,stage=stage,key=1,touch=0,script=script,serial=start,wait=2,map=map_id)
+        rows.extend((a,{**a,'event':'release','padReads':start+4,'key':0},{**a,'event':'settled','padReads':start+6,'key':0}))
+    require(trace_passed(rows,[],0,0,True) and not trace_passed(rows,[],0),'Mr input modes were conflated')
+    bad=[dict(r) for r in rows];bad[6]['map']=67;require(not trace_passed(bad,[],0,0,True),'Wrong-map Mr script admitted')
+def snapshots_passed(folder,rows,maprows,layout,mrrows=None):
     if not rows or not maprows:return False
     expected=set();mapseen=set()
     for sequence,row in enumerate(rows):
@@ -205,7 +302,16 @@ def snapshots_passed(folder,rows,maprows,layout):
         if len(raw)!=layout['stateBytes'] or struct.unpack_from('<II',raw,layout['mapOffset'])!=(1,layout['stateBytes']):return False
         if raw[:layout['prefixBytes']]!=(folder/f'pokegear-{n:03d}-state.bin').read_bytes():return False
         mapseen.add(n);expected.add(path)
-    return expected==set(folder.iterdir()) and any(r.get('stage')==8 and r.get('cards')==1 and r.get('scene')==2 for r in maprows)
+    mrseen=set();mrcomplete=False
+    for row in mrrows or []:
+        n=row.get('sequence');path=folder/f'mr-{n:03d}-state.bin' if type(n) is int else None
+        if n in mrseen or n not in mapseen or not path.is_file() or path.is_symlink():return False
+        raw=path.read_bytes()
+        if len(raw)!=72:return False
+        packet=struct.unpack('<18I',raw)
+        if packet[:2]!=(1,72) or packet[3] or packet[4]!=1 or packet[6]!=row.get('routeScene') or packet[7]!=row.get('houseScene'):return False
+        mrcomplete|=row.get('stage')==18 and packet[5]==1;mrseen.add(n);expected.add(path)
+    return expected==set(folder.iterdir()) and any(r.get('stage')==8 and r.get('cards')==1 and r.get('scene')==2 for r in maprows) and (mrrows is None or mrcomplete)
 def execute(root,here,args,out,copies,report,pins,base):
     require(here==root,'Runtime requires installed Map QA4 and matching fresh Full')
     sys.path.insert(0,str(root/'ios/tools'))
@@ -220,6 +326,7 @@ def execute(root,here,args,out,copies,report,pins,base):
     flags=['--target=wasm32-wasip1','-std=gnu11','-O2','-fwrapv','-fno-strict-aliasing','-fno-builtin-malloc','-fno-builtin-free','-fwasm-exceptions','-fexceptions','-Xclang','-disable-red-zone','-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-DHEARTGOLD_NATIVE','-DHEARTGOLD_ABI32','-DSDK_ARM9','-DSDK_CW','-DSDK_CODE_ARM','-DSDK_TS','-D_NITRO','-DPM_KEEP_ASSERTS','-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']
     for p in (*context['includes'],here/'ios/tests',root/'ios/tests',root/'ios/build-original-host/include',root/'include',root/'files',root/'src',root/'lib/include',root/'lib/include/cw',root/'lib/include/nitro',root/'lib/include/nnsys',root/'lib/include/nitro/os',root/'include/library',root/'lib/NitroSDK/include',root/'lib/NitroSDK/include-pokediamond'):flags+=['-I',str(p)]
     if context['link'].get('nativeContent'):flags.append('-DHG_NATIVE_ROM_TABLES')
+    if args.mr_pokemon:flags.append('-DHG_PG_MR_EXTENSION')
     private=[];private_pins={};replacements=[];new_objects=[];old_objects=[]
     try:
         require_hashes(pins,'Map source inputs')
@@ -239,11 +346,12 @@ def execute(root,here,args,out,copies,report,pins,base):
         for name in LINK_WRAPS:require('-Wl,--wrap='+name not in command,'Duplicate wrap');command.insert(command.index('-o'),'-Wl,--wrap='+name)
         for name in report['privateExports']:command.insert(command.index('-o'),'-Wl,--export='+name)
         runner(command,guest/'strict-link.log');report['moduleBuilt']=True
-        require(wasm_exports(module.read_bytes())==sorted([*shipping,*report['privateExports']]),'Exactly current public+2 private exports required');report['observerDefinitionsLinked']=True
+        require(wasm_exports(module.read_bytes())==sorted([*shipping,*report['privateExports']]),'Exactly current public plus mode-qualified private exports required');report['observerDefinitionsLinked']=True
         native=out/'native';native.mkdir();support=(root/'ios/Original/abi32/pokegear_scenario_check.c').read_text();require(support.count('int main(int argc,char **argv)')==1,'Phone main identity changed')
         (native/'pokegear_map_phone_support.inc').write_text(support.replace('int main(int argc,char **argv)','static int PGMapUnusedPhoneMain(int argc,char **argv)',1))
         generated,writes,restores=h['generate_engine'](native,module,lambda argv,log:runner(argv,native/log));report['genuineGeneratedHeaderSha256']=sha(native/'hgengine.h');cflags,runtime=h['native_build_settings'](native)
         cflags+=['-I',str(here/'ios/tests'),'-I',str(root/'ios/tests'),'-I',str(root/'ios/Original/abi32'),'-g','-fsanitize=address,undefined','-fno-sanitize-recover=all'];native_objects=[]
+        if args.mr_pokemon:cflags.append('-DHG_PG_MR_EXTENSION')
         for i,source in enumerate([*generated,*runtime,here/QA_PATHS[2]]):
             target=native/f'host-{i}.o';extra=['-DWASM_RT_TRAP_HANDLER=HGEngineTrap'] if source.name=='wasm-rt-impl.c' else [];runner(['xcrun','clang',*cflags,*extra,'-c',source,'-o',target],native/f'compile-{i}.log');native_objects.append(target)
         binary=native/'map-card-check';runner(['xcrun','clang','-fsanitize=address,undefined',*native_objects,'-o',binary],native/'link.log');report['hostABICompiled']=True
@@ -251,18 +359,19 @@ def execute(root,here,args,out,copies,report,pins,base):
         for p in fixture:copy=out/('scenario.sav'+p.name[len(save.name):]);shutil.copy2(p,copy);private.append(copy)
         private_pins={str(p):sha(p) for p in private};assert_unchanged(context);require_hashes(pins,'Map source inputs');require_hashes(fixture_pins,'Original fixture')
         report.update(gameExecuted=True,gameRuntimeExecuted=True,sourceCopiesCompiled=replacements,privateModuleSha256=sha(module),checkedStackWrites=writes,exceptionDepthRestores=restores)
-        row,text=runner([binary,context['pack']/'files',boot,out/'scenario.sav',frames],out/'runtime.log',timeout=300,check=False)
-        rows={p:[] for p in ('MAP evidence: ','MAP baseline: ','MAP input: ','MAP run: ','MAP snapshot: ','POKEGEAR snapshot: ')}
+        row,text=runner([binary,context['pack']/'files',boot,out/'scenario.sav',frames],out/'runtime.log',timeout=600 if args.mr_pokemon else 300,check=False)
+        rows={p:[] for p in ('MAP evidence: ','MAP baseline: ','MAP input: ','MAP run: ','MAP snapshot: ','POKEGEAR snapshot: ','MR evidence: ','MR snapshot: ')}
         for line in text.splitlines():
             for prefix,destination in rows.items():
                 if line.startswith(prefix):destination.append(json.loads(line[len(prefix):]));break
         report['runtimeEvidence']=rows
-        require(row['terminalReturnCode']==0 and not row['timedOut'] and row['allChildrenWaited'] and len(rows['MAP evidence: '])==1 and evidence_passed(rows['MAP evidence: '][0],report['nativeLayout']),'Original Map flow failed; no automatic retry')
+        accepted=len(rows['MAP evidence: '])==1 and (len(rows['MR evidence: '])==1 and mr_evidence_passed(rows['MAP evidence: '][0],rows['MR evidence: '][0],report['nativeLayout']) if args.mr_pokemon else evidence_passed(rows['MAP evidence: '][0],report['nativeLayout']))
+        require(row['terminalReturnCode']==0 and not row['timedOut'] and row['allChildrenWaited'] and accepted,'Original Map/Mr flow failed; no automatic retry')
         require(rows['MAP baseline: ']==[dict(map=33,x=668,z=397,scene=0,cards=0)],'Fresh actual Map baseline mismatch')
-        require(trace_passed(rows['MAP input: '],rows['MAP run: '],rows['MAP evidence: '][0]['runAttempts'],rows['MAP evidence: '][0]['battleLaunches']),'Qualified script/RUN/release trace mismatch')
-        require(snapshots_passed(frames,rows['POKEGEAR snapshot: '],rows['MAP snapshot: '],report['nativeLayout']),'Original paired snapshot files mismatch')
+        require(trace_passed(rows['MAP input: '],rows['MAP run: '],rows['MAP evidence: '][0]['runAttempts'],rows['MAP evidence: '][0]['battleLaunches'],args.mr_pokemon),'Qualified script/RUN/release trace mismatch')
+        require(snapshots_passed(frames,rows['POKEGEAR snapshot: '],rows['MAP snapshot: '],report['nativeLayout'],rows['MR snapshot: '] if args.mr_pokemon else None),'Original paired snapshot files mismatch')
         require(private_pins=={str(p):sha(p) for p in private},'Unexpected private4 disk change')
-        report.update(passed=True,complete=True,status='passed_original_map_card',privateSaveFilesUnchanged=True,originalFixtureUnchanged=True,allCardsComplete=False,
+        report.update(passed=True,complete=True,status='passed_original_mr_pokemon' if args.mr_pokemon else 'passed_original_map_card',privateSaveFilesUnchanged=True,originalFixtureUnchanged=True,allCardsComplete=False,
                       limits=['Radio/Fly/Town/EasyChat positive flows remain excluded.','Original story and encounter effects are RAM changes; no disk persistence is claimed.','Original PPM visual review remains a separate post-run step.'])
     finally:
         assert_unchanged(context);require_hashes(pins,'Map source inputs');require_hashes(fixture_pins,'Original fixture')
@@ -274,6 +383,7 @@ def main():
     parser.add_argument('--source-root',type=Path,default=ROOT);parser.add_argument('--wasi-sdk',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True);parser.add_argument('--host-generated',type=Path)
     parser.add_argument('--full-receipt',type=Path);parser.add_argument('--save',type=Path)
+    parser.add_argument('--mr-pokemon',action='store_true',help='Opt-in natural Route30/Apricorn/MrPokemon/Oak continuation; stops indoors')
     args=parser.parse_args();root=args.source_root.resolve();here=ROOT;out=args.output.resolve()
     require(bool(args.full_receipt)==bool(args.save),'Runtime requires both explicit --full-receipt and --save')
     require(not out.exists(),'Fresh output required');out.mkdir(parents=True)
@@ -283,10 +393,12 @@ def main():
         'src/field/scrcmd_message.c','src/script_manager.c','src/encounter.c','src/battle/battle_input.c','src/battle/battle_util.c','src/battle/battle_command.c','files/fielddata/encountdata/gs_enc_data.json',
         'files/fielddata/script/scr_seq/scr_seq_0850_T21.s','files/fielddata/eventdata/zone_event/064_T21.json',
         'files/battledata/script/subscript/subscript_0003_RunAway.s','files/battledata/script/subscript/subscript_0008_RunAwayFail.s','include/native_pokegear_ui.h','include/native_battle_ui.h')
+    if args.mr_pokemon:source_names+=('files/fielddata/script/scr_seq/scr_seq_0227_R30.s','files/fielddata/script/scr_seq/scr_seq_0229_R30R0201.s','include/constants/vars.h','include/constants/items.h','include/constants/phone_contacts.h','include/save_pokegear.h','include/party.h','include/pokedex.h','include/bag.h')
     pins={str(p):sha(p) for p in [*(here/p for p in QA_PATHS),*(root/p for p in source_names)]}
     report=dict(passed=False,complete=False,commands=[],sourceHashesBefore=pins,moduleBuilt=False,gameExecuted=False,gameRuntimeExecuted=False,observerDefinitionsLinked=False,hostABICompiled=False,
                 audioOperations=False,privateExports=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureExports=35,shippingABIChanged=False,
                 requiredPrivateLinkWraps=list(LINK_WRAPS),Phone33DefaultCaseUnchanged=True,allCardsComplete=False)
+    if args.mr_pokemon:report.update(privateExports=[*report['privateExports'],'HGNativeMrPokemonQAGetState'],futureExports=36,mrPokemonMode=True,legacyMapPacketUnchanged=True)
     env={**os.environ,'HEARTGOLD_TEST_MUTE':'1','SIMCTL_CHILD_HEARTGOLD_TEST_MUTE':'1','PYTHONDONTWRITEBYTECODE':'1'}
     def run(argv,label):
         result=subprocess.run(['nice','-n','10',*map(str,argv)],cwd=root,env=env,capture_output=True,text=True,timeout=60)
@@ -297,21 +409,30 @@ def main():
         copies=out/'source';copies.mkdir();originals=source_copies(root,here,copies,base)
         host=(here/QA_PATHS[2]).read_text();(out/'actual_map_settle.inc').write_text(base.function(host,'mapSettle')+'\n')
         guest=(here/QA_PATHS[1]).read_text();(out/'actual_map_battle.inc').write_text('\n'.join(base.function(guest,name) for name in ('__wrap_Battle_LaunchApp','__wrap_BattleSetup_Delete'))+'\n')
+        (out/'actual_map_request.inc').write_text(base.function(guest,'HGNativePokegearQARequest')+'\n')
+        if args.mr_pokemon:
+            (out/'actual_mr_running.inc').write_text(base.function(guest,'PGMrRunning')+'\n')
+            (out/'actual_mr_context.inc').write_text(base.function(guest,'PGMrTextContext')+'\n')
         (out/'actual_native_battle_choose.inc').write_text(base.function((root/'src/battle/battle_input.c').read_text(),'HGNativeBattleUIChoose')+'\n')
         check=out/'actual_map_check.c';check.write_text(C_CHECK)
         includes=[here/'ios/tests',root/'ios/tests',root/'include',root/'ios/Original/abi32',root/'ios/build-original-host/include',out]
         tools=Path(os.environ.get('HG_ABI32_TOOLS',root/'ios/build-original-abi32/tools'))
         native=['xcrun','clang','-std=c11','-O1','-g','-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-fsanitize=address,undefined','-fno-sanitize-recover=all','-DSDK_ARM9','-DHEARTGOLD_NATIVE']
+        if args.mr_pokemon:native.append('-DHG_PG_MR_EXTENSION')
         for p in includes:native+=['-iquote',p]
         native+=['-I',tools/'wabt-1.0.42/include','-idirafter',root/'ios/build-original-host/include']
         for p in ('lib/include','include/library','lib/include/cw','lib/include/nitro','lib/include/nnsys','lib/include/nitro/os','lib/NitroSDK/include','lib/NitroSDK/include-pokediamond','files'):native+=['-idirafter',root/p]
         run([*native,check,'-o',out/'actual-map-check'],'native-compile.log');log=run([out/'actual-map-check'],'native-run.log')
         layouts=[json.loads(line[11:]) for line in log.splitlines() if line.startswith('MAP_LAYOUT ')];require(len(layouts)==1,'Real native layout missing');report['nativeLayout']=layouts[0];evidence_self_check(layouts[0]);trace_self_check()
+        require(report['futureExports']==33+len(report['privateExports']) and len(set(report['privateExports']))==len(report['privateExports']),'Mode-specific private ABI changed')
+        if args.mr_pokemon:mr_contract_self_check(layouts[0])
         flags=['--target=wasm32-wasip1','-std=gnu11','-O2','-fwrapv','-fno-strict-aliasing','-fno-builtin-malloc','-fno-builtin-free','-fwasm-exceptions','-fexceptions','-Xclang','-disable-red-zone','-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-DHEARTGOLD_NATIVE','-DHEARTGOLD_ABI32','-DSDK_ARM9','-DSDK_CW','-DSDK_CODE_ARM','-DSDK_TS','-D_NITRO','-DPM_KEEP_ASSERTS','-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']
+        if args.mr_pokemon:flags.append('-DHG_PG_MR_EXTENSION')
         for p in includes:flags+=['-I',p]
         for p in ('files','src','lib/include','lib/include/cw','lib/include/nitro','lib/include/nnsys','lib/include/nitro/os','include/library','lib/NitroSDK/include','lib/NitroSDK/include-pokediamond'):flags+=['-I',root/p]
         for i,name in enumerate(base.COPIES):run([args.wasi_sdk/'bin/clang',*flags,'-fsyntax-only',copies/name],f'wasi-{i}.log')
         layout=out/'layout.c';layout.write_text('#include "global.h"\n#include "pokegear_map_card_qa.h"\n_Static_assert(sizeof(HGPokegearMapCardQAState)=='+str(layouts[0]['stateBytes'])+',"Real WASI private packet/native host layout");\n_Static_assert(__builtin_offsetof(HGPokegearMapCardQAState,version)=='+str(layouts[0]['prefixBytes'])+',"Original prefix ABI");\n')
+        if args.mr_pokemon:layout.write_text(layout.read_text()+'_Static_assert(sizeof(HGPokegearMrPokemonQAState)==72,"Separate Mr packet WASI/native layout");\n')
         run([args.wasi_sdk/'bin/clang',*flags,'-Xclang','-fdump-record-layouts','-fsyntax-only',layout],'wasi-layout.log')
         report['actualWASI32LayoutVerified']=True
         support=(root/'ios/Original/abi32/pokegear_scenario_check.c').read_text();anchor='int main(int argc,char **argv)'
@@ -319,14 +440,19 @@ def main():
         (out/'pokegear_map_phone_support.inc').write_text(support.replace(anchor,'static int PGMapUnusedPhoneMain(int argc,char **argv)',1))
         if args.host_generated:
             require('w2c_hgengine_HGNativePokegearQAGetState' in (args.host_generated/'hgengine.h').read_text(),'Genuine private header lacks original private getters')
+            if args.mr_pokemon:require('w2c_hgengine_HGNativeMrPokemonQAGetState(' in (args.host_generated/'hgengine.h').read_text(),'Mr mode requires its genuine private36 header, not the prior Map header')
             hostflags=['xcrun','clang','-std=c11','-fsyntax-only','-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-DSDK_ARM9','-DHEARTGOLD_NATIVE','-DWASM_RT_USE_MMAP=0','-DWASM_RT_MEMCHECK_GUARD_PAGES=0','-DWASM_RT_MEMCHECK_BOUNDS_CHECK=1']
+            if args.mr_pokemon:hostflags.append('-DHG_PG_MR_EXTENSION')
             for p in [args.host_generated,*includes,tools/'wabt-1.0.42/include',tools/'wabt-1.0.42/share/wabt/wasm2c']:hostflags+=['-I',p]
             for p in ('lib/include','include/library'):hostflags+=['-idirafter',root/p]
             run([*hostflags,here/QA_PATHS[2]],'genuine-prior-header-host-syntax.log')
-            report['hostSyntaxWithGenuinePrior33Header']=True;report['priorGeneratedHeaderSha256']=sha(args.host_generated/'hgengine.h')
+            report['hostSyntaxWithGenuineMr36Header' if args.mr_pokemon else 'hostSyntaxWithGenuinePrior33Header']=True;report['priorGeneratedHeaderSha256']=sha(args.host_generated/'hgengine.h')
         report.update(passed=True,status='passed_map_source_contracts',originalBodiesPreserved=True,originalSourceCopies=list(base.COPIES),
                       sourceCopyHashes={name:sha(copies/name) for name in base.COPIES},actualNativeRouteAndLeaseCheck=True,actualReadonlyBattleWrappersCheck=True,actualOriginalChooseRetrySequenceCheck=True,runAttemptCap=8,
                       limits=['No Map private module linked, so linker wrappers and generated Map ABI remain unproved.','No game, route/grass/guide/Map images or encounter runtime acceptance.','Original wild damage/RNG/seen/stats changes are allowed; Phone33 immutable RAM ledger is deliberately not reused.','Original and private disk nonmutation must be checked in a future authorized runtime driver.'])
+        if args.mr_pokemon:report.update(status='passed_mr_source_contracts',mrPrivateStateBytes=72,actualMrPredicateLeaseAndRunContinuationCheck=True,
+            staticManualTiles=124,staticGrassTiles=39,indoorEndpoint=dict(map=143,x=5,z=6,facing=2),
+            limits=[*report['limits'],'Mr route/BDHC, random encounter survival, automatic scripts and indoor gifts remain runtime-unproved.','Party HP/status is observed; full PP restoration and the Elm call after exiting are outside this endpoint.'])
         if args.full_receipt:execute(root,here,args,out,copies,report,pins,base)
     except BaseException as error:report.update(passed=False,firstFailure=dict(type=type(error).__name__,message=str(error)))
     finally:
