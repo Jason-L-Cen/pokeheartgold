@@ -24,6 +24,11 @@ static u32 mapLease,mapReads,mapReleaseReads,mapOwner,mapGen,mapRev,mapLCD,mapLe
 static u32 mapMovePending,mapMoveKey,mapMoveX,mapMoveZ,mapBlocked,mapSteps;
 static HGNativePokegearUIState mapCloseBefore;
 static HGNativeFieldMenuUIState mapMenuBefore;
+#ifdef HG_PG_ELM_EXTENSION
+enum {ELM_START=19,ELM_ROUTE,ELM_DOOR,ELM_CALL,ELM_CLOSE,ELM_FIELD,ELM_FINISH};
+static u32 elmLeaseSerial,elmLeaseHangup,elmLastSerial,elmContinues,elmHangupSent,elmClosePresses,elmIndoorSteps;
+static HGNativePokegearUIState elmCloseBefore;
+#endif
 static BOOL mapStartCanRequest(const HGPokegearMapCardQAState *state) {
     return HGMapStationary(state) && state->revision && state->phone.compatibleSave==1 && state->phone.pokegearSlot<7;
 }
@@ -52,10 +57,17 @@ static void mapNext(void) {++mapStage;mapStageFrame=OS_GetVBlankCount();mapPendi
 static void mapTrace(const char *event,u32 key,u32 touch,u32 x,u32 y) {
     printf("MAP input: {\"event\":\"%s\",\"stage\":%u,\"segment\":%u,\"key\":%u,\"touch\":%u,\"x\":%u,\"y\":%u,\"padReads\":%u,\"map\":%u,\"worldX\":%u,\"worldZ\":%u,\"scene\":%u,\"cards\":%u,\"script\":%u,\"wait\":%u,\"serial\":%u,\"owner\":%u,\"generation\":%u,\"revision\":%u}\n",
         event,mapStage,mapSegment,key,touch,x,y,HGNativeInputPadReads(pgCapture->env),mapFinal.mapId,mapFinal.x,mapFinal.z,mapFinal.scene,mapFinal.cards,mapFinal.scriptId,mapFinal.scriptWait,mapFinal.scriptSerial,mapOwner,mapGen,mapRev);
+#ifdef HG_PG_ELM_EXTENSION
+    if(mapStage>=ELM_START)printf("ELM input: {\"event\":\"%s\",\"stage\":%u,\"key\":%u,\"touch\":%u,\"owner\":%u,\"generation\":%u,\"revision\":%u,\"padReads\":%u,\"phase\":%u,\"main\":%u,\"scriptState\":%u,\"wait\":%u,\"serial\":%u,\"target\":%u,\"scriptID\":%u,\"incoming\":%u,\"scripted\":%u,\"completed\":%u,\"footer\":%u,\"coverage\":%u}\n",
+        event,mapStage,key,touch,mapOwner,mapGen,mapRev,HGNativeInputPadReads(pgCapture->env),pgFinal.ui.phase,pgFinal.callMainState,pgFinal.callScriptState,pgFinal.callTextWait,pgFinal.callTextSerial,pgFinal.callTarget,pgFinal.callScriptID,pgFinal.callIncoming,pgFinal.callScripted,pgFinal.callCompletions,pgFinal.cursorInAppSwitchZone,pgFinal.coverage);
+#endif
 }
 static void mapPulse(u32 key,u32 x,u32 y,BOOL touch,u32 owner) {
     PG_CHECK(!mapLease);mapOwner=owner;mapLCD=pgTouchEngine();mapGen=owner==1 ? pgFinal.ui.ownerGeneration : owner==2 ? pgMenu.ownerGeneration : 0;
     mapRev=owner==1 ? pgFinal.ui.revision : owner==2 ? pgMenu.revision : 0;
+#ifdef HG_PG_ELM_EXTENSION
+    if(owner==4){mapGen=pgFinal.ui.ownerGeneration;mapRev=pgFinal.ui.revision;elmLeaseSerial=pgFinal.callTextSerial;elmLeaseHangup=pgFinal.callAwaitHangup;PG_CHECK(!mapLCD);}
+#endif
     mapLeaseScript=mapFinal.scriptId;mapLeaseSerial=mapFinal.scriptSerial;
     PG_CHECK(owner!=1 || mapLCD==0);PG_CHECK(HGNativeSetInput(pgCapture->env,key,FALSE,x,y,touch));
     mapReads=HGNativeInputPadReads(pgCapture->env);mapLease=1;mapTrace("press",key,touch,x,y);
@@ -66,6 +78,9 @@ static BOOL mapSettle(void) {
         : mapOwner==2 ? HGNativeFieldMenuUIInputAllowed(&pgMenu,mapGen,mapRev)
         : mapOwner==3 ? HGMapTextAllowed(&mapFinal,mapLeaseScript,mapLeaseSerial)
         : pgFinal.fieldReady && !mapFinal.scriptActive && !mapFinal.battleLive;
+#ifdef HG_PG_ELM_EXTENSION
+    if(mapOwner==4)valid=HGElmCallLease(&pgFinal,mapGen,mapRev,elmLeaseSerial,elmLeaseHangup);
+#endif
     if(mapOwner && pgTouchEngine()!=mapLCD)valid=FALSE;
     if(!mapOwner && mapMovePending && (mapFinal.x!=mapMoveX || mapFinal.z!=mapMoveZ))valid=FALSE;
     if(mapLease==1 && (!valid || reads-mapReads>=4)) {
@@ -150,7 +165,55 @@ static void MrPokemonPresent(void) {
     if(mapStage==MR_FINISH){
         if(!HGMrEndpoint(&mapFinal,&mrFinal))return;
         if(!mapPending){PG_CHECK(w2c_hgengine_HGNativePokegearQARequest(pgCapture->game,mapFinal.revision,HG_PG_MR_FINISH));mapPending=1;return;}
-        if(!mrFinal.done)return;if(!mapSnapshot())return;pgFinish("passed_original_mr_pokemon",TRUE);
+        if(!mrFinal.done)return;if(!mapSnapshot())return;
+#ifdef HG_PG_ELM_EXTENSION
+        mapNext();return;
+#else
+        pgFinish("passed_original_mr_pokemon",TRUE);
+#endif
+    }
+}
+#endif
+#ifdef HG_PG_ELM_EXTENSION
+static void ElmPanicPresent(void) {
+    if(mapStage==ELM_START){
+        if(!HGMrEndpoint(&mapFinal,&mrFinal) || !mrFinal.done)return;
+        if(!mapPending){PG_CHECK(w2c_hgengine_HGNativePokegearQARequest(pgCapture->game,mapFinal.revision,HG_PG_ELM_START));mapPending=1;return;}
+        if((pgFinal.coverage&3)!=3)return;if(!mapSnapshot())return;elmIndoorSteps=mapSteps;
+        printf("ELM checkpoint: {\"stage\":%u,\"map\":%u,\"x\":%u,\"z\":%u,\"facing\":%u,\"routeScene\":%u,\"houseScene\":%u,\"mysteryEgg\":%u,\"pokedex\":%u,\"oakContact\":%u,\"healed\":%u,\"mrDone\":%u,\"manualTiles\":%u,\"parentEntries\":%u,\"parentExits\":%u}\n",
+            mapStage,mapFinal.mapId,mapFinal.x,mapFinal.z,mapFinal.facing,mrFinal.routeScene,mrFinal.houseScene,mrFinal.mysteryEgg,mrFinal.pokedexEnabled,mrFinal.oakRegistered,mrFinal.partyHealed,mrFinal.done,mapSteps-mrMapCardSteps,mapFinal.parentEntries,mapFinal.parentExits);
+        mapNext();return;
+    }
+    if(mapStage==ELM_ROUTE){
+        if(mapFinal.mapId!=143){PG_CHECK(mapFinal.mapId==34);if(!(pgFinal.coverage&HG_PG_ELM_DOOR))return;
+            mapMovePending=0;mapSegment=0;mapNext();return;}
+        mapNavigate(hgElmExitRoute,sizeof(hgElmExitRoute)/sizeof(*hgElmExitRoute));return;
+    }
+    if(mapStage==ELM_DOOR){
+        if(mapFinal.mapId==34){if(!(pgFinal.coverage&HG_PG_ELM_ARRIVED))return;
+            mapMovePending=0;mapSegment=0;if(!mapSnapshot())return;mapNext();return;}
+        PG_CHECK(mapFinal.mapId==143);if(!HGMapStationary(&mapFinal) || mapFinal.scriptActive)return;
+        PG_CHECK(mapFinal.x==4 && mapFinal.z==9 && (pgFinal.coverage&HG_PG_ELM_DOOR));
+        PG_CHECK(++mapBlocked<=16);mapPulse(128,0,0,FALSE,0);return;
+    }
+    if(mapStage==ELM_CALL){
+        if(pgFinal.callCompletions==1 && HGElmPhoneReady(&pgFinal,1)){PG_CHECK(elmHangupSent && elmContinues);if(!mapSnapshot())return;mapNext();return;}
+        if(pgFinal.callAwaitHangup){if(elmHangupSent || !HGElmCallLease(&pgFinal,pgFinal.ui.ownerGeneration,pgFinal.ui.revision,pgFinal.callTextSerial,1))return;
+            if(!mapSnapshot())return;elmHangupSent=1;mapPulse(1,0,0,FALSE,4);return;}
+        if(pgFinal.callTextSerial!=elmLastSerial+1 || !HGElmCallLease(&pgFinal,pgFinal.ui.ownerGeneration,pgFinal.ui.revision,pgFinal.callTextSerial,0))return;
+        PG_CHECK(elmContinues<64);if(!mapSnapshot())return;elmLastSerial=pgFinal.callTextSerial;++elmContinues;mapPulse(1,0,0,FALSE,4);return;
+    }
+    if(mapStage==ELM_CLOSE){
+        if(!pgFinal.ui.active){PG_CHECK(elmClosePresses>=2 && pgFinal.ui.ownerGeneration==elmCloseBefore.ownerGeneration
+            && pgFinal.ui.revision!=elmCloseBefore.revision && !pgFinal.ui.ready && !pgFinal.ui.viewActive);mapNext();return;}
+        if(!HGElmPhoneReady(&pgFinal,1))return;PG_CHECK(pgFinal.callCompletions==1 && elmClosePresses<3);
+        PG_CHECK(!elmClosePresses || pgFinal.menuInputState==0);if(elmClosePresses==2)PG_CHECK(pgFinal.cursorInAppSwitchZone);
+        if(!mapSnapshot())return;elmCloseBefore=pgFinal.ui;++elmClosePresses;mapPulse(2,0,0,FALSE,1);return;
+    }
+    if(mapStage==ELM_FIELD){if(!HGElmEndpoint(&mapFinal,&mrFinal))return;PG_CHECK(!pgMenu.active);if(!mapSnapshot())return;mapNext();return;}
+    if(mapStage==ELM_FINISH){if(!HGElmEndpoint(&mapFinal,&mrFinal))return;
+        if(!mapPending){PG_CHECK(w2c_hgengine_HGNativePokegearQARequest(pgCapture->game,mapFinal.revision,HG_PG_ELM_FINISH));mapPending=1;return;}
+        if(!(pgFinal.coverage&HG_PG_ELM_DONE))return;if(!mapSnapshot())return;pgFinish("passed_original_elm_panic_call",TRUE);
     }
 }
 #endif
@@ -165,6 +228,9 @@ static void MapCardPresent(void *argument) {
     if(mapHandleBattle())return;
     if(mapFinal.battleReturns){PG_CHECK(mapFinal.battleOutcome==BATTLE_OUTCOME_PLAYER_FLED && mapRuns>=mapFinal.battleLaunches);}
 #ifdef HG_PG_MR_EXTENSION
+#ifdef HG_PG_ELM_EXTENSION
+    if(mapStage>MR_FINISH){ElmPanicPresent();return;}
+#endif
     if(mapStage>MAP_FINISH){MrPokemonPresent();return;}
 #endif
     if(mapStage==MAP_START) {
@@ -253,10 +319,18 @@ int main(int argc,char **argv) {
     printf("MAP evidence: {\"status\":\"%s\",\"stage\":%u,\"done\":%u,\"qaBytes\":%zu,\"cards\":%u,\"scene\":%u,\"steps\":%u,\"runs\":%u,\"runAttempts\":%u,\"runAttemptCap\":%u,\"battleLaunches\":%u,\"battleReturns\":%u,\"outcome\":%u,\"mapReadySeen\":%u,\"parentEntries\":%u,\"parentExits\":%u,\"lastApp\":%u,\"menuCloses\":%u,\"fieldReady\":%u,\"menuActive\":%u,\"privateSaveWrites\":false,\"resetQuiescent\":%s}\n",pgStatus,mapStage,mapFinal.done,sizeof(mapFinal),mapFinal.cards,mapFinal.scene,mapSteps,mapRuns,mapRuns,HG_PG_MAP_RUN_ATTEMPT_CAP,mapFinal.battleLaunches,mapFinal.battleReturns,mapFinal.battleOutcome,mapFinal.mapReadySeen,mapFinal.parentEntries,mapFinal.parentExits,mapFinal.lastApp,mapMenuCloses,pgFinal.fieldReady,pgMenu.active,quiescent ? "true" : "false");
     BOOL passed=pgPassed && quiescent && mapFinal.done && mapFinal.cards==1 && mapFinal.scene==2 && mapFinal.lastApp==2 && mapRuns>=mapFinal.battleLaunches && mapFinal.battleLaunches==mapFinal.battleReturns && mapMenuCloses==1 && !pgMenu.active && pgFinal.fieldReady;
 #ifdef HG_PG_MR_EXTENSION
+#ifndef HG_PG_ELM_EXTENSION
     printf("MR evidence: {\"status\":\"%s\",\"stage\":%u,\"done\":%u,\"qaBytes\":%zu,\"map\":%u,\"x\":%u,\"z\":%u,\"facing\":%u,\"mapCardSteps\":%u,\"manualTiles\":%u,\"routeScene\":%u,\"houseScene\":%u,\"apricornBox\":%u,\"mysteryEgg\":%u,\"pokedex\":%u,\"oakContact\":%u,\"partyHealed\":%u,\"apricornScriptSeen\":%u,\"apricornCompletedSeen\":%u,\"houseScriptSeen\":%u,\"doorAnchorSeen\":%u}\n",pgStatus,mapStage,mrFinal.done,sizeof(mrFinal),mapFinal.mapId,mapFinal.x,mapFinal.z,mapFinal.facing,mrMapCardSteps,mapSteps-mrMapCardSteps,mrFinal.routeScene,mrFinal.houseScene,mrFinal.apricornBox,mrFinal.mysteryEgg,mrFinal.pokedexEnabled,mrFinal.oakRegistered,mrFinal.partyHealed,mrFinal.apricornScriptSeen,mrFinal.apricornCompletedSeen,mrFinal.houseScriptSeen,mrFinal.doorAnchorSeen);
     passed=pgPassed && quiescent && mapStage==MR_FINISH && mrFinal.done && HGMrEndpoint(&mapFinal,&mrFinal)
         && mapFinal.lastApp==2 && mapRuns>=mapFinal.battleLaunches && mapFinal.battleLaunches==mapFinal.battleReturns
         && mapMenuCloses==1 && !pgMenu.active && mapSteps==mrMapCardSteps+124;
+#else
+    printf("ELM evidence: {\"status\":\"%s\",\"stage\":%u,\"map\":%u,\"x\":%u,\"z\":%u,\"facing\":%u,\"routeScene\":%u,\"houseScene\":%u,\"panicFlag\":%u,\"coverage\":%u,\"mysteryEgg\":%u,\"pokedex\":%u,\"oakContact\":%u,\"callTarget\":%u,\"incoming\":%u,\"scripted\":%u,\"scriptID\":%u,\"effectType\":%u,\"selections\":%u,\"completions\":%u,\"textContinues\":%u,\"textSerial\":%u,\"hangupPresses\":%u,\"closePresses\":%u,\"indoorSteps\":%u}\n",
+        pgStatus,mapStage,mapFinal.mapId,mapFinal.x,mapFinal.z,mapFinal.facing,mrFinal.routeScene,mrFinal.houseScene,pgFinal.panicFlag,pgFinal.coverage,mrFinal.mysteryEgg,mrFinal.pokedexEnabled,mrFinal.oakRegistered,pgFinal.callTarget,pgFinal.callIncoming,pgFinal.callScripted,pgFinal.callScriptID,pgFinal.callEffectType,pgFinal.callSelections,pgFinal.callCompletions,elmContinues,pgFinal.callTextSerial,elmHangupSent,elmClosePresses,elmIndoorSteps);
+    passed=pgPassed && quiescent && mapStage==ELM_FINISH && HGElmEndpoint(&mapFinal,&mrFinal) && pgFinal.coverage==255
+        && elmContinues && elmContinues==pgFinal.callTextSerial && elmHangupSent==1 && elmClosePresses>=2 && elmClosePresses<=3
+        && mapFinal.battleLaunches==mapFinal.battleReturns && mapRuns>=mapFinal.battleLaunches && mapMenuCloses==1 && !pgMenu.active;
+#endif
 #endif
     wasm2c_hgengine_free(game);for(u32 i=0;i<3;++i)close(wasi->fds[i]);free(game);free(env);free(wasi);free(capture);wasm_rt_free();return passed ? 0 : 1;
 }

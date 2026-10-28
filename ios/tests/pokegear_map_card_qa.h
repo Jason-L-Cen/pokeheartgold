@@ -92,6 +92,41 @@ static inline uint32_t HGMrEndpoint(const HGPokegearMapCardQAState *s,const HGPo
 }
 const HGPokegearMrPokemonQAState *HGNativeMrPokemonQAGetState(void);
 #endif
+#ifdef HG_PG_ELM_EXTENSION
+#ifndef HG_PG_MR_EXTENSION
+#error Elm continuation requires the unchanged MrPokemon prefix
+#endif
+enum {HG_PG_ELM_START=0x204,HG_PG_ELM_FINISH=0x205,
+    HG_PG_ELM_BEGUN=1,HG_PG_ELM_INDOOR=2,HG_PG_ELM_DOOR=4,HG_PG_ELM_ARRIVED=8,
+    HG_PG_ELM_SCRIPT=16,HG_PG_ELM_SELECTED=32,HG_PG_ELM_COMPLETED=64,HG_PG_ELM_DONE=128};
+static const HGPokegearMapRouteSegment hgElmExitRoute[]={
+    {128,5,6,5,8},{32,5,8,4,8},{128,4,8,4,9}
+};
+static inline uint32_t HGElmPhoneReady(const HGNativePokegearQAState *s,uint32_t phase) {
+    return s && !s->error && s->ui.ownerKind==HG_POKEGEAR_OWNER_GEAR && s->ui.app==3 && s->ui.viewKind==3
+        && s->ui.parentPhase==11 && s->ui.phase==phase && s->viewFactsGeneration==s->ui.ownerGeneration
+        && HGNativePokegearUIInputAllowed(&s->ui,s->ui.ownerGeneration,s->ui.revision);
+}
+static inline uint32_t HGElmCallIdentity(const HGNativePokegearQAState *s) {
+    return s && s->callSelections==1 && !s->callCompletions && s->callTarget==1 && s->callIncoming==1
+        && s->callScripted==2 && s->callScriptType==0 && s->callScriptID==2 && !s->callEffectType
+        && (s->coverage&(HG_PG_ELM_BEGUN|HG_PG_ELM_INDOOR|HG_PG_ELM_DOOR|HG_PG_ELM_ARRIVED|HG_PG_ELM_SCRIPT|HG_PG_ELM_SELECTED))==63;
+}
+static inline uint32_t HGElmCallLease(const HGNativePokegearQAState *s,uint32_t generation,uint32_t revision,uint32_t serial,uint32_t hangup) {
+    return HGElmPhoneReady(s,6) && HGElmCallIdentity(s) && HGNativePokegearUIInputAllowed(&s->ui,generation,revision)
+        && (hangup ? s->callMainState==2 && s->callAwaitHangup
+            : s->callMainState==1 && s->callScriptState==3 && !s->callAwaitHangup
+                && serial && s->callTextSerial==serial && (s->callTextWait==2 || s->callTextWait==3));
+}
+static inline uint32_t HGElmEndpoint(const HGPokegearMapCardQAState *s,const HGPokegearMrPokemonQAState *q) {
+    return s && q && !q->error && q->done && HGMapStationary(s) && !s->error && !s->scriptActive && !s->battleLive
+        && !s->phone.ui.active && !s->phone.ringActive && s->mapId==34 && s->x==568 && s->z==295 && s->facing==1
+        && s->cards==1 && s->scene==3 && q->routeScene==3 && q->houseScene==1 && q->mysteryEgg==1
+        && q->pokedexEnabled==1 && q->oakRegistered==1 && s->phone.panicFlag==1
+        && s->parentEntries==2 && s->parentExits==2 && s->lastApp==3 && s->phone.callSelections==1 && s->phone.callCompletions==1
+        && (s->phone.coverage&127)==127;
+}
+#endif
 #ifdef HG_POKEGEAR_QA_GUEST
 struct FieldSystem;
 void PokegearQAFieldObserved(struct FieldSystem *field);

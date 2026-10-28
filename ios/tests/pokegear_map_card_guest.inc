@@ -5,12 +5,24 @@
 #define PokegearQAFieldObserved PGMapBaseFieldObserved
 #define PokegearQAParentObserved PGMapBaseParentObserved
 #define PokegearQAParentExitObserved PGMapBaseParentExitObserved
+#ifdef HG_PG_ELM_EXTENSION
+#define PokegearQAPhoneObserved PGElmBasePhoneObserved
+#define PokegearQACallSelected PGElmBaseCallSelected
+#define PokegearQACallObserved PGElmBaseCallObserved
+#define PokegearQACallCompleted PGElmBaseCallCompleted
+#endif
 #include "pokegear_qa_guest.inc"
 #undef HGNativePokegearQAGetState
 #undef HGNativePokegearQARequest
 #undef PokegearQAFieldObserved
 #undef PokegearQAParentObserved
 #undef PokegearQAParentExitObserved
+#ifdef HG_PG_ELM_EXTENSION
+#undef PokegearQAPhoneObserved
+#undef PokegearQACallSelected
+#undef PokegearQACallObserved
+#undef PokegearQACallCompleted
+#endif
 #include "pokegear_map_card_qa.h"
 #include "battle/battle_setup.h"
 #include "constants/battle.h"
@@ -27,6 +39,11 @@ static const PokegearAppData *sPGMapParent;
 static const BattleSetup *sPGMapBattle;
 static uint32_t sPGMapPending,sPGMapLastWait;
 static uaddr sPGMapLastTextToken;
+#ifdef HG_PG_ELM_EXTENSION
+static uint32_t sPGElmPending,sPGElmLastWait;
+static const PokegearPhoneCallContext *sPGElmCall;
+static BOOL PGElmRunning(void) {return (sPGQA.coverage&HG_PG_ELM_BEGUN) && !(sPGQA.coverage&HG_PG_ELM_DONE);}
+#endif
 #define PGMAP_REQUIRE(value) do{if(!(value)){if(!sPGMap.error)sPGMap.error=__LINE__;return;}}while(0)
 #ifdef HG_PG_MR_EXTENSION
 #include "bag.h"
@@ -81,6 +98,62 @@ static ScriptContext *PGMrTextContext(FieldSystem *field,ScriptEnvironment *env,
         && child->mode==SCRIPT_MODE_NATIVE && child->native_ptr ? child : NULL;
 }
 #endif
+#ifdef HG_PG_ELM_EXTENSION
+static BOOL PGElmCallOwner(const PokegearPhoneCallContext *call) {
+    return call && sPGMapParent && call->phoneApp && call->phoneApp->pokegear==sPGMapParent
+        && sPGMapParent->childAppdata==call->phoneApp && call->saveData && sPGQAField
+        && call->saveData==sPGQAField->saveData && call->saveData==sPGMapParent->saveData;
+}
+static BOOL PGElmCallRootIdentity(const PokegearPhoneCallContext *call) {
+    return PGElmCallOwner(call) && call->state.callerID==PHONE_CONTACT_PROF__ELM && call->state.isIncomingCall==1
+        && call->state.isScriptedCall==2 && !call->state.predefinedScriptID && !call->state.scriptType
+        && call->state.scriptID==PHONE_SCRIPT_002 && call->state.scriptDef
+        && call->state.scriptDef->scriptType==PHONESCRIPTTYPE_NONE && !call->state.scriptDef->param0 && !call->state.scriptDef->param1;
+}
+static void PGElmFieldObserved(void) {
+    if(PGElmRunning()) {
+        if(sPGMap.mapId==143 && sPGMap.x==4 && sPGMap.z==9)sPGQA.coverage|=HG_PG_ELM_DOOR;
+        if(sPGMap.mapId==34 && sPGMap.x==568 && sPGMap.z==295)sPGQA.coverage|=HG_PG_ELM_ARRIVED;
+        if(sPGMap.mapId==34 && sPGMap.scriptActive && sPGMap.scriptId==2 && sPGMr.routeScene==2 && sPGQA.panicFlag)
+            sPGQA.coverage|=HG_PG_ELM_SCRIPT;
+    }
+    if(!sPGElmPending || !HGMapStationary(&sPGMap))return;
+    uint32_t request=sPGElmPending;sPGElmPending=0;
+    if(request==HG_PG_ELM_START){PGMAP_REQUIRE(sPGMr.done && HGMrEndpoint(&sPGMap,&sPGMr) && !sPGQA.coverage && !sPGQA.panicFlag);
+        sPGQA.coverage=HG_PG_ELM_BEGUN|HG_PG_ELM_INDOOR;}
+    else if(request==HG_PG_ELM_FINISH){sPGMap.phone=sPGQA;PGMAP_REQUIRE(HGElmEndpoint(&sPGMap,&sPGMr));sPGQA.coverage|=HG_PG_ELM_DONE;}
+}
+void PokegearQAPhoneObserved(const PokegearPhoneAppData *phone,int phase) {
+    PGElmBasePhoneObserved(phone,phase);if(!PGElmRunning())return;
+    PGMAP_REQUIRE(phone && phone->pokegear==sPGMapParent && phone->pokegear->childAppdata==phone);
+    PGQAOwnerFacts(phone->pokegear);
+    if(sPGQA.ui.viewActive && sPGQA.ui.viewKind==HG_POKEGEAR_PHONE && sPGQAPhoneGeneration!=sPGQA.ui.ownerGeneration){
+        sPGQAPhoneGeneration=sPGQA.ui.ownerGeneration;++sPGQA.phoneEntries;}
+    sPGQA.contactCount=phone->numContacts;sPGQA.contactCursor=phone->contactListUI.cursorPos;sPGQA.selectedContact=phone->callerID;
+}
+void PokegearQACallSelected(const PokegearPhoneCallContext *call) {
+    PGElmBaseCallSelected(call);if(!PGElmRunning())return;
+    PGMAP_REQUIRE(PGElmCallRootIdentity(call) && !sPGElmCall && !sPGQA.callSelections && (sPGQA.coverage&31)==31);
+    sPGElmCall=call;sPGQA.callTarget=call->state.callerID;sPGQA.callEffectType=call->state.scriptDef->scriptType;
+    sPGQA.callScriptID=call->state.scriptID;sPGQA.callScriptType=call->state.scriptType;
+    sPGQA.callIncoming=call->state.isIncomingCall;sPGQA.callScripted=call->state.isScriptedCall;
+    ++sPGQA.callSelections;sPGQA.coverage|=HG_PG_ELM_SELECTED;
+}
+void PokegearQACallObserved(const PokegearPhoneCallContext *call) {
+    PGElmBaseCallObserved(call);if(!PGElmRunning())return;
+    PGMAP_REQUIRE(call==sPGElmCall && PGElmCallRootIdentity(call) && sPGQA.callSelections==1 && !sPGQA.callCompletions);
+    sPGQA.callMainState=call->state.mainState;sPGQA.callScriptState=call->state.scriptState;
+    sPGQA.callTextWait=call->state.mainState==1 && call->state.scriptState==3 ? PGQAPrinterWait(gSystem.printTaskQueue,call->textPrinter,call->phoneCallMsgWindow) : 0;
+    if(sPGQA.callTextWait && sPGQA.callTextWait!=sPGElmLastWait)sPGQA.callTextSerial=PGQANext(sPGQA.callTextSerial);
+    sPGElmLastWait=sPGQA.callTextWait;sPGQA.callAwaitHangup=call->state.mainState==2;
+}
+void PokegearQACallCompleted(const PokegearPhoneAppData *phone) {
+    PGElmBaseCallCompleted(phone);if(!PGElmRunning())return;
+    PGMAP_REQUIRE(phone && phone->pokegear==sPGMapParent && phone->pokegear->childAppdata==phone
+        && phone->callerID==PHONE_CONTACT_PROF__ELM && sPGElmCall && sPGQA.callSelections==1 && !sPGQA.callCompletions);
+    sPGElmCall=NULL;++sPGQA.callCompletions;sPGQA.callAwaitHangup=0;sPGQA.callTextWait=0;sPGQA.coverage|=HG_PG_ELM_COMPLETED;
+}
+#endif
 static uint32_t PGMapTextWait(FieldSystem *field,uint32_t *script,uaddr *textToken) {
     *script=0;*textToken=0;
     if(!field || !field->taskman || field->taskman->func!=Task_RunScripts || !field->bgConfig
@@ -123,6 +196,9 @@ void PokegearQAFieldObserved(FieldSystem *field) {
 #ifdef HG_PG_MR_EXTENSION
     PGMrFieldObserved(field);
 #endif
+#ifdef HG_PG_ELM_EXTENSION
+    PGElmFieldObserved();
+#endif
     if(!sPGMapPending || !HGMapStationary(&sPGMap))return;
     uint32_t request=sPGMapPending;sPGMapPending=0;
     if(request==HG_PG_MAP_START){PGMAP_REQUIRE(sPGMap.phone.compatibleSave && sPGMap.mapId==33 && sPGMap.x==668 && sPGMap.z==397
@@ -133,6 +209,16 @@ void PokegearQAFieldObserved(FieldSystem *field) {
 }
 void PokegearQAParentObserved(const PokegearAppData *owner,int phase) {
     PGMapBaseParentObserved(owner,phase);if(!sPGMap.started)return;
+#ifdef HG_PG_ELM_EXTENSION
+    if(PGElmRunning()) {
+        PGMAP_REQUIRE(owner && sPGQAField && owner->saveData==sPGQAField->saveData && owner->args
+            && owner->args->mapID==34 && owner->registeredCards==1 && owner->app==3 && sPGMr.houseScene==1 && sPGQA.panicFlag);
+        if(owner!=sPGMapParent){PGMAP_REQUIRE(!sPGMapParent && sPGMap.parentEntries==1 && sPGMap.parentExits==1
+            && owner->args->isScriptedLaunch==1 && owner->args->callerId==PHONE_CONTACT_PROF__ELM
+            && owner->args->isScriptedCall==2 && !owner->args->callScriptID);sPGMapParent=owner;++sPGMap.parentEntries;}
+        PGQAOwnerFacts(owner);return;
+    }
+#endif
     PGMAP_REQUIRE(owner && sPGQAField && owner->saveData==sPGQAField->saveData && owner->args && !owner->args->isScriptedLaunch
         && owner->args->mapID==67 && owner->registeredCards==1 && (owner->app==3 || owner->app==2));
     if(owner!=sPGMapParent){PGMAP_REQUIRE(!sPGMapParent && !sPGMap.parentEntries);sPGMapParent=owner;++sPGMap.parentEntries;}
@@ -140,6 +226,10 @@ void PokegearQAParentObserved(const PokegearAppData *owner,int phase) {
 }
 void PokegearQAParentExitObserved(const PokegearAppData *owner) {
     PGMapBaseParentExitObserved(owner);if(!sPGMap.started)return;
+#ifdef HG_PG_ELM_EXTENSION
+    if(PGElmRunning()) {PGMAP_REQUIRE(owner && owner==sPGMapParent && owner->app==3 && sPGMap.parentEntries==2
+        && sPGMap.parentExits==1 && sPGQA.callCompletions==1);PGQAOwnerFacts(owner);sPGMapParent=NULL;++sPGMap.parentExits;return;}
+#endif
     PGMAP_REQUIRE(owner && owner==sPGMapParent && owner->app==2 && sPGMap.parentEntries==1 && !sPGMap.parentExits);
     PGQAOwnerFacts(owner);sPGMapParent=NULL;++sPGMap.parentExits;
 }
@@ -168,6 +258,14 @@ void __wrap_BattleSetup_Delete(BattleSetup *setup) {
 const HGNativePokegearQAState *HGNativePokegearQAGetState(void) {sPGMap.phone=*PGMapBaseGetState();return &sPGMap.phone;}
 uint32_t HGNativePokegearQARequest(uint32_t revision,uint32_t request) {
     if(!revision || revision!=sPGMap.revision || sPGMap.error || sPGMapPending || !HGMapStationary(&sPGMap) || sPGMap.phone.ui.active)return 0;
+#ifdef HG_PG_ELM_EXTENSION
+    if(request==HG_PG_ELM_START || request==HG_PG_ELM_FINISH){
+        if(sPGElmPending || sPGMap.scriptActive || sPGMap.battleLive
+            || (request==HG_PG_ELM_START ? sPGQA.coverage || !sPGMr.done || !HGMrEndpoint(&sPGMap,&sPGMr)
+                : !PGElmRunning() || !HGElmEndpoint(&sPGMap,&sPGMr)))return 0;
+        sPGElmPending=request;return 1;
+    }
+#endif
 #ifdef HG_PG_MR_EXTENSION
     if(request==HG_PG_MR_START || request==HG_PG_MR_FINISH){
         if(sPGMrPending || sPGMr.error || !sPGMap.done || sPGMap.scriptActive || sPGMap.battleLive
