@@ -103,7 +103,7 @@ def link_engine(link,listing,destination,native_content=None):
     command=[*map(str,link),'-Wl,--export=NitroMain','-Wl,--export=HGNativeSystemWorkAddress','-Wl,--export=HGNativeRegisterAddress',
              '-Wl,--export=HGNativeFrameBuffer','-Wl,--export=HGNativeRender2D',
              '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth','-Wl,--export=HGNativeGeometryFrame',
-             '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativeCaptureUIGetState','-Wl,--export=HGNativeNamingUIGetState','-Wl,--export=HGNativeOptionsUIGetState','-Wl,--export=HGNativeStarterUIGetState','-Wl,--export=HGNativePCBoxUIGetState','-Wl,--export=HGNativePartyUIGetState','-Wl,--export=HGNativePartyUIGetStats',
+             '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativeCaptureUIGetState','-Wl,--export=HGNativeNamingUIGetState','-Wl,--export=HGNativeOptionsUIGetState','-Wl,--export=HGNativeStarterUIGetState','-Wl,--export=HGNativeOakUIGetState','-Wl,--export=HGNativePCBoxUIGetState','-Wl,--export=HGNativePartyUIGetState','-Wl,--export=HGNativePartyUIGetStats',
              '-Wl,--export=HGNativeFieldChoiceUIGetState',
              '-Wl,--export=HGNativeTrainerCardUIGetState',
              '-Wl,--export=HGNativeFieldMenuUIGetState',
@@ -594,6 +594,7 @@ def main():
     sources.append('ios/Original/tests/naming_ui_check.c')
     sources.append('ios/Original/tests/options_ui_check.c')
     sources.append('ios/Original/tests/starter_ui_check.c')
+    sources.append('ios/Original/tests/oak_ui_check.c')
     sources.append('ios/Original/tests/pc_box_ui_check.c')
     sources.append('ios/Original/tests/field_choice_ui_check.c')
     sources.append('ios/Original/tests/trainer_card_ui_check.c')
@@ -1027,6 +1028,7 @@ def main():
     exports.append('CheckNativeNamingUI')
     exports.append('CheckNativeOptionsUI')
     exports.append('CheckNativeStarterUI')
+    exports.append('CheckNativeOakUI')
     exports.append('CheckNativePCBoxUI')
     exports.append('CheckNativeFieldChoiceUI')
     exports.append('CheckNativeTrainerCardUI')

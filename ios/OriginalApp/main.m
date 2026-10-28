@@ -31,6 +31,7 @@
 #include "native_naming_ui.h"
 #include "native_options_ui.h"
 #include "native_starter_ui.h"
+#include "native_oak_ui.h"
 #include "native_trainer_card_ui.h"
 #include "native_pc_box_ui.h"
 #include "native_field_choice_ui.h"
@@ -58,6 +59,47 @@ static BOOL OriginalStartMenuHandoff(const HGNativeFieldMenuUIState *old,const H
         && (!old || !next || old->active!=next->active || old->ownerGeneration!=next->ownerGeneration
             || old->childActive!=next->childActive || old->viewActive!=next->viewActive));
 }
+
+// Native Oak layout begin.
+typedef struct OriginalOakLayout { CGRect stage,text,portrait,choices[3],advance,pads[4]; } OriginalOakLayout;
+static NSArray<NSNumber *> *OriginalOakKeys(const HGNativeOakUIState *s) {
+    if (s && s->mode==HG_OAK_GENDER) return @[@0x20,@0x10,@1];
+    if (s && (s->mode==HG_OAK_MENU || s->mode==HG_OAK_YESNO)) return @[@0x40,@0x80,@1,@2];
+    return @[@1,@2];
+}
+static OriginalOakLayout OriginalOakRects(CGRect area,const HGNativeOakUIState *s) {
+    CGFloat gap=8, textWidth=MAX(1,MIN(600,area.size.width-16));
+    CGFloat sourceWidth=s && s->textWidth ? s->textWidth : 216;
+    CGFloat textHeight=32*textWidth/sourceWidth, top=MAX(1,area.size.height-textHeight-gap);
+    CGFloat column=MIN(MIN(300,MAX(286,area.size.width*0.42)),MAX(100,area.size.width-120));
+    CGFloat left=MAX(1,area.size.width-column-gap), columnX=CGRectGetMaxX(area)-column;
+    NSUInteger count=OriginalOakKeys(s).count,cols=left>=count*44+(count-1)*gap ? count : 2;
+    NSUInteger rows=(count+cols-1)/cols;CGFloat padHeight=rows*52-8;
+    CGFloat artHeight=MAX(1,top-padHeight-gap), width=MIN(left,artHeight*4/3),stageHeight=MIN(artHeight,width*0.75);
+    OriginalOakLayout r={.stage=CGRectMake(area.origin.x+MAX(0,(left-width)/2),area.origin.y+MAX(0,(artHeight-stageHeight)/2),width,stageHeight),
+        .text=CGRectMake(CGRectGetMidX(area)-textWidth/2,CGRectGetMaxY(area)-textHeight,textWidth,textHeight)};
+    for (NSUInteger i=0;i<count;i++) r.pads[i]=CGRectMake(area.origin.x+(i%cols)*((left-gap*(cols-1))/cols+gap),area.origin.y+top-padHeight+(i/cols)*52,(left-gap*(cols-1))/cols,44);
+    BOOL portrait=s && s->phase>=67 && s->phase<=102;
+    r.portrait=CGRectMake(columnX,area.origin.y,column,top);
+    if (s && s->count) {
+        BOOL gender=s->phase>=64 && s->phase<=66;
+        if (portrait && s->count==2) {
+            CGFloat portraitHeight=MAX(1,top-104);r.portrait.size.height=portraitHeight;
+            for(NSUInteger i=0;i<2;i++)r.choices[i]=CGRectMake(columnX,area.origin.y+portraitHeight+8+i*52,column,44);
+        } else for (NSUInteger i=0;i<MIN(s->count,3);i++) r.choices[i]=gender
+                ? CGRectMake(columnX+i*(column+gap)/2,area.origin.y,(column-gap)/2,top)
+                : CGRectMake(columnX,area.origin.y+i*(top+gap)/s->count,column,(top-gap*(s->count-1))/s->count);
+    }
+    CGFloat advanceWidth=MIN(column,176);
+    r.advance=CGRectMake(columnX+(column-advanceWidth)/2,area.origin.y+(top-advanceWidth*48/88)/2,advanceWidth,advanceWidth*48/88);
+    return r;
+}
+static HGNativeOakRect OriginalOakChoiceImageRect(const HGNativeOakUIState *s,uint32_t index) {
+    HGNativeOakRect r=HGNativeOakUIChoiceRect(s,index);
+    if (s && s->count==2 && s->phase>=67 && s->phase<=102) return (HGNativeOakRect){s->gender ? 16 : 136,index ? 128 : 48,104,24};
+    return r;
+}
+// Native Oak layout end.
 
 // Native starter layout begin.
 typedef struct OriginalStarterLayout { CGRect stage, portrait, message, buttons[4]; } OriginalStarterLayout;
@@ -110,6 +152,23 @@ _Static_assert(sizeof(HGNativePCBoxUIState)==52 && offsetof(HGNativePCBoxUIState
 _Static_assert(sizeof(HGNativeFieldChoiceUIState)==36 && offsetof(HGNativeFieldChoiceUIState,viewActive)==32, "Field Choice UI ABI");
 _Static_assert(sizeof(HGNativePokedexUIState)==5124 && offsetof(HGNativePokedexUIState,controls)==452
     && offsetof(HGNativePokedexUIState,visuals)==1988, "Pokedex UI ABI");
+typedef struct OriginalCatchingTutorialLayout { CGRect stage,demonstration,message; } OriginalCatchingTutorialLayout;
+static BOOL OriginalCatchingTutorialActive(const HGNativeBattleUIState *state) {
+    return state && state->active==1 && state->mode==HG_BATTLE_UI_TUTORIAL;
+}
+static void OriginalCatchingTutorialInput(BOOL teaching,uint32_t *keys,uint32_t *x,uint32_t *y,BOOL *pressed,BOOL *choice) {
+    if (teaching) { *keys=*x=*y=0; *pressed=*choice=NO; }
+}
+static OriginalCatchingTutorialLayout OriginalCatchingTutorialRects(CGRect area) {
+    CGFloat gap=8,textWidth=MIN(600,MAX(1,area.size.width)),textHeight=textWidth*48/256;
+    CGFloat topHeight=MAX(1,area.size.height-textHeight-gap),subWidth=MIN(area.size.width*0.40,topHeight*4/3);
+    CGFloat leftWidth=MAX(1,area.size.width-subWidth-gap),stageWidth=MIN(leftWidth,topHeight*256/144);
+    CGFloat stageHeight=stageWidth*144/256,subHeight=subWidth*192/256;
+    return (OriginalCatchingTutorialLayout){
+        .stage=CGRectMake(area.origin.x+(leftWidth-stageWidth)/2,area.origin.y+(topHeight-stageHeight)/2,stageWidth,stageHeight),
+        .demonstration=CGRectMake(CGRectGetMaxX(area)-subWidth,area.origin.y+(topHeight-subHeight)/2,subWidth,subHeight),
+        .message=CGRectMake(CGRectGetMidX(area)-textWidth/2,CGRectGetMaxY(area)-textHeight,textWidth,textHeight)};
+}
 static BOOL OriginalBattleChoiceMode(uint32_t mode) {
     return mode==HG_BATTLE_UI_NEXT_MON || mode==HG_BATTLE_UI_KEEP_FORGET || mode==HG_BATTLE_UI_GIVE_UP || mode==HG_BATTLE_UI_YES_NO;
 }
@@ -399,7 +458,8 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     NSArray<NSString *> *_moveNames, *_speciesNames;
     NSData *_battleUIState, *_displayedBattleUIState;
     uint32_t _battleMode, _battleChoiceRevision, _battleChoiceIndex;
-    BOOL _battleChoicePending;
+    BOOL _battleChoicePending, _catchingTutorialScene, _catchingTutorialOwnedInputs;
+    NSDictionary *_catchingTutorialPictures;
     UIView *_battleMenuPanel;
     UILabel *_battleMenuTitle;
     UIImageView *_battleMenuPreview, *_battleMenuSelected, *_battleMenuQuantity, *_battleMenuDescription, *_battleMenuMessage;
@@ -450,6 +510,18 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     BOOL _evolutionScene, _evolutionChoicePending, _evolutionInputActive, _evolutionInputCooling;
     uint32_t _evolutionChoiceRevision, _evolutionChoicePhase, _evolutionChoiceKind, _evolutionChoiceIndex;
     uint32_t _evolutionInputRevision, _evolutionInputPhase, _evolutionInputKind, _evolutionInputIndex, _evolutionInputReads, _evolutionReleaseReads, _evolutionInputKeys, _evolutionTouchX, _evolutionTouchY;
+    UIView *_oakPanel;
+    UIImageView *_oakStage,*_oakTextImage,*_oakAdvanceImage,*_oakPortrait;
+    UIScrollView *_oakTextScroll;
+    NSArray<OriginalKeyButton *> *_oakChoices;
+    NSArray<UIImageView *> *_oakChoiceImages;
+    OriginalKeyButton *_oakAdvance;
+    NSData *_oakUIState,*_displayedOakUIState;
+    NSDictionary *_oakPictures;
+    HGNativeOakUIState _oakChoice,_oakInput;
+    BOOL _oakScene,_oakChoicePending,_oakInputActive,_oakInputCooling,_oakChoiceTouch,_oakInputTouch,_oakReleasePending;
+    uint32_t _oakOwnerGeneration,_oakChoiceKeys,_oakInputKeys,_oakInputReads,_oakReleaseReads;
+    uint32_t _oakChoiceX,_oakChoiceY,_oakInputX,_oakInputY,_oakFrameTouchEngine,_displayedOakTouchEngine;
     UIView *_starterPanel;
     UIImageView *_starterStage, *_starterPortrait, *_starterMessage;
     OriginalJoystick *_starterSurface;
@@ -577,6 +649,8 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 - (void)engineFrame;
 - (void)clearOptionsInputLocked;
 - (void)queueOptionsKey:(OriginalKeyButton *)button;
+- (void)takeOakInputLocked:(const HGNativeOakUIState *)state namingActive:(uint32_t)naming touchEngine:(uint32_t)touchEngine
+    reads:(uint32_t)reads keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed;
 - (void)takeStarterInputLocked:(const HGNativeStarterUIState *)state touchEngine:(uint32_t)touchEngine reads:(uint32_t)reads
     keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed;
 - (void)takeOptionsInputLocked:(const HGNativeOptionsUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys;
@@ -747,6 +821,35 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _canvas.accessibilityLabel = @"原版游戏画面";
     _canvas.layer.magnificationFilter = kCAFilterNearest;
     _canvas.userInteractionEnabled = YES; [self.view addSubview:_canvas];
+    _oakPanel=[UIView new];_oakPanel.hidden=YES;
+    _oakStage=[UIImageView new];_oakStage.contentMode=UIViewContentModeScaleAspectFit;
+    _oakStage.layer.magnificationFilter=kCAFilterNearest;_oakStage.userInteractionEnabled=NO;
+    _oakStage.isAccessibilityElement=YES;_oakStage.accessibilityLabel=@"原版大木博士开场画面";[_oakPanel addSubview:_oakStage];
+    _oakPortrait=[UIImageView new];_oakPortrait.contentMode=UIViewContentModeScaleAspectFit;_oakPortrait.layer.magnificationFilter=kCAFilterNearest;
+    _oakPortrait.userInteractionEnabled=NO;_oakPortrait.isAccessibilityElement=YES;_oakPortrait.accessibilityLabel=@"原版角色预览";[_oakPanel addSubview:_oakPortrait];
+    _oakTextScroll=[UIScrollView new];_oakTextScroll.directionalLockEnabled=YES;_oakTextScroll.alwaysBounceVertical=NO;
+    _oakTextScroll.showsHorizontalScrollIndicator=NO;
+    _oakTextImage=[UIImageView new];_oakTextImage.layer.magnificationFilter=kCAFilterNearest;
+    _oakTextImage.isAccessibilityElement=YES;_oakTextImage.accessibilityLabel=@"原版对白和说明，可上下滚动";
+    [_oakTextScroll addSubview:_oakTextImage];[_oakPanel addSubview:_oakTextScroll];
+    NSMutableArray *oakChoices=[NSMutableArray array],*oakImages=[NSMutableArray array];
+    for(NSUInteger i=0;i<3;i++) {
+        OriginalKeyButton *b=[OriginalKeyButton buttonWithType:UIButtonTypeCustom];b.tag=i;b.hidden=YES;
+        b.backgroundColor=[UIColor colorWithWhite:0.04 alpha:0.92];b.layer.cornerRadius=6;
+        [b addTarget:self action:@selector(queueOakChoice:) forControlEvents:UIControlEventTouchDown];
+        [b addTarget:self action:@selector(cancelOakChoice:) forControlEvents:UIControlEventTouchCancel|UIControlEventTouchDragExit];
+        UIImageView *image=[UIImageView new];image.contentMode=UIViewContentModeScaleAspectFit;
+        image.layer.magnificationFilter=kCAFilterNearest;image.userInteractionEnabled=NO;[b addSubview:image];
+        [_oakPanel addSubview:b];[oakChoices addObject:b];[oakImages addObject:image];
+    }
+    _oakChoices=oakChoices;_oakChoiceImages=oakImages;
+    _oakAdvance=[OriginalKeyButton buttonWithType:UIButtonTypeCustom];_oakAdvance.hidden=YES;
+    [_oakAdvance addTarget:self action:@selector(queueOakChoice:) forControlEvents:UIControlEventTouchDown];
+    [_oakAdvance addTarget:self action:@selector(cancelOakChoice:) forControlEvents:UIControlEventTouchCancel|UIControlEventTouchDragExit];
+    _oakAdvance.accessibilityLabel=@"继续原版说明";
+    _oakAdvanceImage=[UIImageView new];_oakAdvanceImage.contentMode=UIViewContentModeScaleAspectFit;
+    _oakAdvanceImage.layer.magnificationFilter=kCAFilterNearest;_oakAdvanceImage.userInteractionEnabled=NO;
+    [_oakAdvance addSubview:_oakAdvanceImage];[_oakPanel addSubview:_oakAdvance];[self.view addSubview:_oakPanel];
     _starterPanel=[UIView new]; _starterPanel.hidden=YES;
     _starterStage=[UIImageView new]; _starterPortrait=[UIImageView new]; _starterMessage=[UIImageView new];
     for (UIImageView *image in @[_starterStage,_starterPortrait,_starterMessage]) {
@@ -1229,6 +1332,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
     [self layoutPCBoxControls:area];
     [self layoutFieldChoiceControls:area];
+    [self layoutCatchingTutorialControls];
     [self layoutTrainerCardControls:area];
     [self layoutPokegearControls:area];
     if (_starterScene) {
@@ -1240,8 +1344,63 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         for (NSUInteger i=0;i<keys.count;i++) _buttons[keys[i]].frame=layout.buttons[i];
         _status.frame=CGRectInset(layout.stage,8,8);
     }
+    if (_oakScene && _displayedOakUIState.length==sizeof(HGNativeOakUIState)) {
+        const HGNativeOakUIState *state=_displayedOakUIState.bytes;_oakPanel.frame=self.view.bounds;
+        OriginalOakLayout layout=OriginalOakRects(area,state);_oakStage.frame=layout.stage;_oakPortrait.frame=layout.portrait;
+        _oakTextScroll.frame=layout.text;
+        CGFloat height=_oakTextImage.image.size.width ? layout.text.size.width*_oakTextImage.image.size.height/_oakTextImage.image.size.width : 0;
+        _oakTextImage.frame=CGRectMake(0,0,layout.text.size.width,height);_oakTextScroll.contentSize=CGSizeMake(layout.text.size.width,height);
+        _oakTextScroll.scrollEnabled=height>layout.text.size.height+1;_oakTextScroll.showsVerticalScrollIndicator=_oakTextScroll.scrollEnabled;
+        for(NSUInteger i=0;i<_oakChoices.count;i++){_oakChoices[i].frame=layout.choices[i];_oakChoiceImages[i].frame=_oakChoices[i].bounds;}
+        _oakAdvance.frame=layout.advance;_oakAdvanceImage.frame=_oakAdvance.bounds;
+        NSArray<NSNumber *> *keys=OriginalOakKeys(state);for(NSUInteger i=0;i<keys.count;i++)_buttons[keys[i]].frame=layout.pads[i];
+        _status.frame=CGRectInset(layout.stage,8,8);
+    }
+}
+- (BOOL)catchingTutorialBlocksInput {
+    [_condition lock]; BOOL blocked=_catchingTutorialOwnedInputs || _catchingTutorialScene; [_condition unlock]; return blocked;
+}
+- (void)clearCatchingTutorialInputLocked {
+    _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0;
+    _touchX=_touchY=0;_touchPressed=NO;_joystickNeedsReset=YES;_inputGeneration++;
+    _battleChoicePending=NO;_battleChoiceRevision=_battleChoiceIndex=0;
+    _partyChoicePending=_partyTouchActive=_bagChoicePending=_bagTouchActive=NO;
+    _summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO;_summaryInputKeys=0;
+    _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
+    _fieldMenuOpen=NO;_fieldMenuFrame=nil;
+    [self clearStartMenuInputLocked];[self clearOakInputLocked];[self clearStarterInputLocked];[self clearPokegearInputLocked];
+    [self clearTrainerCardInputLocked];[self clearOptionsInputLocked];[self clearNamingInputLocked];[self clearPCBoxInputLocked];
+    [self clearFieldChoiceInputLocked];[self clearCaptureInputLocked];[self clearEvolutionInputLocked];[self clearPokedexInputLocked];
+}
+- (void)updateCatchingTutorialControls:(NSData *)data pictures:(NSDictionary *)pictures {
+    const HGNativeBattleUIState *state=data.length==sizeof(*state) ? data.bytes : NULL;
+    BOOL teaching=OriginalCatchingTutorialActive(state),changed=teaching!=_catchingTutorialScene;
+    _catchingTutorialScene=teaching;
+    if (!teaching) { _battleMenuPreview.contentMode=UIViewContentModeScaleAspectFill; if (changed) [self.view setNeedsLayout]; return; }
+    _battleMenuPanel.hidden=NO;_battleMenuPanel.userInteractionEnabled=NO;
+    _battleMenuTitle.hidden=_battleMenuQuantity.hidden=_battleMenuDescription.hidden=YES;
+    _battleMenuPreview.hidden=_battleMenuSelected.hidden=_battleMenuMessage.hidden=NO;
+    _battleMenuPreview.contentMode=UIViewContentModeScaleAspectFit;
+    _battleMenuPreview.image=pictures[@"stage"];_battleMenuSelected.image=pictures[@"demonstration"];_battleMenuMessage.image=pictures[@"message"];
+    _battleMenuSelected.isAccessibilityElement=YES;_battleMenuSelected.accessibilityLabel=@"原版捕捉教学自动演示";
+    for (UIButton *button in _battleMenuButtons) button.hidden=YES;
+    for (UIButton *button in _buttons.allValues) button.hidden=YES;
+    _canvas.hidden=YES;_canvas.userInteractionEnabled=NO;_battleBar.hidden=YES;_menuButton.hidden=YES;_joystick.hidden=YES;
+    _fieldMenu.hidden=_fieldMenuShade.hidden=YES;
+    _buttons[@8].hidden=!(_interrupted && _interruptionEnded);
+    [self layoutCatchingTutorialControls];
+    if (changed) [self.view setNeedsLayout];
+}
+- (void)layoutCatchingTutorialControls {
+    if (!_catchingTutorialScene) return;
+    CGRect area=UIEdgeInsetsInsetRect(self.view.bounds,self.view.safeAreaInsets);
+    _battleMenuPanel.frame=area;
+    OriginalCatchingTutorialLayout layout=OriginalCatchingTutorialRects(_battleMenuPanel.bounds);
+    _battleMenuPreview.frame=layout.stage;_battleMenuSelected.frame=layout.demonstration;_battleMenuMessage.frame=layout.message;
+    _status.frame=CGRectInset(area,10,10);
 }
 - (void)battlePressed:(UIButton *)button {
+    if ([self catchingTutorialBlocksInput]) return;
     const HGNativeBattleUIState *state = _displayedBattleUIState.bytes;
     if (_displayedBattleUIState.length != sizeof(*state) || !state->ready || button.tag >= 6 || !(state->enabledMask & (1u << button.tag))) return;
     [_condition lock];
@@ -1312,6 +1471,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _battleMenuOwnerPictures=[pictures copy]; return _battleMenuOwnerPictures;
 }
 - (void)battleMenuPressed:(UIButton *)button {
+    if ([self catchingTutorialBlocksInput]) return;
     if (button.tag<0 || button.tag>=HG_BATTLE_BAG_UI_BUTTONS) return;
     const HGNativeBattleBagUIState *bag=_displayedBattleBagUIState.length==sizeof(*bag) ? _displayedBattleBagUIState.bytes : NULL;
     const HGNativeBattlePartyUIState *party=_displayedBattlePartyUIState.length==sizeof(*party) ? _displayedBattlePartyUIState.bytes : NULL;
@@ -1364,7 +1524,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         [_condition lock]; _keys=_pendingKeys=_submittedKeys=0; _touchPressed=_battleChoicePending=NO; [_condition unlock]; [self resetJoystick];
     }
     _battleMenuScene=scene; _battleMenuKind=kind; _displayedBattleBagUIState=bagData; _displayedBattlePartyUIState=partyData;
-    _battleMenuPanel.hidden=!kind;
+    _battleMenuPanel.hidden=!kind;_battleMenuPanel.userInteractionEnabled=YES;_battleMenuTitle.hidden=NO;
+    _battleMenuSelected.isAccessibilityElement=NO;
     if (scene) { _battleMode=0; _battleScene=!engine; _battleBar.hidden=YES; }
     if (changed) [self.view setNeedsLayout];
     [_condition lock]; BOOL waiting=_battleMenuChoicePending || _battleMenuTouchActive || _battleMenuTouchCooling; [_condition unlock];
@@ -1898,7 +2059,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)updateBattleControls:(NSData *)data {
     if (data.length != sizeof(HGNativeBattleUIState)) return;
     const HGNativeBattleUIState *state = data.bytes;
-    if (state->mode > HG_BATTLE_UI_YES_NO) return;
+    if (state->mode > HG_BATTLE_UI_TUTORIAL) return;
     BOOL scene=state->active && (state->mode || !_displayedEngine);
     BOOL changed = !_displayedBattleUIState || memcmp(_displayedBattleUIState.bytes, data.bytes, offsetof(HGNativeBattleUIState, namePixels));
     _displayedBattleUIState = data;
@@ -2699,6 +2860,136 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _canvas.accessibilityLabel=@"原版选项菜单";
     _canvas.accessibilityValue=state->rowCount ? [NSString stringWithFormat:@"第%u项，共%u项",state->selectedIndex+1,state->rowCount] : @"正在准备选项";
 }
+// Native Oak input begin.
+- (void)clearOakInputLocked {
+    _oakChoicePending=_oakInputActive=_oakInputCooling=_oakChoiceTouch=_oakInputTouch=_oakReleasePending=NO;
+    memset(&_oakChoice,0,sizeof(_oakChoice));memset(&_oakInput,0,sizeof(_oakInput));
+    _oakChoiceKeys=_oakInputKeys=_oakInputReads=_oakReleaseReads=_oakChoiceX=_oakChoiceY=_oakInputX=_oakInputY=0;
+}
+- (void)queueOakKey:(OriginalKeyButton *)button {
+    const HGNativeOakUIState *shown=_displayedOakUIState.length==sizeof(*shown) ? _displayedOakUIState.bytes : NULL;
+    uint32_t keys=(uint32_t)button.tag;
+    if (!_oakScene || button.hidden || !button.enabled || !HGNativeOakUIKeyAllowed(shown,shown ? shown->ownerGeneration : 0,shown ? shown->revision : 0,keys)) return;
+    [_condition lock];
+    const HGNativeOakUIState *live=_oakUIState.length==sizeof(*live) ? _oakUIState.bytes : NULL;
+    const HGNativeNamingUIState *naming=_namingUIState.length==sizeof(*naming) ? _namingUIState.bytes : NULL;
+    if (!_paused && !_stopping && !_failure && !_oakChoicePending && !_oakInputActive && !_oakInputCooling && !_oakReleasePending
+        && HGNativeOakUIOwnsInput(live,naming ? naming->active : 0)
+        && HGNativeOakUIKeyAllowed(live,shown->ownerGeneration,shown->revision,keys)) {
+        _oakChoice=*shown;_oakChoiceKeys=keys;_oakChoiceTouch=NO;_oakChoicePending=YES;
+    }
+    [_condition unlock];
+}
+- (void)queueOakChoice:(OriginalKeyButton *)button {
+    const HGNativeOakUIState *shown=_displayedOakUIState.length==sizeof(*shown) ? _displayedOakUIState.bytes : NULL;
+    if (!_oakScene || button.hidden || !button.enabled || !shown) return;
+    uint32_t x=211,y=167;
+    BOOL allowed=button==_oakAdvance ? HGNativeOakUITouchAllowed(shown,shown->ownerGeneration,shown->revision,_displayedOakTouchEngine,x,y)
+        : HGNativeOakUIResolveChoice(shown,shown->ownerGeneration,shown->revision,_displayedOakTouchEngine,(uint32_t)button.tag,&x,&y);
+    if (!allowed) return;
+    [_condition lock];
+    const HGNativeOakUIState *live=_oakUIState.length==sizeof(*live) ? _oakUIState.bytes : NULL;
+    const HGNativeNamingUIState *naming=_namingUIState.length==sizeof(*naming) ? _namingUIState.bytes : NULL;
+    if (!_paused && !_stopping && !_failure && !_oakChoicePending && !_oakInputActive && !_oakInputCooling && !_oakReleasePending
+        && HGNativeOakUIOwnsInput(live,naming ? naming->active : 0)
+        && HGNativeOakUITouchAllowed(live,shown->ownerGeneration,shown->revision,_touchEngine,x,y)) {
+        _oakChoice=*shown;_oakChoiceKeys=0;_oakChoiceTouch=YES;_oakChoiceX=x;_oakChoiceY=y;_oakChoicePending=YES;
+    }
+    [_condition unlock];
+}
+- (void)cancelOakChoice:(UIButton *)button {
+    [_condition lock];
+    if (_oakChoicePending && _oakChoiceTouch) _oakChoicePending=NO;
+    if (_oakInputActive && _oakInputTouch) {_oakInputActive=NO;_oakReleasePending=YES;}
+    [_condition unlock];
+}
+- (void)takeOakInputLocked:(const HGNativeOakUIState *)state namingActive:(uint32_t)naming touchEngine:(uint32_t)touchEngine
+    reads:(uint32_t)reads keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed {
+    *keys=*x=*y=0;*pressed=NO;
+    if (_paused || _stopping || _failure || !HGNativeOakUIOwnsInput(state,naming) || state->parentPhase!=1) {[self clearOakInputLocked];return;}
+    if (_oakReleasePending) {_oakReleasePending=NO;_oakInputCooling=YES;_oakReleaseReads=reads;return;}
+    if (_oakInputCooling && reads-_oakReleaseReads>=2) [self clearOakInputLocked];
+    if (_oakInputActive && (reads-_oakInputReads>=4 || (_oakInputTouch
+        ? !HGNativeOakUITouchAllowed(state,_oakInput.ownerGeneration,_oakInput.revision,touchEngine,_oakInputX,_oakInputY)
+        : !HGNativeOakUIKeyAllowed(state,_oakInput.ownerGeneration,_oakInput.revision,_oakInputKeys)))) {
+        _oakInputActive=NO;_oakInputCooling=YES;_oakReleaseReads=reads;
+    }
+    if (_oakChoicePending) {
+        BOOL allowed=_oakChoiceTouch ? HGNativeOakUITouchAllowed(state,_oakChoice.ownerGeneration,_oakChoice.revision,touchEngine,_oakChoiceX,_oakChoiceY)
+            : HGNativeOakUIKeyAllowed(state,_oakChoice.ownerGeneration,_oakChoice.revision,_oakChoiceKeys);
+        if (!_oakInputActive && !_oakInputCooling && allowed) {
+            _oakInput=_oakChoice;_oakInputKeys=_oakChoiceKeys;_oakInputTouch=_oakChoiceTouch;
+            _oakInputX=_oakChoiceX;_oakInputY=_oakChoiceY;_oakInputReads=reads;_oakInputActive=YES;
+        }
+        _oakChoicePending=NO;
+    }
+    if (_oakInputActive) {if(_oakInputTouch){*x=_oakInputX;*y=_oakInputY;*pressed=YES;}else *keys=_oakInputKeys;}
+}
+// Native Oak input end.
+- (void)updateOakControls:(NSData *)data pictures:(NSDictionary *)pictures namingActive:(uint32_t)naming touchEngine:(uint32_t)touchEngine paused:(BOOL)paused {
+    const HGNativeOakUIState *state=data.length==sizeof(*state) ? data.bytes : NULL;
+    const HGNativeOakUIState *old=_displayedOakUIState.length==sizeof(*old) ? _displayedOakUIState.bytes : NULL;
+    BOOL scene=HGNativeOakUIOwnsInput(state,naming),was=_oakScene;
+    BOOL changed=was!=scene || (scene && (!old || memcmp(old,state,sizeof(*state)) || _displayedOakTouchEngine!=touchEngine));
+    BOOL resetText=was!=scene || !old || !state || old->ownerGeneration!=state->ownerGeneration || old->phase!=state->phase
+        || old->textKind!=state->textKind || old->textX!=state->textX || old->textY!=state->textY || old->textWidth!=state->textWidth || old->textHeight!=state->textHeight;
+    _oakScene=scene;_displayedOakUIState=data;_displayedOakTouchEngine=touchEngine;_oakPanel.hidden=!scene;
+    if (changed && (was || scene)) {
+        [_condition lock];_oakChoicePending=NO;_inputGeneration++;
+        _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0;_touchPressed=NO;
+        if (!scene) [self clearOakInputLocked];[_condition unlock];
+        for (OriginalKeyButton *button in _buttons.allValues) button.inputGeneration++;
+        for (OriginalKeyButton *button in _oakChoices) button.inputGeneration++;_oakAdvance.inputGeneration++;
+        [self resetJoystick];[self.view setNeedsLayout];
+    }
+    _oakStage.image=scene ? pictures[@"stage"] : nil;_oakTextImage.image=scene ? pictures[@"text"] : nil;
+    _oakPortrait.image=scene ? pictures[@"portrait"] : nil;_oakPortrait.hidden=!scene || !_oakPortrait.image;
+    _oakPortrait.accessibilityValue=state && state->gender ? @"女孩" : @"男孩";
+    _oakTextScroll.hidden=!scene || !_oakTextImage.image;
+    if (resetText) [_oakTextScroll setContentOffset:CGPointZero animated:NO];
+    NSArray *images=pictures[@"choices"];
+    if (!scene) {
+        _oakTextScroll.scrollEnabled=NO;_oakTextScroll.contentSize=CGSizeZero;_oakTextImage.frame=CGRectZero;
+        for (NSUInteger i=0;i<_oakChoices.count;i++){_oakChoices[i].hidden=YES;_oakChoiceImages[i].image=nil;}
+        _oakAdvance.hidden=YES;_oakAdvanceImage.image=nil;
+        if (was) {
+            for (NSNumber *key in @[@1,@2,@0x20,@0x10,@0x40,@0x80]) {
+                UIButton *button=_buttons[key];button.configuration=nil;button.enabled=YES;button.alpha=1;button.accessibilityHint=nil;
+                NSString *title=[key isEqual:@1] ? @"确认" : [key isEqual:@2] ? @"返回" : [key isEqual:@0x20] ? @"←" : [key isEqual:@0x10] ? @"→" : [key isEqual:@0x40] ? @"↑" : @"↓";
+                [button setTitle:title forState:UIControlStateNormal];button.accessibilityLabel=title;
+            }
+            _canvas.isAccessibilityElement=YES;_canvas.accessibilityLabel=@"原版游戏画面";
+        }
+        return;
+    }
+    _battleBar.hidden=_partyPanel.hidden=_partyBack.hidden=_bagPanel.hidden=_bagPage.hidden=_summaryPanel.hidden=_battleMenuPanel.hidden=_pokedexPanel.hidden=YES;
+    _fieldMenu.hidden=_fieldMenuShade.hidden=_joystick.hidden=_menuButton.hidden=_optionsPreview.hidden=_fieldChoicePreview.hidden=_canvas.hidden=YES;
+    for(UIButton *b in _bagNavigation)b.hidden=YES;for(UIButton *b in _summaryNavigation)b.hidden=YES;for(UIButton *b in _buttons.allValues)b.hidden=YES;
+    [_condition lock];BOOL idle=!_stopping && !_failure && !_oakChoicePending && !_oakInputActive && !_oakInputCooling && !_oakReleasePending;
+    BOOL resume=_interrupted && _interruptionEnded && !_inactive;[_condition unlock];
+    BOOL paired=_oakStage.image && pictures[@"subPaired"];
+    for(NSUInteger i=0;i<_oakChoices.count;i++) {
+        OriginalKeyButton *b=_oakChoices[i];UIImage *image=i<images.count && [images[i] isKindOfClass:UIImage.class] ? images[i] : nil;
+        _oakChoiceImages[i].image=image;b.hidden=i>=state->count || !image;
+        uint32_t x=0,y=0;b.enabled=!paused && idle && paired && HGNativeOakUIResolveChoice(state,state->ownerGeneration,state->revision,touchEngine,(uint32_t)i,&x,&y);b.alpha=1;
+        b.accessibilityLabel=state->phase>=64 && state->phase<=66 ? (i ? @"女孩" : @"男孩")
+            : state->count==3 ? @[@"操作说明",@"冒险说明",@"直接开始"][i] : i ? @"否" : @"是";
+    }
+    _oakAdvanceImage.image=pictures[@"advance"];_oakAdvance.hidden=!(state->touchMode & HG_OAK_ADVANCE_VISIBLE) || !_oakAdvanceImage.image;
+    _oakAdvance.enabled=!paused && idle && paired && HGNativeOakUITouchAllowed(state,state->ownerGeneration,state->revision,touchEngine,211,167);_oakAdvance.alpha=1;
+    NSArray<NSNumber *> *keys=OriginalOakKeys(state);
+    for(NSNumber *key in keys) {
+        UIButton *b=_buttons[key];b.hidden=NO;b.configuration=nil;
+        b.enabled=!paused && idle && paired && HGNativeOakUIKeyAllowed(state,state->ownerGeneration,state->revision,[key unsignedIntValue]);b.alpha=b.enabled ? 1 : 0.4;
+        NSString *title=[key isEqual:@0x20] ? @"左" : [key isEqual:@0x10] ? @"右" : [key isEqual:@0x40] ? @"上" : [key isEqual:@0x80] ? @"下"
+            : [key isEqual:@1] ? ((state->mode==HG_OAK_MENU || state->mode==HG_OAK_GENDER) && !state->padMode ? @"选择" : state->mode==HG_OAK_DIALOG || state->mode==HG_OAK_PAGE ? @"继续" : @"确认")
+            : state->mode==HG_OAK_MENU ? @"末项" : state->mode==HG_OAK_YESNO ? @"否" : @"快进";
+        [b setTitle:title forState:UIControlStateNormal];b.accessibilityLabel=title;[self.view bringSubviewToFront:b];
+    }
+    if (resume) {_buttons[@8].hidden=NO;_buttons[@8].enabled=YES;[_buttons[@8] setTitle:@"继续" forState:UIControlStateNormal];[self.view bringSubviewToFront:_buttons[@8]];}
+    _canvas.isAccessibilityElement=NO;
+}
+
 // Native starter input begin.
 - (void)clearStarterInputLocked {
     _starterChoicePending=_starterInputActive=_starterInputCooling=_starterChoiceTouch=_starterInputTouch=_starterTouchReleasePending=NO;
@@ -3160,7 +3451,16 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
 }
 - (void)keyDown:(OriginalKeyButton *)sender {
+    if ([self catchingTutorialBlocksInput]) {
+        [_condition lock]; if (sender.tag==8 && _interrupted && _interruptionEnded && !_inactive) {_interrupted=_interruptionEnded=NO;_paused=NO;[_condition signal];} [_condition unlock]; return;
+    }
     sender.inputGeneration++;
+    if (_oakScene) {
+        if(sender.hidden || !sender.enabled)return;
+        [_condition lock];BOOL resume=sender.tag==8 && _interrupted && _interruptionEnded && !_inactive;
+        if(resume){_interrupted=_interruptionEnded=NO;_paused=NO;[_condition signal];}[_condition unlock];
+        if(!resume)[self queueOakKey:sender];return;
+    }
     if (_starterScene) {
         if (sender.hidden || !sender.enabled) return;
         [_condition lock]; BOOL resume=sender.tag==8 && _interrupted && _interruptionEnded && !_inactive;
@@ -3223,8 +3523,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     } else if (!_paused && !_captureScene) { _keys |= sender.tag; _pendingKeys |= sender.tag; }
     [_condition unlock];
 }
-- (void)keyUp:(UIButton *)sender { if (_starterScene || _pokegearScene || (_startMenuScene && _startMenuBlocksInput) || _trainerCardScene || _optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene) return; [_condition lock]; _keys &= ~sender.tag; [_condition unlock]; }
-- (void)keyCancel:(UIButton *)sender { if (_starterScene || _pokegearScene || (_startMenuScene && _startMenuBlocksInput) || _trainerCardScene || _optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene) return; [_condition lock]; _keys &= ~sender.tag; _pendingKeys &= ~sender.tag; _submittedKeys &= ~sender.tag; [_condition unlock]; }
+- (void)keyUp:(UIButton *)sender { if (_oakScene || _starterScene || _pokegearScene || (_startMenuScene && _startMenuBlocksInput) || _trainerCardScene || _optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene) return; [_condition lock]; _keys &= ~sender.tag; [_condition unlock]; }
+- (void)keyCancel:(UIButton *)sender { if (_oakScene || _starterScene || _pokegearScene || (_startMenuScene && _startMenuBlocksInput) || _trainerCardScene || _optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene) return; [_condition lock]; _keys &= ~sender.tag; _pendingKeys &= ~sender.tag; _submittedKeys &= ~sender.tag; [_condition unlock]; }
 - (void)acknowledgeKeysLocked:(uint32_t)reads {
     // Display callbacks can outpace original PAD_Read; keep submitted taps until it samples them.
     if (reads==_lastPadReadCount) return;
@@ -3244,6 +3544,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _joystick.accessibilityValue=@"停止";
 }
 - (void)joystickAt:(CGPoint)point pressed:(BOOL)pressed {
+    if ([self catchingTutorialBlocksInput]) return;
     CGPoint center=CGPointMake(CGRectGetMidX(_joystick.bounds),CGRectGetMidY(_joystick.bounds));
     CGFloat dx=point.x-center.x,dy=point.y-center.y,travel=MAX(1,MIN(_joystick.bounds.size.width,_joystick.bounds.size.height)/2-24);
     CGFloat length=hypot(dx,dy);
@@ -3251,7 +3552,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t direction=0;
     if (pressed && length>=travel*0.2) direction=fabs(dy)>=fabs(dx) ? (dy<0 ? 0x40 : 0x80) : (dx<0 ? 0x20 : 0x10);
     [_condition lock];
-    BOOL allowed=_fieldMapId && !_selectedEngine && !_fieldMenuOpen && !_startMenuScene && !_paused && !_stopping && !_battleMode && !_evolutionScene && !_captureScene && !_namingScene && !_optionsScene && !_starterOwnerGeneration && !_pcBoxOwnerGeneration && !_fieldChoiceOwnerGeneration;
+    BOOL allowed=_fieldMapId && !_selectedEngine && !_fieldMenuOpen && !_startMenuScene && !_paused && !_stopping && !_battleMode && !_evolutionScene && !_captureScene && !_namingScene && !_optionsScene && !_oakOwnerGeneration && !_starterOwnerGeneration && !_pcBoxOwnerGeneration && !_fieldChoiceOwnerGeneration;
     if (!allowed) { direction=0; _pendingJoystickKeys=0; }
     _joystickKeys=direction;
     if (pressed && allowed) { _pendingJoystickKeys=direction; _joystickNeedsReset=NO; }
@@ -3265,8 +3566,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     else [self joystickAt:stick.location pressed:stick.pressed];
 }
 - (void)toggleMenu {
+    if ([self catchingTutorialBlocksInput]) return;
     if (_pokegearScene) return;
-    if (_starterScene || _optionsScene || _namingScene || _captureScene || _evolutionScene || _pokedexScene || _pcBoxOwnerGeneration || _fieldChoiceScene) return;
+    if (_oakScene || _starterScene || _optionsScene || _namingScene || _captureScene || _evolutionScene || _pokedexScene || _pcBoxOwnerGeneration || _fieldChoiceScene) return;
     if (_startMenuScene) {if (_startMenuBlocksInput) [self queueStartMenuInputKeys:2 touch:NO point:CGPointZero];return;}
     [_condition lock];
     if (_fieldMapId) {
@@ -3282,8 +3584,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _menuButton.accessibilityLabel=menuTitle;
 }
 - (void)touchAt:(CGPoint)point pressed:(BOOL)pressed {
+    if ([self catchingTutorialBlocksInput]) return;
     if (_pokegearScene) return;
-    if (_starterScene || _optionsScene) return;
+    if (_oakScene || _starterScene || _optionsScene) return;
     if (_namingScene) {if (pressed) [self queueNamingInputKeys:0 touch:YES point:point];return;}
     if (_pcBoxOwnerGeneration || _fieldChoiceScene) return;
     if (_startMenuScene && _startMenuBlocksInput) {
@@ -3304,7 +3607,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)canvasTouch:(UIPanGestureRecognizer *)gesture {
     if (_pokegearScene) return;
-    if (_starterScene || _optionsScene) return;
+    if (_oakScene || _starterScene || _optionsScene) return;
     if (_namingScene) {if (gesture.state==UIGestureRecognizerStateBegan) [self tapAt:[gesture locationInView:gesture.view]];return;}
     if (_pcBoxOwnerGeneration || _fieldChoiceScene) return;
     if (_startMenuScene && _startMenuBlocksInput) {if (gesture.state==UIGestureRecognizerStateBegan) [self touchAt:[gesture locationInView:gesture.view] pressed:YES];return;}
@@ -3336,6 +3639,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (_pcBoxOwnerGeneration) {_pcBoxInputCooling=YES;_pcBoxReleaseReads=_lastPadReadCount;}
         [self clearFieldChoiceInputLocked];
         if (_fieldChoiceOwnerGeneration) {_fieldChoiceInputCooling=YES;_fieldChoiceReleaseReads=_lastPadReadCount;}
+        [self clearOakInputLocked];
+        if (_oakOwnerGeneration) {_oakInputCooling=YES;_oakReleaseReads=_lastPadReadCount;}
         [self clearStarterInputLocked];
         if (_starterOwnerGeneration) {_starterInputCooling=YES;_starterReleaseReads=_lastPadReadCount;}
         [self clearOptionsInputLocked];
@@ -3380,7 +3685,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     [self clearPCBoxCheckTransientLocked:NO];
 #endif
-    [self clearStarterInputLocked]; [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; [self clearEvolutionInputLocked]; [self clearPokedexInputLocked]; _stopping = YES; _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; _inputGeneration++;
+    [self clearOakInputLocked]; [self clearStarterInputLocked]; [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; [self clearEvolutionInputLocked]; [self clearPokedexInputLocked]; _stopping = YES; _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; _inputGeneration++;
     _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _checkBattleMenusRequestPending=NO;
@@ -3399,6 +3704,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)displayFrame {
     [_condition lock]; NSData *frame = _frame; uint32_t frameWidth=_frameWidth,frameEngine=_frameEngine; _frame = nil; NSString *failure = _failure; NSData *battleUI = _battleUIState;
+    NSDictionary *catchingTutorialPictures=_catchingTutorialPictures;
     BOOL interrupted = _interrupted, ended = _interruptionEnded,paused = _paused,resetStick = _joystickNeedsReset;
     uint32_t fieldMap=_fieldMapId,icons=_fieldMenuIcons;
     BOOL menuOpen=_fieldMenuOpen; NSData *menuFrame=_fieldMenuFrame; _fieldMenuFrame=nil;
@@ -3423,20 +3729,25 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
 #endif
     NSData *battleBagUI=_battleBagUIState,*battlePartyUI=_battlePartyUIState;
+    NSData *oakUI=_oakUIState;NSDictionary *oakPictures=_oakPictures;uint32_t oakTouchEngine=_oakFrameTouchEngine;
     NSData *starterUI=_starterUIState; NSDictionary *starterPictures=_starterPictures;
     uint32_t starterTouchEngine=_starterFrameTouchEngine;
     UIImage *optionsPreview=_optionsPreviewImage;
     NSDictionary *partyPictures=_partyPictures,*bagPictures=_bagPictures,*summaryPictures=_summaryPictures,*battleMenuPictures=_battleMenuPictures,*evolutionPictures=_evolutionPictures,*pokedexPictures=_pokedexPictures,*pcBoxPictures=_pcBoxPictures; [_condition unlock];
     if (frame) _displayedEngine=frameEngine;
     uint32_t engine=_displayedEngine;
-    BOOL starterContext=starterUI.length==sizeof(HGNativeStarterUIState) && ((const HGNativeStarterUIState *)starterUI.bytes)->active==1;
+    const HGNativeOakUIState *oak=oakUI.length==sizeof(*oak) ? oakUI.bytes : NULL;
+    uint32_t oakNamingActive=namingUI.length==sizeof(HGNativeNamingUIState) ? ((const HGNativeNamingUIState *)namingUI.bytes)->active : 0;
+    BOOL oakContext=HGNativeOakUIOwnsInput(oak,oakNamingActive);
+    if (!oakContext) [self updateOakControls:oakUI pictures:nil namingActive:oakNamingActive touchEngine:oakTouchEngine paused:paused];
+    BOOL starterContext=!oakContext && starterUI.length==sizeof(HGNativeStarterUIState) && ((const HGNativeStarterUIState *)starterUI.bytes)->active==1;
     if (!starterContext) [self updateStarterControls:starterUI pictures:nil touchEngine:starterTouchEngine paused:paused];
     const HGNativePokegearUIState *pokegear=pokegearRaw.length==sizeof(*pokegear) ? pokegearRaw.bytes : NULL;
-    BOOL pokegearContext=!starterContext && OriginalPokegearOwnsInput(pokegear);
+    BOOL pokegearContext=!oakContext && !starterContext && OriginalPokegearOwnsInput(pokegear);
     if (!pokegearContext) [self updatePokegearControls:pokegearRaw pictures:nil paused:paused];
     _buttons[@2048].hidden=YES;
-    BOOL trainerContext=!starterContext && trainerRaw.length==sizeof(HGNativeTrainerCardUIState) && ((const HGNativeTrainerCardUIState *)trainerRaw.bytes)->active==1;
-    BOOL startMenuBlocked=starterContext || pokegearContext || trainerContext
+    BOOL trainerContext=!oakContext && !starterContext && trainerRaw.length==sizeof(HGNativeTrainerCardUIState) && ((const HGNativeTrainerCardUIState *)trainerRaw.bytes)->active==1;
+    BOOL startMenuBlocked=oakContext || starterContext || pokegearContext || trainerContext
         || (optionsUI.length==sizeof(HGNativeOptionsUIState) && ((const HGNativeOptionsUIState *)optionsUI.bytes)->active)
         || (namingUI.length==sizeof(HGNativeNamingUIState) && ((const HGNativeNamingUIState *)namingUI.bytes)->active)
         || (captureUI.length==sizeof(HGNativeCaptureUIState) && ((const HGNativeCaptureUIState *)captureUI.bytes)->active)
@@ -3454,10 +3765,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL startMenuContext=startMenu && startMenu->active==1 && !startMenu->childActive && !startMenuBlocked;
     if (!startMenuContext) [self updateStartMenuControls:startMenuRaw main:nil sub:nil engine:startMenuRawEngine blocked:YES paused:paused];
     if (!trainerContext) [self updateTrainerCardControls:trainerRaw pictures:nil paused:paused];
-    BOOL optionsContext=!starterContext && !pokegearContext && !trainerContext && optionsUI.length==sizeof(HGNativeOptionsUIState) && ((const HGNativeOptionsUIState *)optionsUI.bytes)->active==1;
+    BOOL optionsContext=!oakContext && !starterContext && !pokegearContext && !trainerContext && optionsUI.length==sizeof(HGNativeOptionsUIState) && ((const HGNativeOptionsUIState *)optionsUI.bytes)->active==1;
     if (!optionsContext) [self updateOptionsControls:optionsUI preview:nil paused:paused];
     BOOL namingContext=!trainerContext && !optionsContext && namingUI.length==sizeof(HGNativeNamingUIState) && ((const HGNativeNamingUIState *)namingUI.bytes)->active==1;
-    BOOL captureContext=!trainerContext && !optionsContext && !namingContext && captureUI.length==sizeof(HGNativeCaptureUIState) && ((const HGNativeCaptureUIState *)captureUI.bytes)->active==1;
+    BOOL captureContext=!oakContext && !trainerContext && !optionsContext && !namingContext && captureUI.length==sizeof(HGNativeCaptureUIState) && ((const HGNativeCaptureUIState *)captureUI.bytes)->active==1;
     if (!namingContext) [self updateNamingControls:namingUI paused:paused];
     if (!captureContext) [self updateCaptureControls:captureUI paused:paused];
     [self updateBattleControls:battleUI];
@@ -3467,19 +3778,19 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     const HGNativeSummaryUIState *summary=summaryUI.length==sizeof(HGNativeSummaryUIState) ? summaryUI.bytes : NULL;
     BOOL summaryLearning=summary && summary->active && HGNativeSummaryUIIsLearning(summary);
     [self updateBattleMenuControls:battleBagUI party:battlePartyUI pictures:battleMenuPictures paused:paused engine:engine];
-    BOOL summaryContext=!trainerContext && !optionsContext && !namingContext && summary && summary->active && (summaryLearning || HGNativeSummaryUIIsOrdinary(summary));
+    BOOL summaryContext=!oakContext && !trainerContext && !optionsContext && !namingContext && summary && summary->active && (summaryLearning || HGNativeSummaryUIIsOrdinary(summary));
     [self updateEvolutionControls:evolutionUI pictures:evolutionPictures summary:summaryContext || captureContext || namingContext || optionsContext paused:paused];
     BOOL pcBoxActive=pcBoxUI.length==sizeof(HGNativePCBoxUIState) && ((const HGNativePCBoxUIState *)pcBoxUI.bytes)->active==1;
     BOOL bagActive=bagUI.length==sizeof(HGNativeBagUIState) && ((const HGNativeBagUIState *)bagUI.bytes)->active;
-    BOOL pcBoxBlocked=starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || (summary && summary->active) || bagActive || _partyScene || _evolutionScene || _battleScene || _battleMenuScene;
+    BOOL pcBoxBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || (summary && summary->active) || bagActive || _partyScene || _evolutionScene || _battleScene || _battleMenuScene;
     BOOL pcBoxContext=pcBoxActive && !pcBoxBlocked;
     if (!pcBoxContext) [self updatePCBoxControls:pcBoxUI pictures:pcBoxPictures blocked:pcBoxBlocked paused:paused];
     const HGNativeFieldChoiceUIState *fieldChoice=fieldChoiceUI.length==sizeof(HGNativeFieldChoiceUIState) ? fieldChoiceUI.bytes : NULL;
-    BOOL fieldChoiceBlocked=starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene
+    BOOL fieldChoiceBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene
         || (pokedexUI.length==sizeof(HGNativePokedexUIState) && ((const HGNativePokedexUIState *)pokedexUI.bytes)->active);
     BOOL fieldChoiceContext=fieldChoice && fieldChoice->active==1 && HGNativeFieldChoiceUIIsViewPhase(fieldChoice->phase) && !fieldChoiceBlocked;
     if (!fieldChoiceContext) [self updateFieldChoiceControls:fieldChoiceUI preview:nil blocked:fieldChoiceBlocked paused:paused];
-    BOOL pokedexBlocked=starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene || pcBoxActive || fieldChoiceContext;
+    BOOL pokedexBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene || pcBoxActive || fieldChoiceContext;
     [self updatePokedexControls:pokedexUI pictures:pokedexPictures blocked:pokedexBlocked paused:paused];
     if (captureContext) [self updateCaptureControls:captureUI paused:paused];
     if (frame) {
@@ -3490,7 +3801,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _displayedBattleMenusQAState=battleMenusQAAtRead; _displayedPaletteFadeFinished=paletteFadeFinishedAtRead;
 #endif
     }
-    BOOL field=!starterContext && !pokegearContext && fieldMap && !engine && !_battleMode && !_battleScene && !_partyScene && !_bagScene && !_summaryScene && !_battleMenuScene && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext && !pcBoxActive && !fieldChoiceContext;
+    BOOL field=!oakContext && !starterContext && !pokegearContext && fieldMap && !engine && !_battleMode && !_battleScene && !_partyScene && !_bagScene && !_summaryScene && !_battleMenuScene && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext && !pcBoxActive && !fieldChoiceContext;
     if (!field) _fieldMenu.image=nil;
     else if (menuFrame) _fieldMenu.image=OriginalPixelImage(menuFrame,256,192);
     BOOL panel=field && menuOpen && _fieldMenu.image;
@@ -3547,6 +3858,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         [self updateStartMenuControls:paired ? startMenuUI : startMenuRaw main:paired ? startMenuMain : nil sub:paired ? startMenuSub : nil engine:startMenuRawEngine blocked:NO paused:paused];
     }
     if (starterContext) [self updateStarterControls:starterUI pictures:starterPictures touchEngine:starterTouchEngine paused:paused];
+    if (oakContext) [self updateOakControls:oakUI pictures:oakPictures namingActive:oakNamingActive touchEngine:oakTouchEngine paused:paused];
+    [self updateCatchingTutorialControls:battleUI pictures:catchingTutorialPictures];
     if (failure) { _status.text = failure; _status.hidden = NO; }
     else if (interrupted) { _status.text = ended ? @"已暂停，点开始继续" : @"声音中断，已暂停"; _status.hidden = NO; }
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
@@ -3915,6 +4228,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t battleAddress=w2c_hgengine_HGNativeBattleUIGetState(_game);
     if (!battleAddress || battleAddress>_env->memory->size || sizeof(HGNativeBattleUIState)>_env->memory->size-battleAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeBattleUIState *currentBattle=(const HGNativeBattleUIState *)(_env->memory->data+battleAddress);
+    BOOL catchingTutorial=OriginalCatchingTutorialActive(currentBattle);
     uint32_t battleBagAddress=w2c_hgengine_HGNativeBattleBagUIGetState(_game),battlePartyAddress=w2c_hgengine_HGNativeBattlePartyUIGetState(_game);
     if (!battleBagAddress || battleBagAddress>_env->memory->size || sizeof(HGNativeBattleBagUIState)>_env->memory->size-battleBagAddress
         || !battlePartyAddress || battlePartyAddress>_env->memory->size || sizeof(HGNativeBattlePartyUIState)>_env->memory->size-battlePartyAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
@@ -3938,10 +4252,17 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t evolutionAddress=w2c_hgengine_HGNativeEvolutionUIGetState(_game);
     if (!evolutionAddress || evolutionAddress>_env->memory->size || sizeof(HGNativeEvolutionUIState)>_env->memory->size-evolutionAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeEvolutionUIState *currentEvolution=(const HGNativeEvolutionUIState *)(_env->memory->data+evolutionAddress);
+    uint32_t namingAddress=w2c_hgengine_HGNativeNamingUIGetState(_game);
+    if (!namingAddress || namingAddress>_env->memory->size || sizeof(HGNativeNamingUIState)>_env->memory->size-namingAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    const HGNativeNamingUIState *currentNaming=(const HGNativeNamingUIState *)(_env->memory->data+namingAddress);
+    uint32_t oakAddress=w2c_hgengine_HGNativeOakUIGetState(_game);
+    if (!oakAddress || oakAddress>_env->memory->size || sizeof(HGNativeOakUIState)>_env->memory->size-oakAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    const HGNativeOakUIState *currentOak=(const HGNativeOakUIState *)(_env->memory->data+oakAddress);
+    BOOL oakContext=HGNativeOakUIOwnsInput(currentOak,currentNaming->active);
     uint32_t starterAddress=w2c_hgengine_HGNativeStarterUIGetState(_game);
     if (!starterAddress || starterAddress>_env->memory->size || sizeof(HGNativeStarterUIState)>_env->memory->size-starterAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeStarterUIState *currentStarter=(const HGNativeStarterUIState *)(_env->memory->data+starterAddress);
-    BOOL starterContext=currentStarter->active==1;
+    BOOL starterContext=!oakContext && currentStarter->active==1;
     uint32_t optionsAddress=w2c_hgengine_HGNativeOptionsUIGetState(_game);
     if (!optionsAddress || optionsAddress>_env->memory->size || sizeof(HGNativeOptionsUIState)>_env->memory->size-optionsAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeOptionsUIState *currentOptions=(const HGNativeOptionsUIState *)(_env->memory->data+optionsAddress);
@@ -3951,20 +4272,17 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t pokegearAddress=w2c_hgengine_HGNativePokegearUIGetState(_game);
     if (!pokegearAddress || pokegearAddress>_env->memory->size || sizeof(HGNativePokegearUIState)>_env->memory->size-pokegearAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativePokegearUIState *currentPokegear=(const HGNativePokegearUIState *)(_env->memory->data+pokegearAddress);
-    BOOL pokegearContext=!starterContext && OriginalPokegearOwnsInput(currentPokegear);
+    BOOL pokegearContext=!oakContext && !starterContext && OriginalPokegearOwnsInput(currentPokegear);
     uint32_t startMenuAddress=w2c_hgengine_HGNativeFieldMenuUIGetState(_game);
     if (!startMenuAddress || startMenuAddress>_env->memory->size || sizeof(HGNativeFieldMenuUIState)>_env->memory->size-startMenuAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeFieldMenuUIState *currentStartMenu=(const HGNativeFieldMenuUIState *)(_env->memory->data+startMenuAddress);
-    BOOL trainerContext=!starterContext && currentTrainer->active==1;
-    BOOL optionsContext=!starterContext && !pokegearContext && !trainerContext && currentOptions->active==1;
-    uint32_t namingAddress=w2c_hgengine_HGNativeNamingUIGetState(_game);
-    if (!namingAddress || namingAddress>_env->memory->size || sizeof(HGNativeNamingUIState)>_env->memory->size-namingAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
-    const HGNativeNamingUIState *currentNaming=(const HGNativeNamingUIState *)(_env->memory->data+namingAddress);
+    BOOL trainerContext=!oakContext && !starterContext && currentTrainer->active==1;
+    BOOL optionsContext=!oakContext && !starterContext && !pokegearContext && !trainerContext && currentOptions->active==1;
     BOOL namingContext=!trainerContext && !optionsContext && currentNaming->active==1;
     uint32_t captureAddress=w2c_hgengine_HGNativeCaptureUIGetState(_game);
     if (!captureAddress || captureAddress>_env->memory->size || sizeof(HGNativeCaptureUIState)>_env->memory->size-captureAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeCaptureUIState *currentCapture=(const HGNativeCaptureUIState *)(_env->memory->data+captureAddress);
-    BOOL captureContext=!trainerContext && !optionsContext && !namingContext && currentCapture->active==1;
+    BOOL captureContext=!oakContext && !trainerContext && !optionsContext && !namingContext && currentCapture->active==1;
     uint32_t pokedexAddress=w2c_hgengine_HGNativePokedexUIGetState(_game);
     if (!pokedexAddress || pokedexAddress>_env->memory->size || sizeof(HGNativePokedexUIState)>_env->memory->size-pokedexAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativePokedexUIState *currentPokedex=(const HGNativePokedexUIState *)(_env->memory->data+pokedexAddress);
@@ -3972,16 +4290,16 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t battleMenuKind=OriginalBattleMenuKind(currentBattleBag,currentBattleParty);
     BOOL battleChild=currentBattleBag->active || currentBattleParty->active;
     BOOL summaryLearning=currentSummary->active && HGNativeSummaryUIIsLearning(currentSummary);
-    BOOL summaryContext=!trainerContext && !optionsContext && !namingContext && currentSummary->active && (summaryLearning || HGNativeSummaryUIIsOrdinary(currentSummary));
+    BOOL summaryContext=!oakContext && !trainerContext && !optionsContext && !namingContext && currentSummary->active && (summaryLearning || HGNativeSummaryUIIsOrdinary(currentSummary));
     BOOL pcBoxActive=currentPCBox->active==1;
-    BOOL pcBoxContext=!trainerContext && pcBoxActive && !optionsContext && !namingContext && !captureContext && !currentSummary->active
+    BOOL pcBoxContext=!oakContext && !trainerContext && pcBoxActive && !optionsContext && !namingContext && !captureContext && !currentSummary->active
         && !currentBag->active && !currentParty->active && !currentEvolution->active && !battleChild && !currentBattle->active;
     BOOL fieldChoiceView=currentFieldChoice->active==1 && HGNativeFieldChoiceUIIsViewPhase(currentFieldChoice->phase);
-    BOOL fieldChoiceContext=!trainerContext && fieldChoiceView && !optionsContext && !namingContext && !captureContext && !summaryContext && !pcBoxActive
+    BOOL fieldChoiceContext=!oakContext && !trainerContext && fieldChoiceView && !optionsContext && !namingContext && !captureContext && !summaryContext && !pcBoxActive
         && !currentBag->active && !currentParty->active && !currentEvolution->active && !battleChild && !currentBattle->active && !currentPokedex->active;
-    BOOL pokedexBlocked=starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || currentEvolution->active || battleChild || currentBattle->active || currentParty->active || currentBag->active || pcBoxActive || fieldChoiceContext;
+    BOOL pokedexBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || currentEvolution->active || battleChild || currentBattle->active || currentParty->active || currentBag->active || pcBoxActive || fieldChoiceContext;
     BOOL pokedexContext=currentPokedex->active && !pokedexBlocked;
-    BOOL startMenuBlocked=starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || currentSummary->active || pcBoxActive
+    BOOL startMenuBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || currentSummary->active || pcBoxActive
         || currentParty->active || currentBag->active || currentEvolution->active || battleChild || currentBattle->active || currentPokedex->active || fieldChoiceContext;
     BOOL startMenuContext=currentStartMenu->active==1 && !currentStartMenu->childActive && !startMenuBlocked;
     BOOL startMenuView=startMenuContext && OriginalStartMenuHasView(currentStartMenu);
@@ -4000,6 +4318,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     [_condition lock];
     [self acknowledgeKeysLocked:HGNativeInputPadReads(_env)];
+    if (catchingTutorial || _catchingTutorialOwnedInputs) [self clearCatchingTutorialInputLocked];
+    _catchingTutorialOwnedInputs=catchingTutorial;
     const HGNativePokegearUIState *oldPokegear=_pokegearRawUIState.length==sizeof(*oldPokegear) ? _pokegearRawUIState.bytes : NULL;
     BOOL pokegearChanged=!oldPokegear || memcmp(oldPokegear,currentPokegear,sizeof(*currentPokegear)) || _pokegearRawEngine!=((*_displayControl>>15)&1);
     if (_pokegearOwnedInputs!=pokegearContext || (pokegearContext && pokegearChanged) || (oldPokegear && oldPokegear->active && !currentPokegear->active)) {
@@ -4078,13 +4398,25 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_NAMING_CHECK
     BOOL namingLeaseWasActive=_namingInputActive; uint32_t namingLeaseStart=_namingInputReads;
 #endif
+    if (oakContext || _oakOwnerGeneration) {
+        _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0;
+        _touchX=_touchY=0;_touchPressed=NO;_joystickNeedsReset=YES;_fieldMenuOpen=NO;_fieldMenuFrame=nil;
+        _battleChoicePending=NO;_partyChoicePending=_partyTouchActive=_bagChoicePending=_bagTouchActive=NO;
+        _summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO;_summaryInputKeys=0;
+        _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
+        if (!oakContext || currentOak->ownerGeneration!=_oakOwnerGeneration) {
+            BOOL retiring=_oakOwnerGeneration!=0;[self clearOakInputLocked];
+            if(retiring && oakContext){_oakInputCooling=YES;_oakReleaseReads=HGNativeInputPadReads(_env);}
+        }
+    }
+    _oakOwnerGeneration=oakContext ? currentOak->ownerGeneration : 0;
     if (starterContext || _starterOwnerGeneration) {
         _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0;
         _touchX=_touchY=0;_touchPressed=NO;_joystickNeedsReset=YES;_fieldMenuOpen=NO;_fieldMenuFrame=nil;
         _battleChoicePending=NO;_partyChoicePending=_partyTouchActive=_bagChoicePending=_bagTouchActive=NO;
         _summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO;_summaryInputKeys=0;
         _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
-        if (!starterContext || currentStarter->ownerGeneration!=_starterOwnerGeneration) {
+        if (!oakContext || starterContext || currentStarter->ownerGeneration!=_starterOwnerGeneration) {
             BOOL retiring=_starterOwnerGeneration!=0;[self clearStarterInputLocked];
             if (retiring && starterContext) {_starterInputCooling=YES;_starterReleaseReads=HGNativeInputPadReads(_env);}
         }
@@ -4117,7 +4449,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _fieldMapId=fieldMap;
     // Original LCD routing: SUB_MAIN=0 touches main; MAIN_SUB=1 touches sub.
     _touchEngine=(*_displayControl>>15)&1;
-    if (starterContext) _selectedEngine=0;
+    if (catchingTutorial) _selectedEngine=0;
+    else if (oakContext) _selectedEngine=0;
+    else if (starterContext) _selectedEngine=0;
     else if (startMenuContext) _selectedEngine=0;
     else if (optionsContext) _selectedEngine=0;
     else if (namingContext) _selectedEngine=0;
@@ -4169,9 +4503,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
         [self clearPCBoxCheckTransientLocked:YES];
 #endif
-        [self clearStarterInputLocked]; [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; }
+        [self clearOakInputLocked]; [self clearStarterInputLocked]; [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; }
     BOOL stopping = _stopping;
-    uint32_t keys = starterContext || pokegearContext || startMenuBlocksInput || trainerContext || optionsContext || namingContext || captureContext || pcBoxContext || fieldChoiceContext ? 0 : [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth,preferredBattleWidth=_preferredBattleWidth;
+    uint32_t keys = oakContext || starterContext || pokegearContext || startMenuBlocksInput || trainerContext || optionsContext || namingContext || captureContext || pcBoxContext || fieldChoiceContext ? 0 : [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth,preferredBattleWidth=_preferredBattleWidth;
     BOOL battleChoice = !pokegearContext && !trainerContext && !optionsContext && !namingContext && !captureContext && !pcBoxActive && !fieldChoiceContext && _battleChoicePending;
     uint32_t battleRevision = _battleChoiceRevision, battleIndex = _battleChoiceIndex;
     _battleChoicePending = NO;
@@ -4182,7 +4516,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t pokegearKeys=0,pokegearX=0,pokegearY=0;BOOL pokegearPressed=NO;
     [self takePokegearInputLocked:currentPokegear reads:HGNativeInputPadReads(_env) keys:&pokegearKeys x:&pokegearX y:&pokegearY pressed:&pokegearPressed];
     [self takeTrainerCardInputLocked:currentTrainer reads:HGNativeInputPadReads(_env) keys:&trainerKeys x:&trainerX y:&trainerY pressed:&trainerPressed];
-    if (starterContext) {
+    if (oakContext) {
+        keys=x=y=0;pressed=NO;engine=0;battleChoice=NO;
+        if(!_paused && !stopping)[self takeOakInputLocked:currentOak namingActive:currentNaming->active touchEngine:_touchEngine reads:HGNativeInputPadReads(_env) keys:&keys x:&x y:&y pressed:&pressed];
+    }
+    else if (starterContext) {
         keys=x=y=0;pressed=NO;engine=0;battleChoice=NO;
         if (!_paused && !stopping) [self takeStarterInputLocked:currentStarter touchEngine:_touchEngine reads:HGNativeInputPadReads(_env)
             keys:&keys x:&x y:&y pressed:&pressed];
@@ -4243,6 +4581,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (namingLeaseWasActive && !_namingInputActive) {_namingQAInputReleases++;_namingQALastReleaseReads=namingLeaseReads;}
     if (namingLeaseWasActive) _namingQAMaxHeldReads=MAX(_namingQAMaxHeldReads,namingLeaseReads-namingLeaseStart);
 #endif
+    OriginalCatchingTutorialInput(catchingTutorial,&keys,&x,&y,&pressed,&battleChoice);
+    if (catchingTutorial) [self clearCatchingTutorialInputLocked];
     BOOL menuOpen=_fieldMenuOpen;
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     [self observePCBoxCheckPulseOwnerLocked:&pcOwnerQA reads:HGNativeInputPadReads(_env) keys:&keys pressed:pressed];
@@ -4313,6 +4653,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSData *pcBoxUI = [NSData dataWithBytes:currentPCBox length:sizeof(*currentPCBox)];
     NSData *fieldChoiceUI = [NSData dataWithBytes:currentFieldChoice length:sizeof(*currentFieldChoice)];
     NSData *evolutionUI = [NSData dataWithBytes:currentEvolution length:sizeof(*currentEvolution)];
+    NSData *oakUI=[NSData dataWithBytes:currentOak length:sizeof(*currentOak)];uint32_t oakFrameTouchEngine=(*_displayControl>>15)&1;
     NSData *starterUI=[NSData dataWithBytes:currentStarter length:sizeof(*currentStarter)];
     uint32_t starterFrameTouchEngine=(*_displayControl>>15)&1;
     NSData *optionsUI = [NSData dataWithBytes:currentOptions length:sizeof(*currentOptions)];
@@ -4342,7 +4683,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
 #endif
     const HGNativeBattleUIState *battleState = battleUI.bytes;
-    BOOL originalPage=starterContext || pokegearContext || startMenuContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || fieldChoiceContext || currentEvolution->active || pokedexContext || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty) || HGNativePartyUIIsRareCandy(currentParty)))
+    BOOL originalPage=catchingTutorial || oakContext || starterContext || pokegearContext || startMenuContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || fieldChoiceContext || currentEvolution->active || pokedexContext || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty) || HGNativePartyUIIsRareCandy(currentParty)))
         || (currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag)));
     BOOL battleScene=(battleState->active || battleChild) && !engine && !originalPage;
     uint32_t sceneWidth=originalPage ? 256 : fieldMap ? MAX(256,preferredWidth) : 256;
@@ -4371,6 +4712,16 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_COPY,1);
 #endif
     NSData *frame = frozenChoice ? _fieldChoiceOwnerFrame : [NSData dataWithBytes:_env->memory->data + _frameBuffer length:size];
+    NSDictionary *catchingTutorialPictures=nil;
+    if (catchingTutorial) {
+        if (engine || width!=256 || memcmp(battleUI.bytes,currentBattle,sizeof(*currentBattle))) return;
+        UIImage *stage=OriginalFrameRegion(frame,0,0,256,144),*message=OriginalFrameRegion(frame,0,144,256,48);
+        if (!w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4)) return;
+        NSData *sub=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
+        UIImage *demonstration=OriginalPixelImage(sub,256,192);
+        if (!stage || !message || !demonstration || memcmp(battleUI.bytes,currentBattle,sizeof(*currentBattle))) return;
+        catchingTutorialPictures=@{@"stage":stage,@"message":message,@"demonstration":demonstration};
+    }
     UIImage *fieldChoicePreview=nil;
     if (fieldChoiceContext) {
         if (memcmp(fieldChoiceUI.bytes,currentFieldChoice,sizeof(*currentFieldChoice))) return;
@@ -4435,6 +4786,24 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
             if (!pcBoxPictures) return;
         } else pcBoxPictures=_pcBoxOwnerPictures;
     } else _pcBoxOwnerPictures=nil;
+    NSDictionary *oakPictures=nil;
+    if(oakContext) {
+        if(engine || width!=256 || memcmp(oakUI.bytes,currentOak,sizeof(*currentOak)))return;
+        UIImage *stage=OriginalPixelImage(frame,256,192);if(!stage)return;
+        NSMutableDictionary *pictures=[NSMutableDictionary dictionaryWithObject:stage forKey:@"stage"];
+        if(currentOak->parentPhase==1) {
+            if(!w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4))return;
+            NSData *sub=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];pictures[@"subPaired"]=@YES;
+            if(currentOak->textKind){UIImage *text=OriginalFrameRegion(frame,currentOak->textX,currentOak->textY,currentOak->textWidth,currentOak->textHeight);if(!text)return;pictures[@"text"]=text;}
+            NSMutableArray *choices=[NSMutableArray array];
+            for(uint32_t i=0;i<currentOak->count;i++){HGNativeOakRect r=OriginalOakChoiceImageRect(currentOak,i);UIImage *image=OriginalFrameRegion(sub,r.x,r.y,r.width,r.height);if(!image)return;[choices addObject:image];}
+            pictures[@"choices"]=choices;
+            if(currentOak->phase>=67 && currentOak->phase<=102){UIImage *portrait=OriginalFrameRegion(sub,currentOak->gender ? 144 : 18,25,currentOak->gender ? 95 : 93,148);if(!portrait)return;pictures[@"portrait"]=portrait;}
+            if(currentOak->touchMode & HG_OAK_ADVANCE_VISIBLE){UIImage *advance=OriginalFrameRegion(sub,168,144,88,48);if(!advance)return;pictures[@"advance"]=advance;}
+        }
+        if(memcmp(oakUI.bytes,currentOak,sizeof(*currentOak)) || currentNaming->active || oakFrameTouchEngine!=((*_displayControl>>15)&1))return;
+        oakPictures=pictures;
+    }
     NSDictionary *starterPictures=nil;
     if (starterContext) {
         if (engine || width!=256 || memcmp(starterUI.bytes,currentStarter,sizeof(*currentStarter))
@@ -4528,6 +4897,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSData *geometry = w2c_hgengine_HGNativeGeometryFrame(_game, 1, _frameBuffer) ? [NSData dataWithBytes:_env->memory->data + _frameBuffer length:8 * sizeof(uint32_t)] : nil;
 #endif
     if (!HGNativeSoundRealtime(_env, YES)) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    if(oakContext && (memcmp(oakUI.bytes,currentOak,sizeof(*currentOak)) || currentNaming->active || oakFrameTouchEngine!=((*_displayControl>>15)&1)))return;
     if (starterContext && (memcmp(starterUI.bytes,currentStarter,sizeof(*currentStarter)) || starterFrameTouchEngine!=((*_displayControl>>15)&1))) return;
     if (optionsContext && memcmp(optionsUI.bytes,currentOptions,sizeof(*currentOptions))) return;
     if (memcmp(trainerUI.bytes,currentTrainer,sizeof(*currentTrainer))) return;
@@ -4560,12 +4930,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _pcBoxQAOwnerFrame=OS_GetVBlankCount(); _pcBoxQAPublishedFrame=_publishedFrames+1;
 #endif
     _evolutionUIState=evolutionUI; _evolutionPictures=evolutionPictures;
+    _oakUIState=oakUI;_oakPictures=oakPictures;_oakFrameTouchEngine=oakFrameTouchEngine;
     _starterUIState=starterUI;_starterPictures=starterPictures;_starterFrameTouchEngine=starterFrameTouchEngine;
     _optionsUIState=optionsUI; _optionsPreviewImage=optionsPreview;
     _namingUIState=namingUI;
     _captureUIState=captureUI;
     _pokedexUIState=pokedexUI; _pokedexPictures=pokedexPictures;
     _battleBagUIState=battleBagUI; _battlePartyUIState=battlePartyUI; _battleMenuPictures=battleMenuPictures;
+    _catchingTutorialPictures=catchingTutorialPictures;
     _fieldMenuFrame=menuFrame; _fieldMenuIcons=icons;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _geometryState = geometry;
@@ -4744,6 +5116,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     HGNativePartyUIState party = {0};
                     HGNativeBagUIState bag = {0};
                     HGNativeSummaryUIState summary = {0}; HGNativeEvolutionUIState evolution={0};
+                    HGNativeOakUIState oak={0};NSData *oakUI=[NSData dataWithBytes:&oak length:sizeof(oak)];
                     HGNativeStarterUIState starter={0}; NSData *starterUI=[NSData dataWithBytes:&starter length:sizeof(starter)];
                     HGNativeOptionsUIState options={0}; NSData *optionsUI=[NSData dataWithBytes:&options length:sizeof(options)];
                     HGNativeNamingUIState naming={0}; NSData *namingUI=[NSData dataWithBytes:&naming length:sizeof(naming)];
@@ -4752,6 +5125,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     HGNativeCaptureUIState capture={0}; NSData *captureUI=[NSData dataWithBytes:&capture length:sizeof(capture)];
                     HGNativePokedexUIState pokedex={0};
                     HGNativeBattleBagUIState battleBag={0}; HGNativeBattlePartyUIState battleParty={0};
+                    [self updateOakControls:oakUI pictures:nil namingActive:0 touchEngine:0 paused:NO];
                     [self updateStarterControls:starterUI pictures:nil touchEngine:0 paused:NO];
                     [self updateOptionsControls:optionsUI preview:nil paused:NO];
                     [self updateNamingControls:namingUI paused:NO];
@@ -4776,6 +5150,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     [self clearEvolutionInputLocked];
                     [self clearPokedexInputLocked];
                     self->_evolutionUIState=[NSData dataWithBytes:&evolution length:sizeof(evolution)]; self->_evolutionPictures=nil;
+                    self->_oakUIState=self->_displayedOakUIState=oakUI;self->_oakPictures=nil;self->_oakScene=NO;
+                    [self clearOakInputLocked];self->_oakOwnerGeneration=self->_oakFrameTouchEngine=self->_displayedOakTouchEngine=0;
                     self->_starterUIState=self->_displayedStarterUIState=starterUI;self->_starterPictures=nil;self->_starterScene=NO;
                     [self clearStarterInputLocked];self->_starterOwnerGeneration=0;
                     self->_starterSurfaceDown=NO;self->_starterFrameTouchEngine=self->_displayedStarterTouchEngine=0;
@@ -4864,6 +5240,16 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                         !self->_captureScene && !self->_captureChoicePending && !self->_captureInputActive && !self->_captureInputCooling &&
                         !self->_captureChoiceGeneration && !self->_captureChoiceRevision && !self->_captureInputGeneration && !self->_captureInputRevision && !self->_captureInputReads && !self->_captureReleaseReads &&
                         [self->_captureUIState isEqualToData:captureUI] && [self->_displayedCaptureUIState isEqualToData:captureUI] &&
+                        !self->_oakScene && !self->_oakChoicePending && !self->_oakInputActive && !self->_oakInputCooling && !self->_oakReleasePending && !self->_oakOwnerGeneration &&
+                        !self->_oakChoiceKeys && !self->_oakInputKeys && !self->_oakInputReads && !self->_oakReleaseReads && !self->_oakChoiceTouch && !self->_oakInputTouch &&
+                        !self->_oakChoiceX && !self->_oakChoiceY && !self->_oakInputX && !self->_oakInputY && !self->_oakFrameTouchEngine && !self->_displayedOakTouchEngine &&
+                        !memcmp(&self->_oakChoice,&oak,sizeof(oak)) && !memcmp(&self->_oakInput,&oak,sizeof(oak)) &&
+                        [self->_oakUIState isEqualToData:oakUI] && [self->_displayedOakUIState isEqualToData:oakUI] && !self->_oakPictures && self->_oakPanel.hidden &&
+                        !self->_oakStage.image && !self->_oakTextImage.image && !self->_oakPortrait.image && !self->_oakAdvanceImage.image && self->_oakAdvance.hidden &&
+                        self->_oakChoices[0].hidden && self->_oakChoices[1].hidden && self->_oakChoices[2].hidden &&
+                        !self->_oakChoiceImages[0].image && !self->_oakChoiceImages[1].image && !self->_oakChoiceImages[2].image &&
+                        !self->_oakTextScroll.scrollEnabled && CGSizeEqualToSize(self->_oakTextScroll.contentSize,CGSizeZero) &&
+                        CGPointEqualToPoint(self->_oakTextScroll.contentOffset,CGPointZero) &&
                         !self->_starterScene && !self->_starterChoicePending && !self->_starterInputActive && !self->_starterInputCooling && !self->_starterOwnerGeneration &&
                         !self->_starterChoiceKeys && !self->_starterInputKeys && !self->_starterInputReads && !self->_starterReleaseReads &&
                         !self->_starterChoiceTouch && !self->_starterInputTouch && !self->_starterSurfaceDown && !self->_starterTouchReleasePending &&

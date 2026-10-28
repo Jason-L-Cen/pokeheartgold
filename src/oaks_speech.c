@@ -1,6 +1,9 @@
 #include "oaks_speech.h"
 
 #include "global.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_oak_ui.h"
+#endif
 
 #include "constants/species.h"
 
@@ -543,6 +546,55 @@ static const int sBgPicNCGR_NCLR[10][2] = {
      },
 };
 
+#ifdef HEARTGOLD_NATIVE
+static void OakSpeech_PublishNativeUI(OakSpeechData *data,int parentPhase) {
+    HGNativeOakUIState facts={.parentPhase=parentPhase,.phase=data->state,.gender=data->playerGender,.padMode=!!data->menuData.inPadMode};
+    if (parentPhase != 1 || data->overlayManager || !data->bgConfig || !data->spriteGfxHandler) {
+        NativeOakUIPublish(data,&facts); return;
+    }
+    u32 yesno=OakSpeechYesNo_NativeState(data->yesnoMenu);
+    if (data->numMultichoiceOptions>=2 && data->numMultichoiceOptions<=3
+        && data->multichoiceMenuButtonWindows[0].bgConfig==data->bgConfig && data->multichoiceMenuButtonWindows[0].pixelBuffer)
+        facts.count=data->numMultichoiceOptions;
+    facts.cursor=facts.count ? data->menuData.cursorPos : 0;
+    if (data->state >= OAK_SPEECH_MAIN_STATE_WAIT_FADE_IN_GENDER_SELECT_MENU
+        && data->state <= OAK_SPEECH_MAIN_STATE_PREPARE_ASK_CONFIRM_GENDER) {facts.count=2;facts.cursor=data->menuData.cursorPos;}
+    if (data->state == OAK_SPEECH_MAIN_STATE_CONTROL_INFO_ASK_UNDERSTOOD_HANDLE_YESNO && (yesno & 1)) {
+        facts.mode=HG_OAK_YESNO;facts.count=2;facts.cursor=((yesno>>8)==YESNORESPONSE_NO);
+        if (yesno & 2) {facts.keyMask=195;facts.touchMode=1;}
+    } else if (data->state == OAK_SPEECH_MAIN_STATE_GENDER_SELECT_MENU_HANDLE_INPUT) {
+        facts.mode=HG_OAK_GENDER;facts.keyMask=49;facts.touchMode=1;
+    } else if (data->state == OAK_SPEECH_MAIN_STATE_TUTORIAL_MENU_HANDLE_INPUT
+        || data->state == OAK_SPEECH_MAIN_STATE_CONFIRM_GENDER_YESNO_HANDLE_INPUT
+        || data->state == OAK_SPEECH_MAIN_STATE_CONFIRM_NAME_YESNO_HANDLE_INPUT) {
+        facts.mode=HG_OAK_MENU;
+        if (facts.count>=2 && !data->menuData.pressDelay) {facts.keyMask=195;facts.touchMode=1;}
+    } else if (data->printDialogMsgState) {
+        facts.mode=HG_OAK_DIALOG;
+        if (data->printDialogMsgState == 1 && TextPrinterCheckActive(data->textPrinter)) facts.keyMask=3;
+        else if (data->printDialogMsgState == 2 && data->state == OAK_SPEECH_MAIN_STATE_CONTROL_INFO_6) facts.keyMask=1;
+    } else if (data->printAndFadeFullScreenTextState) {
+        facts.mode=HG_OAK_PAGE;
+        if (data->printAndFadeFullScreenTextState == 3) facts.keyMask=3;
+    }
+    if (!IsPaletteFadeFinished()) facts.keyMask=facts.touchMode=0;
+    if (facts.keyMask && (facts.mode == HG_OAK_DIALOG || facts.mode == HG_OAK_PAGE)
+        && OakSpeech_IsTouchToAdvanceButtonActive(data)) facts.touchMode=2;
+    if (OakSpeech_IsTouchToAdvanceButtonActive(data)) facts.touchMode|=HG_OAK_ADVANCE_VISIBLE;
+    facts.ready=!!(facts.keyMask || (facts.touchMode & 3));
+    if (((reg_GX_DISPCNT & REG_GX_DISPCNT_DISPLAY_MASK) >> REG_GX_DISPCNT_DISPLAY_SHIFT) & GX_PLANEMASK_BG0) {
+        if (data->printAndFadeFullScreenTextState && data->fullScreenMsgWindow.bgConfig) {
+            Window *w=&data->fullScreenMsgWindow;facts.textKind=2;facts.textX=w->tilemapLeft*8;facts.textY=w->tilemapTop*8;facts.textWidth=w->width*8;facts.textHeight=w->height*8;
+        } else {
+            // RemoveWindow frees the Window but leaves its original dialog pixels in BG0.
+            const u16 *map=GetBgTilemapBuffer(data->bgConfig,GF_BG_LYR_MAIN_0);
+            if (map && (map[19*32+2]&1023)==0x36D) {facts.textKind=1;facts.textX=16;facts.textY=152;facts.textWidth=216;facts.textHeight=32;}
+        }
+    }
+    NativeOakUIPublish(data,&facts);
+}
+#endif
+
 BOOL OakSpeech_Init(OverlayManager *ovyMan, int *pState) {
     Heap_Create(HEAP_ID_3, HEAP_ID_OAKS_SPEECH, 0x40000);
     OakSpeechData *data = OverlayManager_CreateAndGetData(ovyMan, sizeof(OakSpeechData), HEAP_ID_OAKS_SPEECH);
@@ -560,6 +612,9 @@ BOOL OakSpeech_Init(OverlayManager *ovyMan, int *pState) {
     data->frameDelayCounter = 0;
     TextFlags_SetCanTouchSpeedUpPrint(FALSE);
     FontID_Alloc(4, data->heapID);
+#ifdef HEARTGOLD_NATIVE
+    NativeOakUIBegin(data);
+#endif
     return TRUE;
 }
 
@@ -633,12 +688,18 @@ BOOL OakSpeech_Main(OverlayManager *ovyMan, int *pState) {
     if (data->overlayManager == NULL && data->spriteGfxHandler != NULL) {
         SpriteSystem_DrawSprites(data->spriteGfxHandler);
     }
+#ifdef HEARTGOLD_NATIVE
+    OakSpeech_PublishNativeUI(data,*pState);
+#endif
     return ret;
 }
 
 BOOL OakSpeech_Exit(OverlayManager *ovyMan, int *pState) {
     OakSpeechData *data = OverlayManager_GetData(ovyMan);
     enum HeapID heapID = data->heapID;
+#ifdef HEARTGOLD_NATIVE
+    NativeOakUIRetire(data);
+#endif
     FontID_Release(4);
     PlayerName_StringToFlat(Save_PlayerData_GetProfile(data->saveData), data->namingScreenArgs_Player->nameInputString);
     PlayerProfile_SetTrainerGender(Save_PlayerData_GetProfile(data->saveData), data->namingScreenArgs_Player->playerGenderOrMonSpecies);

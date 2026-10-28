@@ -4,6 +4,7 @@
 #ifdef HEARTGOLD_NATIVE
 #include "native_options_ui.h"
 #include "native_starter_ui.h"
+#include "native_oak_ui.h"
 #include "native_pc_box_ui.h"
 #include "native_trainer_card_ui.h"
 #include "native_pokegear_ui.h"
@@ -738,6 +739,40 @@ void NativeStarterUIRetire(const void *owner) {
     if (!++gNativeStarterUIState.revision) ++gNativeStarterUIState.revision;
 }
 // Native Starter resident state end.
+
+// Native Oak resident state begin.
+// The parent survives a Naming child and its reloadable overlay state.
+HGNativeOakUIState gNativeOakUIState;
+static const void *sNativeOakOwner;
+const HGNativeOakUIState *HGNativeOakUIGetState(void) { return &gNativeOakUIState; }
+void NativeOakUIBegin(const void *owner) {
+    if (!owner || owner == sNativeOakOwner) return;
+    uint32_t generation=gNativeOakUIState.ownerGeneration+1,revision=gNativeOakUIState.revision+1;
+    sNativeOakOwner=owner;
+    gNativeOakUIState=(HGNativeOakUIState){.active=1,.ownerGeneration=generation ? generation : 1,.revision=revision ? revision : 1};
+}
+void NativeOakUIPublish(const void *owner,const HGNativeOakUIState *facts) {
+    if (!owner || owner != sNativeOakOwner || !facts || gNativeOakUIState.active != 1 || facts->parentPhase > 5
+        || facts->phase > 126 || facts->mode > HG_OAK_YESNO || facts->ready > 1 || (facts->touchMode & ~7u) || (facts->touchMode & 3) == 3
+        || facts->count > 3 || (facts->count ? facts->cursor >= facts->count : facts->cursor)
+        || facts->gender > 1 || facts->padMode > 1 || (facts->keyMask & ~243u) || facts->textKind > 2
+        || (facts->parentPhase != 1 && facts->ready) || facts->ready != !!(facts->keyMask || (facts->touchMode & 3))
+        || (facts->mode == HG_OAK_NONE && facts->ready)
+        || (facts->textKind && (!facts->textWidth || !facts->textHeight || facts->textX >= 256 || facts->textY >= 192
+            || facts->textWidth > 256-facts->textX || facts->textHeight > 192-facts->textY))) return;
+    HGNativeOakUIState next=*facts;
+    next.active=1; next.ownerGeneration=gNativeOakUIState.ownerGeneration; next.revision=gNativeOakUIState.revision;
+    if (!memcmp(&next,&gNativeOakUIState,sizeof(next))) return;
+    if (!++next.revision) ++next.revision;
+    gNativeOakUIState=next;
+}
+void NativeOakUIRetire(const void *owner) {
+    if (!owner || owner != sNativeOakOwner) return;
+    sNativeOakOwner=NULL;
+    gNativeOakUIState.active=gNativeOakUIState.ready=gNativeOakUIState.keyMask=gNativeOakUIState.touchMode=0;
+    if (!++gNativeOakUIState.revision) ++gNativeOakUIState.revision;
+}
+// Native Oak resident state end.
 
 // Native PC Box resident state begin.
 // OVY_14 restores all PC overlay data/BSS whenever it loads, including after a child app.

@@ -300,15 +300,15 @@ def pc_box_guest(report_path, audit, link, approved_report_sha256):
         'Native proof differs from the actual current canonical production module')
     shipping = wasm_exports((audit / 'engine.wasm').read_bytes())
     require(shipping_exports_passed(preparation.get('shippingExports'), shipping)
-        and wasm_exports(module.read_bytes()) == sorted([*shipping, *QA_NAMES]), 'Private exports must be exactly current production 32 plus two PC QA exports')
+        and wasm_exports(module.read_bytes()) == sorted([*shipping, *QA_NAMES]), 'Private exports must be exactly current production 33 plus two PC QA exports')
     full_path = Path(report['fullReceipt']); formal = read(full_path); full_folder = full_path.parent
     require(sha(full_path) == report.get('fullReceiptSha256') == preparation.get('fullReceiptSha256')
         and formal.get('passed') is True and formal.get('freshAuditPassed') is True and formal.get('inputsUnchanged') is True
-        and type(formal.get('actualNormalCheckKinds')) is int and formal['actualNormalCheckKinds'] == 103
+        and type(formal.get('actualNormalCheckKinds')) is int and formal['actualNormalCheckKinds'] == 104
         and normal_checks_passed(formal.get('actualNormalChecks'), formal['actualNormalCheckKinds'])
         and formal.get('shipping', {}).get('sha256') == shipping_sha256
         and shipping_exports_passed(formal.get('shipping', {}).get('exports'), shipping),
-        'Full receipt must bind the actual current production32 and 103 normal checks, including FieldMenu, Pokegear and Starter')
+        'Full receipt must bind the actual current production33 and 104 normal checks, including FieldMenu, Pokegear, Starter and Oak')
     seals = read(full_folder / 'seals-before.json')
     require(seals == read(full_folder / 'seals-after.json') and isinstance(seals.get('protected'), dict)
         and len(seals['protected']) == 45 and all(Path(name).is_absolute() and Path(name).is_file()

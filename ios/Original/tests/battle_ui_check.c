@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #define BattleSystem_GetBattlerIdsByType TargetCheckBattlerIds
 #define BattleSystem_GetBattleType BattleUICheckBattleType
+#define BattleSystem_GetSpriteSystem TutorialCheckSpriteSystem
+#define BattleSystem_GetSpriteManager TutorialCheckSpriteManager
+#define BattleSystem_GetPaletteData TutorialCheckPalette
+#define BattleSystem_GetTutorialState TutorialCheckState
+#define BattleFinger_EnableWithOffset TutorialCheckFingerEnable
+#define BattleFinger_SetTouchDelay TutorialCheckFingerDelay
+#define BattleFinger_HasTouched TutorialCheckFingerTouched
 #include "../../../src/battle/battle_input.c"
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +18,18 @@ void BattleSystem_GetBattlerIdsByType(BattleSystem *system, u8 *ids) {
     (void)system; memcpy(ids, targetIds, sizeof(targetIds)); targetLookups++;
 }
 u32 BattleSystem_GetBattleType(BattleSystem *system) { return system->battleType; }
+
+static u8 tutorialState;
+static BOOL fingerTouched;
+static unsigned fingerEnables,fingerDelays;
+static int fingerX,fingerY;
+SpriteSystem *TutorialCheckSpriteSystem(BattleSystem *system) { (void)system;return NULL; }
+SpriteManager *TutorialCheckSpriteManager(BattleSystem *system) { (void)system;return NULL; }
+PaletteData *TutorialCheckPalette(BattleSystem *system) { (void)system;return NULL; }
+u8 TutorialCheckState(BattleSystem *system) { (void)system;return tutorialState; }
+void TutorialCheckFingerEnable(BattleFinger *finger,int x,int y,fx32 offset) { (void)finger;(void)offset;fingerEnables++;fingerX=x;fingerY=y; }
+void TutorialCheckFingerDelay(BattleFinger *finger,int delay) { (void)finger;if(delay==60) fingerDelays++; }
+BOOL TutorialCheckFingerTouched(BattleFinger *finger) { (void)finger;return fingerTouched; }
 
 u32 CheckOriginalBattleUI(void) {
     {
@@ -70,7 +89,7 @@ u32 CheckOriginalBattleUI(void) {
         NativeCaptureUIInvalidate(); CHECK(!capture->active && capture->revision == 1 && capture->ownerGeneration == 1);
     }
     BattleInput input = {0}, other = {0};
-    BattleSystem system = {0}; input.battleSystem=other.battleSystem=&system;
+    BattleSystem system = {0}, otherSystem = {0}; input.battleSystem=other.battleSystem=&system;
     NativeBattleUIBind(&input);
     const HGNativeBattleUIState *state = HGNativeBattleUIGetState();
     CHECK(sizeof(*state)==65688 && offsetof(HGNativeBattleUIState,namePixels)==152
@@ -218,7 +237,7 @@ u32 CheckOriginalBattleUI(void) {
         input.tutorial.finger=NULL; system.battleType=BATTLE_TYPE_TUTORIAL;
         NativeBattleUICacheName(&input,&input.textObj[0],&targetWindow,8,MAKE_TEXT_COLOR(1,2,3));
         CHECK(sNativeTargetUI.nameWidth[0]==16 && sNativeTargetUI.namePixels[0][0]==250);
-        NativeBattleUIPoll(&input); CHECK(NativeBattleUIMode(&input)==HG_BATTLE_UI_NONE && !state->ready && !HGNativeBattleUIChoose(state->revision,0));
+        NativeBattleUIPoll(&input); CHECK(NativeBattleUIMode(&input)==HG_BATTLE_UI_TUTORIAL && !state->ready && !HGNativeBattleUIChoose(state->revision,0));
         system.battleType=0;
         NativeBattleUIBind(NULL); CHECK(NativeBattleUIMode(&input)==HG_BATTLE_UI_NONE && NativeBattleUIPoll(&input)==-1);
         NativeBattleUIBind(&input);
@@ -289,6 +308,40 @@ u32 CheckOriginalBattleUI(void) {
     NativeBattleUIBind(NULL); state = HGNativeBattleUIGetState(); CHECK(!state->active && !state->ready && !state->nameWidth[0] && !sNativeTargetUI.nameWidth[0]);
     input.tutorial.finger=NULL;
     CHECK(NativeBattleUIMode(&input)==HG_BATTLE_UI_NONE && NativeBattleUIPoll(&input)==-1 && !HGNativeBattleUIChoose(state->revision,0));
+    // Original auto callbacks continue while native player input is fail-closed, including Bag's input-free gap.
+    input.curMenuId=BATTLE_MENU_MAIN;system.battleType=BATTLE_TYPE_TUTORIAL;NativeBattleUIBind(&input);
+    CHECK(HG_BATTLE_UI_TUTORIAL==8 && state->active && state->mode==HG_BATTLE_UI_TUTORIAL && !state->ready && !state->enabledMask);
+    for (u32 mode=0;mode<20;mode++) {
+        input.curMenuId=mode;sNativeBattleChoice=5;sNativeBallPocket=TRUE;sNativeBattleReady=TRUE;
+        CHECK(NativeBattleUIPoll(&input)==-1 && sNativeBattleChoice==-1 && !sNativeBallPocket);
+        CHECK(state->mode==HG_BATTLE_UI_TUTORIAL && !state->ready && !state->enabledMask && !HGNativeBattleUIChoose(state->revision,0));
+        sNativeBallPocket=TRUE;CHECK(!HGNativeBattleUIConsumeBallPocket(&input) && !sNativeBallPocket);
+    }
+    CHECK(NativeBattleUIMode(&input)>HG_BATTLE_UI_YES_NO);
+    gNativeBattleUIState.ready=TRUE;gNativeBattleUIState.enabledMask=63;
+    for (u32 index=0;index<6;index++) CHECK(!HGNativeBattleUIChoose(state->revision,index));
+    NativeBattleUIPublish();CHECK(!state->ready && !state->enabledMask);
+    for (u32 step=0;step<2;step++) {
+        input.tutorial.substate=0;input.tutorial.state=step;fingerTouched=FALSE;
+        CHECK(BattleInput_CatchingTutorialMain(&input)==TOUCH_MENU_NO_INPUT);
+        CHECK(fingerX==(step ? 64 : 128) && fingerY==(step ? 21 : 59) && fingerEnables==step+1 && fingerDelays==step+1);
+        fingerTouched=TRUE;CHECK(BattleInput_CatchingTutorialMain(&input)==(step ? CURSOR_INPUT_MOVE_1 : CURSOR_INPUT_FIGHT));
+        CHECK(input.tutorial.state==step+1 && !input.tutorial.substate && !input.tutorial.delay && !state->ready);
+    }
+    tutorialState=1;input.tutorial.substate=input.tutorial.delay=0;fingerTouched=FALSE;
+    for (u32 tick=0;tick<61;tick++) CHECK(BattleInput_CatchingTutorialMain(&input)==TOUCH_MENU_NO_INPUT);
+    CHECK(input.tutorial.substate==1 && !input.tutorial.delay);
+    CHECK(BattleInput_CatchingTutorialMain(&input)==TOUCH_MENU_NO_INPUT && fingerX==40 && fingerY==145 && fingerEnables==3 && fingerDelays==3);
+    fingerTouched=TRUE;CHECK(BattleInput_CatchingTutorialMain(&input)==CURSOR_INPUT_BAG && !input.tutorial.substate);
+    NativeBattleUIBind(NULL);CHECK(state->active && state->mode==HG_BATTLE_UI_TUTORIAL && !state->ready && !state->enabledMask);
+    CHECK(!HGNativeBattleUIChoose(state->revision,5) && NativeBattleUIPoll(&input)==-1);
+    NativeBattleUITutorialRetire(&otherSystem);CHECK(state->active && state->mode==HG_BATTLE_UI_TUTORIAL);
+    NativeBattleUIBind(&input);CHECK(state->mode==HG_BATTLE_UI_TUTORIAL);
+    NativeBattleUITutorialRetire(&system);CHECK(!state->active && !state->mode && !state->ready && !sNativeTutorialBattleSystem);
+    input.tutorial.finger=NULL;system.battleType=0;input.curMenuId=BATTLE_MENU_MAIN;
+    input.textObj[MENUTXT_FIGHT].textObj=(void *)1;NativeBattleUIBind(&input);NativeBattleUIPoll(&input);
+    CHECK(state->active && state->mode==HG_BATTLE_UI_COMMAND && state->ready && HGNativeBattleUIChoose(state->revision,0));
+    CHECK(NativeBattleUIPoll(&input)==0);NativeBattleUIBind(NULL);
     return 0;
 }
 #ifndef HEARTGOLD_ABI32

@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 enum { HG_BATTLE_UI_NONE, HG_BATTLE_UI_COMMAND, HG_BATTLE_UI_MOVES, HG_BATTLE_UI_TARGETS, HG_BATTLE_UI_NEXT_MON,
-    HG_BATTLE_UI_KEEP_FORGET, HG_BATTLE_UI_GIVE_UP, HG_BATTLE_UI_YES_NO };
+    HG_BATTLE_UI_KEEP_FORGET, HG_BATTLE_UI_GIVE_UP, HG_BATTLE_UI_YES_NO, HG_BATTLE_UI_TUTORIAL };
 enum { HG_BATTLE_NAME_WIDTH = 256, HG_BATTLE_NAME_HEIGHT = 16 };
 typedef struct HGNativeBattleUIState {
     uint32_t active, revision, mode, ready, enabledMask, cancelRun;
@@ -19,6 +19,8 @@ typedef struct HGNativeCaptureUIState {
 } HGNativeCaptureUIState;
 
 #ifdef HEARTGOLD_NATIVE
+struct BattleSystem;
+void NativeBattleUITutorialRetire(struct BattleSystem *system);
 extern HGNativeBattleUIState gNativeBattleUIState;
 extern HGNativeCaptureUIState gNativeCaptureUIState;
 void NativeCaptureUIBegin(uint32_t species, uint32_t form);

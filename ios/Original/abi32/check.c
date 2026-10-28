@@ -1886,6 +1886,9 @@ int main(int argc,char **argv) {
     u32 starterUI=w2c_hg32_CheckNativeStarterUI(&first);
     if (starterUI) fprintf(stderr,"Native Starter UI qualification check line %u\n",starterUI);
     CHECK(!starterUI && !w2c_hg32_CheckNativeStarterUI(&second));
+    u32 oakUI=w2c_hg32_CheckNativeOakUI(&first);
+    if (oakUI) fprintf(stderr,"Native Oak UI qualification check line %u\n",oakUI);
+    CHECK(!oakUI && !w2c_hg32_CheckNativeOakUI(&second));
     u32 pcBoxUI=w2c_hg32_CheckNativePCBoxUI(&first);
     if (pcBoxUI) fprintf(stderr,"Native PC Box UI qualification check line %u\n",pcBoxUI);
     CHECK(!pcBoxUI && !w2c_hg32_CheckNativePCBoxUI(&second));

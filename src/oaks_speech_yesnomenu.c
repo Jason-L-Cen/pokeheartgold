@@ -20,6 +20,13 @@ struct OakSpeechYesNo {
     Window windows[2];
 };
 
+#ifdef HEARTGOLD_NATIVE
+u32 OakSpeechYesNo_NativeState(const OakSpeechYesNo *menu) {
+    if (!menu || !menu->sprite || !Sprite_GetDrawFlag(menu->sprite)) return 0;
+    return 1 | (menu->state == 0 ? 2 : 0) | ((u32)menu->result << 8);
+}
+#endif
+
 static void OakSpeechYesNo_CreateWindows(OakSpeechYesNo *yesnoMenu);
 static void OakSpeechYesNo_RemoveWindows(OakSpeechYesNo *yesnoMenu);
 static void OakSpeechYesNo_PrintMessageOnWindow(OakSpeechYesNo *yesnoMenu, Window *window, int msgId, int msgBank);

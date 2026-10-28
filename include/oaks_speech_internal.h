@@ -94,5 +94,8 @@ void OakSpeechYesNo_Delete(OakSpeechYesNo *yesnoMenu);
 void OakSpeechYesNo_SetBackgroundPalette(OakSpeechYesNo *yesnoMenu, int palette);
 void OakSpeechYesNo_Start(OakSpeechYesNo *yesnoMenu, int msgBank, int msgId_Yes, int msgId_No);
 int OakSpeechYesNo_Main(OakSpeechYesNo *yesnoMenu);
+#ifdef HEARTGOLD_NATIVE
+u32 OakSpeechYesNo_NativeState(const OakSpeechYesNo *yesnoMenu);
+#endif
 
 #endif // GUARD_POKEHEARTGOLD_OAKS_SPEECH_INTERNAL_H

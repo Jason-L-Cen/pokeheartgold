@@ -41,14 +41,15 @@ def main():
         tree=ast.parse((candidate/'ios/tools/check_native_pc_box.py').read_text());names={'shipping_exports_passed','normal_checks_passed'}
         functions=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in names];require(len(functions)==2,'Validator functions missing')
         scope={};exec(compile(ast.Module(body=functions,type_ignores=[]),'candidate-export-contract','exec'),scope)
-        exports=['HGNativePCBoxUIGetState','HGNativeFieldChoiceUIGetState','HGNativeTrainerCardUIGetState','HGNativeFieldMenuUIGetState','HGNativePokegearUIGetState','HGNativeStarterUIGetState',*('public'+str(i) for i in range(26))]
-        require(scope['shipping_exports_passed'](exports,sorted(exports)),'Shipping32 fixture rejected')
+        exports=['HGNativePCBoxUIGetState','HGNativeFieldChoiceUIGetState','HGNativeTrainerCardUIGetState','HGNativeFieldMenuUIGetState','HGNativePokegearUIGetState','HGNativeStarterUIGetState','HGNativeOakUIGetState',*('public'+str(i) for i in range(26))]
+        require(scope['shipping_exports_passed'](exports,sorted(exports)),'Shipping33 fixture rejected')
         require(not scope['shipping_exports_passed']([name.replace('HGNativePokegearUIGetState','missing') for name in exports],sorted(exports)),'Missing Pokegear getter accepted')
         require(not scope['shipping_exports_passed']([name.replace('HGNativeStarterUIGetState','missing') for name in exports],sorted(name.replace('HGNativeStarterUIGetState','missing') for name in exports)),'Missing Starter getter accepted')
-        checks=['CheckNativePCBoxUI','CheckOriginalSummaryUI','CheckNativeFieldChoiceUI','CheckNativeTrainerCardUI','CheckNativeFieldMenuUI','CheckNativePokegearUI','CheckNativeStarterUI']
-        require(scope['normal_checks_passed'](checks,7) and not scope['normal_checks_passed'](checks[:-1],6),'Normal Pokegear check gate')
+        require(not scope['shipping_exports_passed']([name.replace('HGNativeOakUIGetState','missing') for name in exports],sorted(name.replace('HGNativeOakUIGetState','missing') for name in exports)),'Missing Oak getter accepted')
+        checks=['CheckNativePCBoxUI','CheckOriginalSummaryUI','CheckNativeFieldChoiceUI','CheckNativeTrainerCardUI','CheckNativeFieldMenuUI','CheckNativePokegearUI','CheckNativeStarterUI','CheckNativeOakUI']
+        require(scope['normal_checks_passed'](checks,8) and not scope['normal_checks_passed'](checks[:-1],7),'Normal Pokegear check gate')
         link=(candidate/'ios/tools/check_abi32.py').read_text();section=link[link.index('def link_engine('):link.index('    result=subprocess.run',link.index('def link_engine('))]
-        symbols=re.findall(r"'-Wl,--export=([^']+)'",section);require(len(symbols)==30 and len(set(symbols))==30 and symbols.count('HGNativePokegearUIGetState')==1 and symbols.count('HGNativeStarterUIGetState')==1,'30 declared functions plus reactor memory/_initialize must be shipping32')
+        symbols=re.findall(r"'-Wl,--export=([^']+)'",section);require(len(symbols)==31 and len(set(symbols))==31 and symbols.count('HGNativePokegearUIGetState')==1 and symbols.count('HGNativeStarterUIGetState')==1 and symbols.count('HGNativeOakUIGetState')==1,'31 declared functions plus reactor memory/_initialize must be shipping33')
         for path in (candidate/'ios/tools').glob('*.py'):compile(path.read_text(),str(path),'exec')
         if args.wasi_sdk:
             wasi=['--target=wasm32-wasip1','-std=gnu11','-O2','-fwrapv','-fno-strict-aliasing','-fno-builtin-malloc','-fno-builtin-free','-fwasm-exceptions','-fexceptions','-Xclang','-disable-red-zone',
@@ -58,7 +59,7 @@ def main():
             for index,name in enumerate((*PRODUCERS,'ios/Original/tests/pokegear_ui_check.c')):
                 run([args.wasi_sdk/'bin/clang',*wasi,'-fsyntax-only',candidate/name],f'wasi-syntax-{index}.log')
         for path in owned:require(not re.search(r'[ \t]+$',path.read_text(),re.M),'Trailing whitespace '+str(path))
-        report.update(passed=True,packetBytes=48,proposedShippingExports=32,proposedNormalChecks=103,proposedPrivateObservers=34,
+        report.update(passed=True,packetBytes=48,proposedShippingExports=33,proposedNormalChecks=104,proposedPrivateObservers=35,
             actualOriginalSchedulerExecuted=True,scope='packet/header/resident scheduler execution; optional real source syntax; no module/game/App/AV',
             fixtureCards='not read by this packet check; source caches the actual registered-card mask')
     except BaseException as error:report['firstFailure']=dict(type=type(error).__name__,message=str(error))

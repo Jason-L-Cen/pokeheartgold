@@ -4,6 +4,9 @@
 
 #include "battle/battle_input.h"
 #include "battle/battle_system.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_battle_ui.h"
+#endif
 
 #include "filesystem_files_def.h"
 #include "gf_gfx_planes.h"
@@ -184,6 +187,9 @@ void BattleSystem_FreeInputForSubMenu(BattleSystem *battleSystem) {
 }
 
 void BattleSystem_FreeGraphics(BattleSystem *battleSystem) {
+#ifdef HEARTGOLD_NATIVE
+    NativeBattleUITutorialRetire(battleSystem);
+#endif
     Main_SetVBlankIntrCB(NULL, NULL);
     BattleInput_Free(battleSystem->battleInput);
     RemoveWindow(battleSystem->window);

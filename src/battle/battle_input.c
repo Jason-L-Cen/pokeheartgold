@@ -4681,6 +4681,8 @@ static BOOL BattleSystem_IsInFrontier(BattleSystem *battleSystem) {
 
 #ifdef HEARTGOLD_NATIVE
 static BattleInput *sNativeBattleInput;
+// Bag temporarily frees BattleInput; the real tutorial graphics owner outlives that handoff.
+static BattleSystem *sNativeTutorialBattleSystem;
 static HGNativeBattleUIState sNativeTargetUI;
 // Native cards: opponents on top, allies below. Original hitboxes use a different order.
 static const u8 sNativeTargetHitboxes[4] = {3, 1, 0, 2};
@@ -4689,6 +4691,7 @@ static int sNativeBattleChoice = -1;
 static BOOL sNativeBallPocket;
 
 static u32 NativeBattleUIMode(const BattleInput *input) {
+    if (sNativeTutorialBattleSystem || (input && (BattleSystem_GetBattleType(input->battleSystem) & BATTLE_TYPE_TUTORIAL))) return HG_BATTLE_UI_TUTORIAL;
     if (!input || input->tutorial.finger) return HG_BATTLE_UI_NONE;
     switch (input->curMenuId) {
     case BATTLE_MENU_MAIN_INITIAL:
@@ -4724,18 +4727,26 @@ static void NativeBattleUIInvalidate(BattleInput *input) {
 
 static void NativeBattleUIBind(BattleInput *input) {
     sNativeBattleInput = input;
+    if (input) sNativeTutorialBattleSystem = BattleSystem_GetBattleType(input->battleSystem) & BATTLE_TYPE_TUTORIAL ? input->battleSystem : NULL;
     sNativeBallPocket = FALSE;
     NativeBattleUITargetReset();
     NativeBattleUIInvalidate(input);
     NativeBattleUIPublish();
 }
 
+void NativeBattleUITutorialRetire(BattleSystem *system) {
+    if (system != sNativeTutorialBattleSystem) return;
+    sNativeTutorialBattleSystem = NULL;
+    NativeBattleUIBind(NULL);
+}
+
 static int NativeBattleUIPoll(BattleInput *input) {
     if (input != sNativeBattleInput) return -1;
     u32 mode = NativeBattleUIMode(input);
-    int choice = mode ? sNativeBattleChoice : -1;
+    int choice = mode && mode != HG_BATTLE_UI_TUTORIAL ? sNativeBattleChoice : -1;
     sNativeBattleChoice = -1;
-    sNativeBattleReady = choice == -1;
+    sNativeBattleReady = choice == -1 && mode != HG_BATTLE_UI_TUTORIAL;
+    if (mode == HG_BATTLE_UI_TUTORIAL) sNativeBallPocket = FALSE;
     NativeBattleUIPublish();
     if (choice == -1) return -1;
     // The original fight hitbox table places Cancel before the four moves.
@@ -4782,7 +4793,7 @@ static u32 NativeBattleUIName(const Window *window, u32 length, u32 textColor, u
 static void NativeBattleUITargetReset(void) { MI_CpuClear8(&sNativeTargetUI, sizeof(sNativeTargetUI)); }
 
 static void NativeBattleUICacheName(BattleInput *input, BattleInputTextObject *text, const Window *window, u32 length, u32 color) {
-    if (input != sNativeBattleInput) return;
+    if (input != sNativeBattleInput || NativeBattleUIMode(input) == HG_BATTLE_UI_TUTORIAL) return;
     BOOL twoOptions = input->curMenuId == BATTLE_MENU_YES_NO || input->curMenuId == BATTLE_MENU_KEEP_FORGET_MOVE
         || input->curMenuId == BATTLE_MENU_GIVE_UP_ON_MOVE || input->curMenuId == BATTLE_MENU_SWITCH_OR_FLEE;
     if ((input->curMenuId != BATTLE_MENU_TARGET && !twoOptions) || (twoOptions && NativeBattleUIMode(input) == HG_BATTLE_UI_NONE)) return;
@@ -4814,7 +4825,7 @@ static void NativeBattleUICacheTargets(BattleInput *input, const u8 *battlerIds,
 static void NativeBattleUIPublish(void) {
     u32 revision = gNativeBattleUIState.revision;
     u32 mode = NativeBattleUIMode(sNativeBattleInput);
-    if (mode) {
+    if (mode && mode != HG_BATTLE_UI_TUTORIAL) {
         BOOL live = FALSE;
         for (u32 i = 0; i < NELEMS(sNativeBattleInput->textObj); ++i) if (sNativeBattleInput->textObj[i].textObj != NULL) { live = TRUE; break; }
         // The original menu ID survives feedback, but its deleted FontOAM objects do not.
@@ -4823,10 +4834,10 @@ static void NativeBattleUIPublish(void) {
     BOOL twoOptions = mode >= HG_BATTLE_UI_NEXT_MON && mode <= HG_BATTLE_UI_YES_NO;
     if (mode == HG_BATTLE_UI_TARGETS || twoOptions) gNativeBattleUIState = sNativeTargetUI;
     else MI_CpuClear8(&gNativeBattleUIState, sizeof(gNativeBattleUIState));
-    gNativeBattleUIState.active = sNativeBattleInput != NULL;
+    gNativeBattleUIState.active = sNativeBattleInput != NULL || sNativeTutorialBattleSystem != NULL;
     gNativeBattleUIState.revision = revision;
     gNativeBattleUIState.mode = mode;
-    gNativeBattleUIState.ready = sNativeBattleReady && gNativeBattleUIState.mode && !sNativeBattleInput->isTouchDisabled;
+    gNativeBattleUIState.ready = sNativeBattleReady && mode && mode != HG_BATTLE_UI_TUTORIAL && sNativeBattleInput && !sNativeBattleInput->isTouchDisabled;
     if (gNativeBattleUIState.mode == HG_BATTLE_UI_COMMAND) {
         gNativeBattleUIState.enabledMask = 15 | 32;
         gNativeBattleUIState.cancelRun = sNativeBattleInput->cancelShown;
@@ -4853,7 +4864,7 @@ static void NativeBattleUIPublish(void) {
 
 u32 HGNativeBattleUIChoose(u32 revision, u32 index) {
     const HGNativeBattleUIState *state = HGNativeBattleUIGetState();
-    if (revision != state->revision || !state->ready || index >= 6 || !(state->enabledMask & (1 << index)) || sNativeBattleChoice != -1) return FALSE;
+    if (state->mode == HG_BATTLE_UI_TUTORIAL || revision != state->revision || !state->ready || index >= 6 || !(state->enabledMask & (1 << index)) || sNativeBattleChoice != -1) return FALSE;
     sNativeBattleChoice = index;
     sNativeBattleReady = FALSE;
     gNativeBattleUIState.ready = FALSE;
@@ -4862,7 +4873,7 @@ u32 HGNativeBattleUIChoose(u32 revision, u32 index) {
 
 u32 HGNativeBattleUIConsumeBallPocket(BattleInput *input) {
     if (input != sNativeBattleInput) return FALSE;
-    BOOL requested = sNativeBallPocket;
+    BOOL requested = sNativeBallPocket && NativeBattleUIMode(input) != HG_BATTLE_UI_TUTORIAL;
     sNativeBallPocket = FALSE;
     return requested;
 }
