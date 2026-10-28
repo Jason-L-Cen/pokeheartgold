@@ -213,7 +213,7 @@ def execute(root,here,args,out,copies,report,pins,base):
     from check_native_save_roundtrip import static_delta
     from prepare_overlay_state import compile_unit
     context=validate_full(args.full_receipt);require(context['fullSourceBankCurrent'],'Fresh Full must include the exact installed Map QA4')
-    shipping=context['formal']['shipping']['exports'];require(len(shipping)==31 and context['formal']['actualNormalCheckKinds']==102,'Shipping31/normal102 required')
+    shipping=context['formal']['shipping']['exports'];require(len(shipping)==32 and context['formal']['actualNormalCheckKinds']==103,'Shipping32/normal103 required')
     save=args.save.resolve();fixture=[Path(str(save)+s) for s in ('','.console','.wifi','.lock')]
     require(not args.save.is_symlink() and all(p.is_file() and not p.is_symlink() for p in fixture) and set(fixture)==set(save.parent.glob(save.name+'*')),'Exactly four original regular fixture files required')
     fixture_pins={str(p):sha(p) for p in fixture};h=context['helpers'];runner=Runner(report);guest=out/'guest';guest.mkdir();units={r['file']:r for r in context['audited']['units']};objects=list(context['objects'])
@@ -239,7 +239,7 @@ def execute(root,here,args,out,copies,report,pins,base):
         for name in LINK_WRAPS:require('-Wl,--wrap='+name not in command,'Duplicate wrap');command.insert(command.index('-o'),'-Wl,--wrap='+name)
         for name in report['privateExports']:command.insert(command.index('-o'),'-Wl,--export='+name)
         runner(command,guest/'strict-link.log');report['moduleBuilt']=True
-        require(wasm_exports(module.read_bytes())==sorted([*shipping,*report['privateExports']]),'Exactly31 public+2 private exports required');report['observerDefinitionsLinked']=True
+        require(wasm_exports(module.read_bytes())==sorted([*shipping,*report['privateExports']]),'Exactly current public+2 private exports required');report['observerDefinitionsLinked']=True
         native=out/'native';native.mkdir();support=(root/'ios/Original/abi32/pokegear_scenario_check.c').read_text();require(support.count('int main(int argc,char **argv)')==1,'Phone main identity changed')
         (native/'pokegear_map_phone_support.inc').write_text(support.replace('int main(int argc,char **argv)','static int PGMapUnusedPhoneMain(int argc,char **argv)',1))
         generated,writes,restores=h['generate_engine'](native,module,lambda argv,log:runner(argv,native/log));report['genuineGeneratedHeaderSha256']=sha(native/'hgengine.h');cflags,runtime=h['native_build_settings'](native)
@@ -285,7 +285,7 @@ def main():
         'files/battledata/script/subscript/subscript_0003_RunAway.s','files/battledata/script/subscript/subscript_0008_RunAwayFail.s','include/native_pokegear_ui.h','include/native_battle_ui.h')
     pins={str(p):sha(p) for p in [*(here/p for p in QA_PATHS),*(root/p for p in source_names)]}
     report=dict(passed=False,complete=False,commands=[],sourceHashesBefore=pins,moduleBuilt=False,gameExecuted=False,gameRuntimeExecuted=False,observerDefinitionsLinked=False,hostABICompiled=False,
-                audioOperations=False,privateExports=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureExports=33,shippingABIChanged=False,
+                audioOperations=False,privateExports=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureExports=34,shippingABIChanged=False,
                 requiredPrivateLinkWraps=list(LINK_WRAPS),Phone33DefaultCaseUnchanged=True,allCardsComplete=False)
     env={**os.environ,'HEARTGOLD_TEST_MUTE':'1','SIMCTL_CHILD_HEARTGOLD_TEST_MUTE':'1','PYTHONDONTWRITEBYTECODE':'1'}
     def run(argv,label):

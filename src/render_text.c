@@ -27,6 +27,12 @@ static BOOL TextPrinter_Continue(TextPrinter *printer);
 static BOOL TextPrinter_WaitAutoMode(TextPrinter *printer);
 static BOOL TextPrinter_WaitWithDownArrow(TextPrinter *printer);
 static u8 TextPrinter_Wait(TextPrinter *printer);
+#ifdef HEARTGOLD_NATIVE
+BOOL TextPrinterCanAcceptPageInput(const TextPrinter *printer) {
+    return printer != NULL && (printer->state == 2 || printer->state == 3 || printer->state == 7 || printer->state == 8)
+        && (!sTextFlags.autoScroll || sTextFlags.autoScrollCanSpeedUp);
+}
+#endif
 
 static BOOL TextPrinter_ContinueInputHeld(TextPrinterSubStruct *subStruct) {
     if ((gSystem.heldKeys & (PAD_BUTTON_A | PAD_BUTTON_B)) && subStruct->hasPrintBeenSpedUp) {

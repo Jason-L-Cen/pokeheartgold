@@ -19,6 +19,11 @@ C_LEDGER_CHECK=r'''
 #include "gear_phone_ring_manager.h"
 #include "save_local_field_data.h"
 #include "text.h"
+#include "render_text.h"
+#include "font.h"
+#include "system.h"
+#include "sound_playback.h"
+#include "constants/sndseq.h"
 #include "game_stats.h"
 #include "actual_expected_setters.inc"
 #include <stdio.h>
@@ -61,12 +66,56 @@ void BufferString(MessageFormat *format,u32 field,const String *value,s32 a,s32 
 static volatile GameStats statsLayoutProbe;
 #include "actual_pg_baseline.inc"
 static SysTask *sTextPrinterTasks[MAX_TEXT_PRINTERS];
+static TextFlags sTextFlags;
+static TouchscreenHitbox sTouchScreenHitbox;
+struct System gSystem;
+static unsigned pageSounds,pageClears,pageFills;
+BOOL TouchscreenHitbox_TouchNewIsIn(const TouchscreenHitbox *hitbox){assert(hitbox==&sTouchScreenHitbox);return FALSE;}
+BOOL PlaySE(u16 id){assert(id==SEQ_SE_DP_SELECT);++pageSounds;return TRUE;}
+u8 GetFontAttribute(FontID font,int attribute){assert(attribute==1);return 12;}
+void FillWindowPixelBuffer(Window *window,u8 value){assert(window);++pageFills;}
+static void TextPrinter_DrawDownArrow(TextPrinter *printer){assert(printer->template.window);}
+static void TextPrinter_ClearDownArrow(TextPrinter *printer){assert(printer->template.window);++pageClears;}
+#include "actual_pg_render_wait.inc"
 #include "actual_pg_printer_wait.inc"
+static void CheckPageWait(SysTaskQueue *queue,TextPrinter *printer,Window *window) {
+    const u8 states[]={2,3,7,8};
+    for(unsigned i=0;i<4;i++)for(unsigned key=1;key<=2;key++) {
+        printer->state=states[i];printer->callbackResult=printer->callbackParam=0;printer->active=1;
+        printer->template.window=window;printer->template.x=3;printer->template.y=4;printer->template.lineSpacing=2;
+        TextFlags_SetAutoScrollParam(AUTO_SCROLL_OFF);gSystem.newKeys=0;
+        TextPrinter before=*printer;assert(PGQAPrinterWait(queue,1,window)==2 && !memcmp(&before,printer,sizeof(before)));
+        printer->callbackResult=1;assert(!TextPrinterIsWaitingForInput(1,window));printer->callbackResult=0;
+        printer->callbackParam=1;assert(!TextPrinterIsWaitingForInput(1,window));printer->callbackParam=0;
+        assert(PGRenderTextWait(printer)==RENDER_UPDATE && printer->state==states[i]);
+        unsigned sounds=pageSounds,clears=pageClears,fills=pageFills;gSystem.newKeys=key;
+        assert(PGRenderTextWait(printer)==RENDER_UPDATE);
+        assert(printer->state==((states[i]==3 || states[i]==8) ? 4 : 0));
+        assert(printer->template.currentX==3 && pageSounds==sounds+1 && pageClears==clears+1);
+        if(states[i]==3 || states[i]==8)assert(printer->scrollDistance==14 && pageFills==fills);
+        else assert(printer->template.currentY==4 && pageFills==fills+1);
+        assert(!TextPrinterIsWaitingForInput(1,window));
+        printer->state=states[i];TextFlags_SetAutoScrollParam(AUTO_SCROLL_ENABLE);
+        TextPrinterSubStruct *sub=(TextPrinterSubStruct *)&printer->subStructFields;sub->autoScrollDelay=0;sounds=pageSounds;
+        assert(!TextPrinterIsWaitingForInput(1,window));PGRenderTextWait(printer);
+        assert(printer->state==states[i] && sub->autoScrollDelay==1 && pageSounds==sounds);
+        sub->autoScrollDelay=100;PGRenderTextWait(printer);assert(printer->state==((states[i]==3 || states[i]==8) ? 4 : 0));
+        printer->state=states[i];sub->autoScrollDelay=0;TextFlags_SetAutoScrollParam(AUTO_SCROLL_ENABLE|AUTO_SCROLL_SPEEDUP);
+        assert(TextPrinterIsWaitingForInput(1,window));PGRenderTextWait(printer);assert(printer->state==((states[i]==3 || states[i]==8) ? 4 : 0));
+    }
+    TextFlags_SetAutoScrollParam(AUTO_SCROLL_OFF);gSystem.newKeys=0;
+    for(unsigned state=0;state<10;state++)if(state!=2 && state!=3 && state!=7 && state!=8) {
+        printer->state=state;assert(!TextPrinterIsWaitingForInput(1,window));
+    }
+    printer->state=3;assert(PGQAPrinterWait(queue,1,window)==2);
+    puts("PASS: actual renderer page waits 2/3/7/8, A/B transitions, auto-scroll policy and busy/callback guards.");
+}
 int main(void) {
     assert(!statsLayoutProbe.encryptionKey);
     Window window={0},otherWindow={0};TextPrinter printer={.id=1,.active=1,.state=2};printer.template.window=&window;
     SysTaskQueue queue={.limit=4,.activeCount=1};SysTask task={.queue=&queue,.data=&printer,.next=&queue.headSentinel};queue.headSentinel.next=&task;sTextPrinterTasks[1]=&task;
-    assert(PGQAPrinterWait(&queue,1,&window)==2);printer.state=3;assert(PGQAPrinterWait(&queue,1,&window)==3);
+    assert(PGQAPrinterWait(&queue,1,&window)==2);printer.state=3;assert(PGQAPrinterWait(&queue,1,&window)==2);
+    CheckPageWait(&queue,&printer,&window);
     printer.callbackResult=1;assert(!PGQAPrinterWait(&queue,1,&window));printer.callbackResult=0;printer.callbackParam=1;assert(!PGQAPrinterWait(&queue,1,&window));printer.callbackParam=0;
     assert(!PGQAPrinterWait(&queue,2,&window) && !PGQAPrinterWait(&queue,1,&otherWindow));printer.active=0;assert(!PGQAPrinterWait(&queue,1,&window));printer.active=1;
     task.next=&task;assert(!PGQAPrinterWait(&queue,2,&window));task.next=&queue.headSentinel;
@@ -470,7 +519,7 @@ def main():
     owned=[here/'ios/tests'/name for name in ('pokegear_qa.h','pokegear_qa_guest.inc')]+[host,Path(__file__).resolve()]
     sources=[root/name for name in (*COPIES,'src/application/pokegear/phone/scripts/phone_scripts_prof_elm.c',
         'src/application/pokegear/phone/scripts/phone_scripts_mother.c','src/application/pokegear/phone/phone_script_defs.c',
-        'src/gear_phone_ring_manager.c','src/save_pokegear.c','src/game_stats.c','src/text.c','src/render_text.c','src/sys_task.c','src/sys_task_api.c','src/system.c',
+        'src/gear_phone_ring_manager.c','src/save_pokegear.c','src/game_stats.c','src/text.c','src/render_text.c','include/render_text.h','src/sys_task.c','src/sys_task_api.c','src/system.c',
         'src/application/trade_sequence/trade_sequence.c','include/sys_task.h','include/font_types_def.h','files/msgdata/msg/msg_0716.gmm','src/application/pokegear/phone/pokegear_phone_states.c',
         'src/application/pokegear/phone/pokegear_phone_contacts.c','files/tel/pmtel_book.json','src/start_menu.c','include/start_menu.h','ios/tools/npc_yesno_boot_sources.py')]
     sources += [core/name for name in (*COPIES[3:6],'include/native_pokegear_ui.h','include/application/pokegear/pokegear_internal.h')]
@@ -487,7 +536,11 @@ def main():
         save=(root/'src/save_pokegear.c').read_text();(out/'actual_gear_setters.inc').write_text('\n'.join(function(save,name) for name in ('Pokegear_SetSkin','SavePokegear_SetLastUsedApp','Pokegear_GetSkin','SavePokegear_GetLastUsedApp','Pokegear_GetRegisteredCardsArray'))+'\n')
         guest=(here/'ios/tests/pokegear_qa_guest.inc').read_text();(out/'actual_pg_baseline.inc').write_text(function(guest,'PGQABaseline')+'\n')
         (out/'actual_expected_setters.inc').write_text('\n'.join(function(guest,name) for name in ('PokegearQAExpectConfigureExit','PokegearQAExpectParentExit'))+'\n')
-        (out/'actual_pg_printer_wait.inc').write_text(function((root/'src/sys_task.c').read_text(),'SysTask_GetData')+'\n'+function((root/'src/text.c').read_text(),'TextPrinterIsWaitingForInput')+'\n'+function(guest,'PGQAPrinterWait')+'\n')
+        renderer=(root/'src/render_text.c').read_text();body=function(renderer,'RenderText')
+        page_cases=body[body.index('    case 2:'):body.index('    case 4:')]+body[body.index('    case 7:'):body.rindex('    }')]
+        render_wait='\n'.join(function(renderer,name) for name in ('TextPrinter_ContinueInputNew','TextPrinter_Continue','TextPrinter_WaitAutoMode','TextPrinter_WaitWithDownArrow','TextFlags_SetAutoScrollParam'))
+        (out/'actual_pg_render_wait.inc').write_text(render_wait+'\nstatic RenderResult PGRenderTextWait(TextPrinter *printer) { switch (printer->state) {\n'+page_cases+'\n} return RENDER_UPDATE; }\n')
+        (out/'actual_pg_printer_wait.inc').write_text(function((root/'src/sys_task.c').read_text(),'SysTask_GetData')+'\n'+function(renderer,'TextPrinterCanAcceptPageInput')+'\n'+function((root/'src/text.c').read_text(),'TextPrinterIsWaitingForInput')+'\n'+function(guest,'PGQAPrinterWait')+'\n')
         (out/'actual_pg_request.inc').write_text('\n'.join(function(guest,name) for name in ('PGQANext','NPCYNBootPublish','NPCYNBootRetire','HGNativePokegearQARequest'))+'\n')
         host_text=host.read_text();(out/'actual_pg_steps.inc').write_text(host_text[host_text.index('enum {PG_BOOT'):host_text.index('static Capture *pgCapture;')]);(out/'actual_pg_host_input.inc').write_text('\n'.join(function(host_text,name) for name in ('pgRawUp','pgPulse','pgSettle'))+'\n')
         (out/'actual_pg_host_predicates.inc').write_text('\n'.join(function(host_text,name) for name in ('pgBootEligible','pgBootSameSwitchedOwner','pgBootExitWitness','pgBootTitleExitWitness','pgMenuRetired','pgView','pgTextCanContinue'))+'\n')
@@ -516,7 +569,7 @@ def main():
         parser_self_check(report['packetLayout'],report.get('wasiGearLayout'),out)
         report.update(passed=True,complete=False,status='passed_source_contracts',originalNonblankBodiesPreserved=True,sourceCopies=list(COPIES),overlayOwnership=ownership,auditReferenceSha256=sha(audit),
             selectorAndCloneLedgerActualCExecuted=True,expectedElmScript=8,expectedScriptType=0,expectedElmRNGCalls=0,
-            privateExportsProposed=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureTotalExports=33,
+            privateExportsProposed=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureTotalExports=34,
             residentRequestAndHostInputActualCExecuted=True,residentObserverBodiesImplemented=True,hostDriverImplemented=True,
             wasiSyntaxUnits=8 if args.wasi_sdk else 0,actualWASILayoutVerified=bool(args.wasi_sdk),structuralSnapshotParserNegativesExecuted=bool(args.wasi_sdk),
             limits=['Seven source copies pass syntax; whole generated-header host ABI and game are not linked or run by source checks.',
@@ -534,7 +587,7 @@ def execute(root,here,args,out,copies,report,source_pins):
     from prepare_overlay_state import compile_unit
     context=validate_private_full(root,args.full_receipt,out)
     report.update(historicalFullBankUnchanged=context['historicalFullBankUnchanged'],historicalFullInputCount=context['historicalFullInputCount'],actualNativeInputCount=context['actualNativeInputCount'],qaAppendDelta=context['qaAppendDelta'],actualRuntimeInputBankSha256=context['actualRuntimeInputBankSha256'],fullSourceBankCurrent=context['fullSourceBankCurrent'])
-    shipping=context['formal']['shipping']['exports'];require(len(shipping)==31 and 'HGNativePokegearUIGetState' in shipping and context['formal']['actualNormalCheckKinds']==102,'Integrated Pokegear31/102 Full required')
+    shipping=context['formal']['shipping']['exports'];require(len(shipping)==32 and 'HGNativePokegearUIGetState' in shipping and context['formal']['actualNormalCheckKinds']==103,'Integrated Pokegear32/103 Full required')
     require('wasiGearLayout' in report,'Explicit --wasi-sdk required for the actual WASI byte-effect layout before execution')
     h=context['helpers'];sdk=args.wasi_sdk;guest_flags=['--target=wasm32-wasip1','-std=gnu11','-O2','-fwrapv','-fno-strict-aliasing','-fno-builtin-malloc','-fno-builtin-free','-fwasm-exceptions','-fexceptions','-Xclang','-disable-red-zone',
         '-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-DHEARTGOLD_NATIVE','-DHEARTGOLD_ABI32','-DSDK_ARM9','-DSDK_CW','-DSDK_CODE_ARM','-DSDK_TS','-D_NITRO','-DPM_KEEP_ASSERTS','-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']
@@ -557,7 +610,7 @@ def execute(root,here,args,out,copies,report,source_pins):
         module=guest/'engine.wasm';command[command.index('-o')+1]=str(module)
         qa_exports=('HGNativePokegearQAGetState','HGNativePokegearQARequest')
         for name in qa_exports:command.insert(command.index('-o'),'-Wl,--export='+name)
-        runner(command,guest/'strict-link.log');report['moduleBuilt']=True;exports=wasm_exports(module.read_bytes());require(len(exports)==33 and exports==sorted([*shipping,*qa_exports]),'Exactly shipping31+private2 required')
+        runner(command,guest/'strict-link.log');report['moduleBuilt']=True;exports=wasm_exports(module.read_bytes());require(exports==sorted([*shipping,*qa_exports]),'Exactly current shipping exports plus private2 required')
         report['observerDefinitionsLinked']=True
         native=out/'native';native.mkdir();generated,writes,restores=h['generate_engine'](native,module,lambda argv,log:runner(argv,native/log));cflags,runtime=h['native_build_settings'](native)
         cflags+=['-I',str(here/'ios/tests'),'-I',str(root/'ios/tests'),'-I',str(root/'ios/Original/abi32'),'-g','-fsanitize=address,undefined','-fno-sanitize-recover=all'];native_objects=[]

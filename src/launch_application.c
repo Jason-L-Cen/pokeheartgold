@@ -3,6 +3,7 @@
 #include "global.h"
 #ifdef HEARTGOLD_NATIVE
 #include "native_options_ui.h"
+#include "native_starter_ui.h"
 #include "native_pc_box_ui.h"
 #include "native_trainer_card_ui.h"
 #include "native_pokegear_ui.h"
@@ -704,6 +705,39 @@ void NativeOptionsUIRetire(const void *owner) {
     gNativeOptionsUIState.active = gNativeOptionsUIState.ready = 0;
     if (!++gNativeOptionsUIState.revision) ++gNativeOptionsUIState.revision;
 }
+
+// Native Starter resident state begin.
+// Keep scene identity outside the original chooser overlay's reloadable BSS.
+HGNativeStarterUIState gNativeStarterUIState;
+static const void *sNativeStarterOwner;
+
+const HGNativeStarterUIState *HGNativeStarterUIGetState(void) { return &gNativeStarterUIState; }
+
+void NativeStarterUIBegin(const void *owner) {
+    if (!owner || owner == sNativeStarterOwner) return;
+    uint32_t generation = gNativeStarterUIState.ownerGeneration + 1, revision = gNativeStarterUIState.revision + 1;
+    sNativeStarterOwner = owner;
+    gNativeStarterUIState = (HGNativeStarterUIState){ .active = 1,
+        .ownerGeneration = generation ? generation : 1, .revision = revision ? revision : 1 };
+}
+
+void NativeStarterUIPublish(const void *owner, uint32_t phase, uint32_t selection, uint32_t selectionState, uint32_t ready) {
+    if (owner != sNativeStarterOwner || !owner || gNativeStarterUIState.active != 1
+        || phase > 12 || selection >= 3 || selectionState > 2 || ready > 1 || (ready && phase != 5)) return;
+    if (gNativeStarterUIState.phase == phase && gNativeStarterUIState.selection == selection
+        && gNativeStarterUIState.selectionState == selectionState && gNativeStarterUIState.ready == ready) return;
+    gNativeStarterUIState.phase = phase; gNativeStarterUIState.selection = selection;
+    gNativeStarterUIState.selectionState = selectionState; gNativeStarterUIState.ready = ready;
+    if (!++gNativeStarterUIState.revision) ++gNativeStarterUIState.revision;
+}
+
+void NativeStarterUIRetire(const void *owner) {
+    if (!owner || owner != sNativeStarterOwner) return;
+    sNativeStarterOwner = NULL;
+    gNativeStarterUIState.active = gNativeStarterUIState.ready = 0;
+    if (!++gNativeStarterUIState.revision) ++gNativeStarterUIState.revision;
+}
+// Native Starter resident state end.
 
 // Native PC Box resident state begin.
 // OVY_14 restores all PC overlay data/BSS whenever it loads, including after a child app.

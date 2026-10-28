@@ -3,6 +3,7 @@
 #include "global.h"
 
 #include "font.h"
+#include "render_text.h"
 #include "gf_gfx_loader.h"
 #include "sys_task.h"
 
@@ -77,7 +78,7 @@ BOOL TextPrinterIsWaitingForInput(u32 printerId, const Window *window) {
     if (printerId >= MAX_TEXT_PRINTERS || window == NULL || sTextPrinterTasks[printerId] == NULL) return FALSE;
     const TextPrinter *printer = SysTask_GetData(sTextPrinterTasks[printerId]);
     return printer != NULL && printer->id == printerId && printer->template.window == window
-        && printer->active && printer->state == 2 && !printer->callbackResult && !printer->callbackParam;
+        && printer->active && TextPrinterCanAcceptPageInput(printer) && !printer->callbackResult && !printer->callbackParam;
 }
 #endif
 

@@ -33,6 +33,9 @@ typedef struct TextPrinterSubStruct {
 #define AUTO_SCROLL_SPEEDUP (1 << 1)
 
 RenderResult RenderText(TextPrinter *printer);
+#ifdef HEARTGOLD_NATIVE
+BOOL TextPrinterCanAcceptPageInput(const TextPrinter *printer);
+#endif
 void TextFlags_SetCanABSpeedUpPrint(BOOL enable);
 void TextPrinter_SetDownArrowBaseTile(int tile);
 void TextFlags_SetAutoScrollParam(int param);

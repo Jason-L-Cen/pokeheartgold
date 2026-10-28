@@ -13,6 +13,7 @@ static u16 *EvolutionCheckSubPalette(void);
 #define GetSubBgPlttAddr EvolutionCheckSubPalette
 #include "../../../src/evolution_scene.c"
 #include "../../../src/text.c"
+#include "../../../src/render_text.c"
 #include "../../../src/sys_task.c"
 #ifndef HEARTGOLD_ABI32
 #include "../../../src/palette.c"
@@ -85,6 +86,17 @@ u32 CheckOriginalEvolutionUI(void) {
     CHECK(state->ready && state->actionMask == HG_EVOLUTION_UI_ACTION_ACK && state->message.engine == 0 && state->message.clearColor == 15);
     CHECK(state->message.palette[15] == checkPalette[0][11 * 16 + 15]);
     CHECK(HGNativeEvolutionUIResolveInput(state, revision, 19, 0, 0, &keys, &x, &y) && keys == 1 && !x && !y);
+    for (u32 printerState = 0; printerState < 9; ++printerState) {
+        printer.state = printerState; NativeEvolutionUIPublish(&data);
+        BOOL canAck = printerState == 2 || printerState == 3 || printerState == 7 || printerState == 8;
+        CHECK(state->ready == canAck && state->actionMask == (canAck ? HG_EVOLUTION_UI_ACTION_ACK : 0));
+        CHECK(HGNativeEvolutionUIResolveInput(state, state->revision, 19, 0, 0, &keys, &x, &y) == canAck);
+    }
+    printer.state = 3; TextFlags_SetAutoScrollParam(1); NativeEvolutionUIPublish(&data);
+    CHECK(!state->ready && !state->actionMask && EvolutionCheckReject(state, state->revision, 19, 0, 0));
+    TextFlags_SetAutoScrollParam(3); NativeEvolutionUIPublish(&data);
+    CHECK(state->ready && HGNativeEvolutionUIResolveInput(state, state->revision, 19, 0, 0, &keys, &x, &y) && keys == 1);
+    TextFlags_SetAutoScrollParam(0); printer.state = 2; NativeEvolutionUIPublish(&data); revision = state->revision;
     NativeEvolutionUIBegin(&data);
     CHECK(!state->ready && state->revision == revision && !state->message.pixelBuffer && EvolutionCheckReject(state, revision, 19, 0, 0));
     NativeEvolutionUIPublish(&data); CHECK(state->ready && state->revision == revision);

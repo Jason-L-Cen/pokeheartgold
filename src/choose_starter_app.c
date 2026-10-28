@@ -1,4 +1,7 @@
 #include "choose_starter_app.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_starter_ui.h"
+#endif
 
 #include "global.h"
 
@@ -301,6 +304,9 @@ BOOL ChooseStarter_Init(OverlayManager *ovy, int *state_p) {
     TextFlags_SetCanABSpeedUpPrint(FALSE);
     TextFlags_SetAutoScrollParam(AUTO_SCROLL_ENABLE);
     TextFlags_SetCanTouchSpeedUpPrint(FALSE);
+#ifdef HEARTGOLD_NATIVE
+    NativeStarterUIBegin(work);
+#endif
     return TRUE;
 }
 
@@ -532,6 +538,10 @@ BOOL ChooseStarter_Main(OverlayManager *ovy, int *state) {
         }
     }
     update3dObjectsMain(work);
+#ifdef HEARTGOLD_NATIVE
+    NativeStarterUIPublish(work, *state, work->curSelection, work->state,
+        *state == CHOOSE_STARTER_STATE_HANDLE_INPUT && IsCameraTranslationFinished(work->cameraTranslation));
+#endif
     return FALSE;
 }
 
@@ -543,6 +553,9 @@ BOOL ChooseStarter_Exit(OverlayManager *ovy, int *state) {
     TextFlags_SetAutoScrollParam(AUTO_SCROLL_OFF);
     TextFlags_SetCanTouchSpeedUpPrint(FALSE);
     args->cursorPos = work->curSelection;
+#ifdef HEARTGOLD_NATIVE
+    NativeStarterUIRetire(work);
+#endif
     Main_SetVBlankIntrCB(NULL, NULL);
     DeleteCameraTranslationWrapper(work->cameraTranslation);
     Camera_Delete(work->camera);

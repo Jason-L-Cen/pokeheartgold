@@ -36,6 +36,7 @@ static void PartyCheckCopy16(const void *source, void *destination, u32 size);
 #undef AddTextPrinterParameterizedWithColor
 #undef TextPrinterCheckActive
 #include "../../../src/text.c"
+#include "../../../src/render_text.c"
 #include "../../../src/sys_task.c"
 #include "../../../src/item.c"
 #define AddTextPrinterParameterizedWithColor PartyCheckPrintText
@@ -473,6 +474,18 @@ u32 CheckOriginalPartyUI(void) {
         && HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y) && x==124 && y==168);
     CHECK(!HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_MON,0,&x,&y)
         && !HGNativePartyUIResolveTouch(state,revision,state->phase,HG_PARTY_UI_TOUCH_CANCEL,0,&x,&y));
+    for (u32 printerState=0;printerState<9;++printerState) {
+        printer.state=printerState; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits);
+        BOOL canAck=printerState==2 || printerState==3 || printerState==7 || printerState==8;
+        CHECK(state->ready==canAck && state->actionEnabledMask==(canAck ? 1 : 0));
+        CHECK(HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y)==canAck);
+    }
+    printer.state=3; TextFlags_SetAutoScrollParam(1); NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits);
+    CHECK(!state->ready && !state->actionEnabledMask
+        && !HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
+    TextFlags_SetAutoScrollParam(3); NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits);
+    CHECK(state->ready && HGNativePartyUIResolveTouch(state,state->revision,state->phase,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y) && x==124 && y==168);
+    TextFlags_SetAutoScrollParam(0); printer.state=2; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits); revision=state->revision;
     printer.callbackParam=1; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits);
     CHECK(!state->ready && state->revision>revision && !HGNativePartyUIResolveTouch(state,revision,HG_PARTY_UI_TM_MESSAGE,HG_PARTY_UI_TOUCH_ACTION,0,&x,&y));
     printer.callbackParam=0; printer.template.window=&menu.windows[PARTY_MENU_WINDOW_ID_32]; NativePartyUIPublish(&menu,HG_PARTY_UI_TM_MESSAGE,checkRosterHits); CHECK(!state->ready);
