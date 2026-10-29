@@ -127,6 +127,70 @@ static inline uint32_t HGElmEndpoint(const HGPokegearMapCardQAState *s,const HGP
         && (s->phone.coverage&127)==127;
 }
 #endif
+#ifdef HG_PG_RIVAL_EXTENSION
+#ifndef HG_PG_ELM_EXTENSION
+#error First rival continuation requires the unchanged Elm prefix
+#endif
+enum {HG_PG_RIVAL_VERSION=2,HG_PG_RIVAL_START=0x206,HG_PG_RIVAL_FINISH=0x207,HG_PG_RIVAL_CHOICE_CAP=64,
+    HG_PG_RIVAL_STAT_DIFF=11,HG_PG_RIVAL_STAT_TRUE=13,HG_PG_RIVAL_STAT_CAP=2};
+typedef struct HGPokegearFirstRivalQAState {
+    uint32_t version,byteSize,revision,error,started,done,scriptSeen;
+    uint32_t trainerLaunches,trainerReturns,battleType,battleSpecial,trainerId,trainerClass,opponentSpecies,opponentLevel;
+    uint32_t outcome,battleResult,metPasserby,rivalHidden,battleLive,playerSpecies,playerLevel;
+    uint32_t statOwner,statState,statKind,statReady,statSerial,statRetiredSerial,statWaits,statRetirements;
+} HGPokegearFirstRivalQAState;
+static const HGPokegearMapRouteSegment hgRivalSouthRoute[]={
+    {32,568,295,562,295},{128,562,295,562,299},{32,562,299,561,299},
+    {128,561,299,561,307},{32,561,307,559,307},{128,559,307,559,323},
+    {16,559,323,565,323},{128,565,323,565,333},{32,565,333,559,333},
+    {128,559,333,559,356},{32,559,356,558,356},{128,558,356,558,374},
+    {32,558,374,550,374},{128,550,374,550,385}
+};
+static const HGPokegearMapRouteSegment hgRivalCityRoute[]={
+    {128,550,385,550,396},{16,550,396,551,396},{128,551,396,551,402},
+    {32,551,402,536,402},{64,536,402,536,401},{16,536,401,542,401},
+    {64,542,401,542,394},{16,542,394,548,394},{64,548,394,548,392},
+    {16,548,392,549,392},{128,549,392,549,394},{16,549,394,564,394},
+    {128,564,394,564,400},{16,564,400,575,400}
+};
+static inline uint32_t HGRivalMapAllowed(const HGPokegearMapCardQAState *s,const HGPokegearMrPokemonQAState *m,const HGPokegearFirstRivalQAState *q) {
+    return q && q->started ? s && s->done && s->cards==1 && s->scene>=3 && s->scene<=4 && (s->mapId==34 || s->mapId==67)
+        : HGMrMapAllowed(s,m);
+}
+static inline uint32_t HGRivalTextQualified(const HGPokegearMapCardQAState *s,const HGPokegearMrPokemonQAState *m,const HGPokegearFirstRivalQAState *q,uint32_t id,uint32_t serial) {
+    return HGMrTextQualified(s,m,id,serial) || (s && q && q->started && !q->done && !q->error && s->started && s->done && !s->error
+        && s->mapId==67 && s->scene==3 && s->scriptActive && id==4 && s->scriptId==id && (s->scriptWait==2 || s->scriptWait==3)
+        && serial && serial==s->scriptSerial && !q->battleLive && !s->battleLive && !s->phone.ui.active && !s->phone.ringActive);
+}
+static inline uint32_t HGRivalChoiceReady(const HGNativeBattleUIState *ui,uint32_t choices,uint32_t lastRevision) {
+    return ui && ui->active==1 && ui->ready==1 && ui->revision && ui->revision!=lastRevision && (ui->enabledMask&1)
+        && choices<HG_PG_RIVAL_CHOICE_CAP && (ui->mode==HG_BATTLE_UI_COMMAND || (ui->mode==HG_BATTLE_UI_MOVES && ui->move[0]==33 && ui->pp[0]>0));
+}
+static inline uint32_t HGRivalStatLease(const HGPokegearFirstRivalQAState *q,uint32_t owner,uint32_t state,uint32_t kind,uint32_t serial) {
+    return q && q->started && !q->done && !q->error && q->battleLive && q->statReady==1 && owner && serial
+        && q->statOwner==owner && q->statState==state && q->statKind==kind && q->statSerial==serial
+        && (kind==1 ? state==HG_PG_RIVAL_STAT_DIFF : kind==2 && state==HG_PG_RIVAL_STAT_TRUE);
+}
+static inline uint32_t HGRivalStatReady(const HGPokegearFirstRivalQAState *q,const HGNativeBattleUIState *ui,uint32_t lastSerial) {
+    return q && ui && ui->mode==HG_BATTLE_UI_NONE && !ui->ready && q->statSerial!=lastSerial
+        && q->statWaits<=HG_PG_RIVAL_STAT_CAP && HGRivalStatLease(q,q->statOwner,q->statState,q->statKind,q->statSerial);
+}
+static inline uint32_t HGRivalEndpoint(const HGPokegearMapCardQAState *s,const HGPokegearMrPokemonQAState *m,const HGPokegearFirstRivalQAState *q) {
+    return s && m && q && q->started && !q->error && !s->error && !m->error && m->done && HGMapStationary(s)
+        && !s->scriptActive && !s->battleLive && !q->battleLive && !s->phone.ui.active && !s->phone.ringActive
+        && s->mapId==67 && s->x==575 && s->z==399 && s->facing==2 && s->cards==1 && s->scene==4 && s->lastApp==3
+        && s->parentEntries==2 && s->parentExits==2 && s->phone.coverage==255 && s->phone.callCompletions==1
+        && m->routeScene==3 && m->houseScene==1 && m->mysteryEgg==1 && m->pokedexEnabled==1 && m->oakRegistered==1
+        && q->scriptSeen==1 && q->trainerLaunches==1 && q->trainerReturns==1 && q->battleType==0x801 && !q->battleSpecial
+        && q->trainerId==496 && q->trainerClass==119 && q->opponentSpecies==155 && q->opponentLevel==5
+        && q->playerSpecies==152 && q->playerLevel==5 && (q->outcome==1 || q->outcome==2) && q->battleResult==q->outcome
+        && q->metPasserby==1 && q->rivalHidden==1 && !q->statReady && !q->statOwner
+        && (q->outcome==2 ? !q->statWaits && !q->statRetirements
+            : q->statWaits==2 && q->statRetirements==2 && q->statRetiredSerial==q->statSerial);
+}
+const HGPokegearFirstRivalQAState *HGNativeFirstRivalQAGetState(void);
+void HGNativeFirstRivalQAStatWaitObserved(const void *owner,uint32_t state,uint32_t kind,uint32_t ready);
+#endif
 #ifdef HG_POKEGEAR_QA_GUEST
 struct FieldSystem;
 void PokegearQAFieldObserved(struct FieldSystem *field);

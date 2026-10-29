@@ -3,6 +3,9 @@
 #if defined(HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE) && !defined(HEARTGOLD_ORIGINAL_APP_CHECK)
 #error "No-audio-device output is available only in CHECK builds"
 #endif
+#if defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK) && (!defined(HEARTGOLD_ORIGINAL_APP_CHECK) || !defined(HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE))
+#error "Elm UIKit story CHECK requires the no-audio-device build"
+#endif
 #ifndef HEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE
 #import <AVFAudio/AVFAudio.h>
 #endif
@@ -212,11 +215,14 @@ static uint32_t OriginalBattleMenuKind(const HGNativeBattleBagUIState *bag, cons
 
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
 #include "../Original/NativeAudioCheck.h"
-#if !defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK) && !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+#if !defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK) && !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK) && !defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
 #include "../tests/battle_menus_qa.h"
 #endif
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
 #include "../tests/pc_box_qa.h"
+#endif
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+#include "pokegear_map_card_qa.h"
 #endif
 #ifdef HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK
 #include "../tests/summary_learn_guest.inc"
@@ -383,12 +389,12 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 @property(nonatomic,readonly) CGPoint location;
 @property(nonatomic,readonly) BOOL pressed;
 @property(nonatomic,readonly) BOOL cancelled;
-#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+#if defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK) || defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
 - (void)checkPCBoxEventAt:(CGPoint)point pressed:(BOOL)pressed;
 #endif
 @end
 @implementation OriginalJoystick
-#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+#if defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK) || defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
 - (void)checkPCBoxEventAt:(CGPoint)point pressed:(BOOL)pressed {
     _location=point; _pressed=pressed; _cancelled=NO;
     [self sendActionsForControlEvents:UIControlEventValueChanged];
@@ -601,6 +607,16 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     uint32_t _frameBuffer, _lastFrame, _preferredViewWidth, _preferredBattleWidth, _frameWidth, _frameEngine, _displayedWidth, _displayedEngine, _fieldMapId;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     uint32_t _publishedFrames, _bootCount, _bootFrameBase, _checkedBootParameter;
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    NSData *_elmQAState,*_elmMrState,*_elmOwnerQAState,*_elmOwnerMrState,*_displayedElmQAState,*_displayedElmMrState;
+    NSData *_elmRequestExpected,*_elmRequestMrExpected;
+    uint32_t _elmPadReads,_elmOwnerFrame,_elmPublishedFrame,_elmDisplayedPadReads,_elmDisplayedOwnerFrame,_elmDisplayedPublishedFrame;
+    uint32_t _elmRequestKind,_elmRequestSerial,_elmRequestCompleted;
+    BOOL _elmRequestPending,_elmRequestAccepted;
+    uint32_t _elmInputPhase,_elmInputKey,_elmInputReads,_elmInputReleaseReads,_elmInputSettledReads,_elmInputHeld,_elmInputError,_elmInputX,_elmInputY;
+    BOOL _elmInputTouch;
+    NSMutableDictionary *_elmCheckRuntime;
+#endif
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     NSData *_pcBoxQAState,*_displayedPCBoxQAState,*_pcBoxQARequestExpected;
     uint32_t _pcBoxQAPadReads,_displayedPCBoxQAPadReads,_pcBoxQAOwnerFrame,_displayedPCBoxQAOwnerFrame;
@@ -718,6 +734,17 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 - (void)pokedexGesture:(UIPanGestureRecognizer *)gesture;
 - (NSString *)pokedexLabelForRole:(uint32_t)role index:(uint32_t)index state:(const HGNativePokedexUIState *)state visual:(BOOL)visual;
 @end
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+@interface OriginalController (ElmPanicCallUIKitCheck)
+- (BOOL)readElmQAOwner:(HGPokegearMapCardQAState *)qa mr:(HGPokegearMrPokemonQAState *)mr;
+- (void)clearElmCheckTransientLocked:(BOOL)interrupted;
+- (void)processElmQARequestOwnerLocked:(const HGPokegearMapCardQAState *)qa mr:(const HGPokegearMrPokemonQAState *)mr idle:(BOOL)idle;
+- (void)observeElmInputOwnerLocked:(uint32_t)reads keys:(uint32_t)keys x:(uint32_t)x y:(uint32_t)y pressed:(BOOL)pressed;
+- (void)beginElmUIKitCheck;
+- (void)checkElmUIKitDisplay;
+- (void)finishElmUIKitCheck:(NSString *)status;
+@end
+#endif
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
 @interface OriginalController (PCBoxUIKitCheck)
 - (BOOL)readPCBoxQAOwner:(HGPCBoxQAState *)qa;
@@ -730,7 +757,7 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 - (void)finishPCBoxUIKitCheck:(NSString *)status;
 @end
 #endif
-#if defined(HEARTGOLD_ORIGINAL_APP_CHECK) && !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+#if defined(HEARTGOLD_ORIGINAL_APP_CHECK) && !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK) && !defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
 @interface OriginalController (Checks)
 #ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
 - (BOOL)captureRegistrationInputIdleLocked;
@@ -1096,7 +1123,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [notifications addObserver:self selector:@selector(audioRouteChanged:) name:AVAudioSessionRouteChangeNotification object:nil];
 #endif
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-#if defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+#if defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
+    [self beginElmUIKitCheck];
+#elif defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
     [self beginPCBoxUIKitCheck];
 #elif defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK)
     [self checkCaptureRegistrationCase];
@@ -3634,6 +3663,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)updatePauseLocked {
     _paused = _inactive || _interrupted;
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    if (_paused) [self clearElmCheckTransientLocked:YES];
+#endif
     if (_paused) { _keys = _pendingKeys = _submittedKeys = _joystickKeys = _pendingJoystickKeys = _submittedJoystickKeys = 0; _joystickNeedsReset = YES; _touchPressed = NO; _battleChoicePending = _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; } else [_condition signal];
     if (_paused) {
         [self clearStartMenuInputLocked];
@@ -3696,6 +3728,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 }
 - (void)stop {
     [_condition lock];
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    [self clearElmCheckTransientLocked:NO];
+#endif
     [self clearStartMenuInputLocked];
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     [self clearPCBoxCheckTransientLocked:NO];
@@ -3733,6 +3768,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     NSData *pcQAAtRead=_pcBoxQAState;
     uint32_t pcPadAtRead=_pcBoxQAPadReads,pcOwnerFrameAtRead=_pcBoxQAOwnerFrame,pcPublishedAtRead=_pcBoxQAPublishedFrame;
+#endif
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    NSData *elmQAAtRead=_elmQAState,*elmMrAtRead=_elmMrState;
+    uint32_t elmPadAtRead=_elmPadReads,elmOwnerAtRead=_elmOwnerFrame,elmPublishedAtRead=_elmPublishedFrame;
 #endif
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     uint32_t checkFrameAtRead=_publishedFrames;
@@ -3878,7 +3917,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (failure) { _status.text = failure; _status.hidden = NO; }
     else if (interrupted) { _status.text = ended ? @"已暂停，点开始继续" : @"声音中断，已暂停"; _status.hidden = NO; }
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-#if defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+#if defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
+    _displayedElmQAState=elmQAAtRead;_displayedElmMrState=elmMrAtRead;
+    _elmDisplayedPadReads=elmPadAtRead;_elmDisplayedOwnerFrame=elmOwnerAtRead;_elmDisplayedPublishedFrame=elmPublishedAtRead;
+    [self checkElmUIKitDisplay];
+#elif defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
     _displayedPCBoxQAState=pcQAAtRead; _displayedPCBoxQAPadReads=pcPadAtRead;
     _displayedPCBoxQAOwnerFrame=pcOwnerFrameAtRead; _pcBoxQADisplayedPublishedFrame=pcPublishedAtRead;
     [self checkPCBoxUIKitDisplay];
@@ -4320,6 +4363,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL startMenuView=startMenuContext && OriginalStartMenuHasView(currentStartMenu);
     BOOL startMenuBlocksInput=startMenuContext && OriginalStartMenuBlocksInput(currentStartMenu);
     uint32_t fieldMap=w2c_hgengine_HGNativeFieldMap(_game);
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    HGPokegearMapCardQAState elmOwnerQA={0};HGPokegearMrPokemonQAState elmOwnerMr={0};
+    if (![self readElmQAOwner:&elmOwnerQA mr:&elmOwnerMr]) {
+        [_condition lock];_failure=@"Private Elm observer failed";_stopping=YES;[_condition unlock];
+    }
+#endif
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     HGPCBoxQAState pcOwnerQA={0};
     if (![self readPCBoxQAOwner:&pcOwnerQA]) {
@@ -4333,6 +4382,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     [_condition lock];
     [self acknowledgeKeysLocked:HGNativeInputPadReads(_env)];
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    _elmOwnerQAState=[NSData dataWithBytes:&elmOwnerQA length:sizeof(elmOwnerQA)];
+    _elmOwnerMrState=[NSData dataWithBytes:&elmOwnerMr length:sizeof(elmOwnerMr)];
+#endif
     if (catchingTutorial || _catchingTutorialOwnedInputs) [self clearCatchingTutorialInputLocked];
     _catchingTutorialOwnedInputs=catchingTutorial;
     const HGNativePokegearUIState *oldPokegear=_pokegearRawUIState.length==sizeof(*oldPokegear) ? _pokegearRawUIState.bytes : NULL;
@@ -4602,6 +4655,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     [self observePCBoxCheckPulseOwnerLocked:&pcOwnerQA reads:HGNativeInputPadReads(_env) keys:&keys pressed:pressed];
 #endif
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    [self processElmQARequestOwnerLocked:&elmOwnerQA mr:&elmOwnerMr idle:!keys && !pressed];
+    [self observeElmInputOwnerLocked:HGNativeInputPadReads(_env) keys:keys x:x y:y pressed:pressed];
+#endif
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     BOOL checkReset=_checkResetPending; _checkResetPending=NO;
 #if defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK)
@@ -4612,7 +4669,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #elif defined(HEARTGOLD_ORIGINAL_SUMMARY_TM_CHECK)
     BOOL summaryTMRequest=_summaryTMRequestPending,summaryTMIdle=!captureContext && [self summaryTMInputIdleLocked] && !keys && !pressed;
     uint32_t summaryTMRevision=_summaryTMRequestRevision; _summaryTMRequestPending=NO; _summaryTMFixturePreparing=summaryTMRequest;
-#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK) && !defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
     BOOL checkBattleMenusRequest=_checkBattleMenusRequestPending; uint32_t checkBattleMenusRevision=_checkBattleMenusRequestRevision; _checkBattleMenusRequestPending=NO;
 #endif
 #endif
@@ -4638,7 +4695,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (!valid) _summaryTMFixtureError=@"fixture_request_no_longer_ready";
         [_condition lock]; _summaryTMRequestAccepted=accepted; _summaryTMFixturePreparing=NO; [_condition unlock];
     }
-#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK) && !defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
     if (checkBattleMenusRequest && !stopping && !captureContext) {
         BOOL accepted=w2c_hgengine_HGNativeBattleMenusQARequest(_game,checkBattleMenusRevision)!=0;
         [_condition lock]; _checkBattleMenusRequestAccepted=accepted; [_condition unlock];
@@ -4679,6 +4736,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSData *captureUI = [NSData dataWithBytes:currentCapture length:sizeof(*currentCapture)];
     NSData *pokedexUI = [NSData dataWithBytes:currentPokedex length:sizeof(*currentPokedex)];
     NSData *battleBagUI=[NSData dataWithBytes:currentBattleBag length:sizeof(*currentBattleBag)],*battlePartyUI=[NSData dataWithBytes:currentBattleParty length:sizeof(*currentBattleParty)];
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    HGPokegearMapCardQAState elmRenderQA={0};HGPokegearMrPokemonQAState elmRenderMr={0};
+    BOOL elmRenderObserved=[self readElmQAOwner:&elmRenderQA mr:&elmRenderMr];
+#endif
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
 #if defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK)
     HGNativeCaptureQAState publishedCapture={0}; [self readCaptureRegistrationQA:&publishedCapture];
@@ -4689,7 +4750,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSDictionary *summaryTMFacts=[self summaryTMCurrentFacts];
     UIImage *summaryTMWarning=haveTM && publishedTM.owner==HG_SUMMARY_LEARN_SUMMARY && publishedTM.graphicsReady && currentSummary->ready
         ? [self summaryTMWarningImage:&publishedTM.hmWarning] : nil;
-#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK) && !defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
     uint32_t qaAddress=w2c_hgengine_HGNativeBattleMenusQAGetState(_game);
     if (!qaAddress || qaAddress>_env->memory->size || sizeof(HGNativeBattleMenusQAState)>_env->memory->size-qaAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeBattleMenusQAState *qa=(const HGNativeBattleMenusQAState *)(_env->memory->data+qaAddress);
@@ -4927,6 +4988,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         && !memcmp(&pcPublishedQA.naming,currentNaming,sizeof(*currentNaming));
     NSData *pcQAData=pcQACoherent ? [NSData dataWithBytes:&pcPublishedQA length:sizeof(pcPublishedQA)] : nil;
 #endif
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    HGPokegearMapCardQAState elmPublishedQA={0};HGPokegearMrPokemonQAState elmPublishedMr={0};
+    BOOL elmCoherent=elmRenderObserved && [self readElmQAOwner:&elmPublishedQA mr:&elmPublishedMr]
+        && !memcmp(&elmRenderQA,&elmPublishedQA,sizeof(elmPublishedQA)) && !memcmp(&elmRenderMr,&elmPublishedMr,sizeof(elmPublishedMr))
+        && !memcmp(&elmPublishedQA.phone.ui,currentPokegear,sizeof(*currentPokegear));
+    NSData *elmQAData=elmCoherent ? [NSData dataWithBytes:&elmPublishedQA length:sizeof(elmPublishedQA)] : nil;
+    NSData *elmMrData=elmCoherent ? [NSData dataWithBytes:&elmPublishedMr length:sizeof(elmPublishedMr)] : nil;
+#endif
 #ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
     BOOL paletteFadeFinished=w2c_hgengine_IsPaletteFadeFinished(_game)!=0;
 #endif
@@ -4943,6 +5012,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     _pcBoxQAState=pcQAData; _pcBoxQAPadReads=HGNativeInputPadReads(_env);
     _pcBoxQAOwnerFrame=OS_GetVBlankCount(); _pcBoxQAPublishedFrame=_publishedFrames+1;
+#endif
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+    _elmQAState=elmQAData;_elmMrState=elmMrData;_elmPadReads=HGNativeInputPadReads(_env);
+    _elmOwnerFrame=OS_GetVBlankCount();_elmPublishedFrame=_publishedFrames+1;
 #endif
     _evolutionUIState=evolutionUI; _evolutionPictures=evolutionPictures;
     _oakUIState=oakUI;_oakPictures=oakPictures;_oakFrameTouchEngine=oakFrameTouchEngine;
@@ -4974,7 +5047,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     _summaryTMQAState=summaryTMData; _summaryTMFacts=summaryTMFacts; _summaryTMHMWarningImage=summaryTMWarning;
     _summaryTMPadReads=HGNativeInputPadReads(_env); _summaryTMBootInputStep=_summaryTMBootStep; _summaryTMBootInputFrame=_summaryTMBootFrame;
-#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+#elif !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK) && !defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
     _battleMenusQAState=battleMenusQA;
 #ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK
     _paletteFadeFinished=paletteFadeFinished;
@@ -4984,7 +5057,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     [_condition unlock];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-#if !defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK) && !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
+#if !defined(HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK) && !defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK) && !defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
     [self checkPrivatePartyPublished:partyUI pictures:partyPictures frame:_publishedFrames];
 #endif
     tracePublished=YES;
@@ -5116,7 +5189,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                 free(_game); free(_env); _game = NULL; _env = NULL;
                 for (unsigned i = 0; i < 3; i++) if (_wasi->fds[i] >= 0) close(_wasi->fds[i]);
                 free(_wasi); _wasi = NULL;
-                [_condition lock]; BOOL restart = !_stopping && !_failure; [_condition unlock];
+                [_condition lock]; BOOL restart = !_stopping && !_failure;
+#ifdef HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK
+                [self clearElmCheckTransientLocked:restart];_elmQAState=_elmMrState=_elmOwnerQAState=_elmOwnerMrState=nil;
+                if (restart) {_failure=@"Private Elm case reset before its normal stop";_stopping=YES;restart=NO;}
+#endif
+                [_condition unlock];
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
                 if (restart) {
                     [_condition lock]; [self clearPCBoxCheckTransientLocked:YES];
@@ -5354,7 +5432,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #include "pokedex_ui.inc"
 
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
-#ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
+#if defined(HEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK)
+#include "../tests/elm_panic_call_uikit_check.inc"
+#elif defined(HEARTGOLD_ORIGINAL_PC_BOX_CHECK)
 #include "../tests/pc_box_uikit_check.inc"
 #else
 #ifdef HEARTGOLD_ORIGINAL_DEFAULT_CHECK

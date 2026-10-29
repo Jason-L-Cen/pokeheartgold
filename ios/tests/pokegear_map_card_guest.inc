@@ -154,6 +154,45 @@ void PokegearQACallCompleted(const PokegearPhoneAppData *phone) {
     sPGElmCall=NULL;++sPGQA.callCompletions;sPGQA.callAwaitHangup=0;sPGQA.callTextWait=0;sPGQA.coverage|=HG_PG_ELM_COMPLETED;
 }
 #endif
+#ifdef HG_PG_RIVAL_EXTENSION
+#include "constants/trainers.h"
+#include "constants/trainer_class.h"
+static HGPokegearFirstRivalQAState sPGRival={.version=HG_PG_RIVAL_VERSION,.byteSize=sizeof(HGPokegearFirstRivalQAState),.revision=1};
+static const BattleSetup *sPGRivalBattle;
+static uint32_t sPGRivalPending;
+static BOOL PGRivalRunning(void) {return sPGRival.started && !sPGRival.done;}
+void HGNativeFirstRivalQAStatWaitObserved(const void *owner,uint32_t state,uint32_t kind,uint32_t ready) {
+    if(!PGRivalRunning() || !sPGRival.battleLive)return;
+    uint32_t token=(uint32_t)(uaddr)owner;
+    if(!kind){if(token==sPGRival.statOwner){sPGRival.statReady=0;sPGRival.statOwner=0;sPGRival.statState=state;sPGRival.statKind=0;}return;}
+    PGMAP_REQUIRE(token && (kind==1 ? state==HG_PG_RIVAL_STAT_DIFF : kind==2 && state==HG_PG_RIVAL_STAT_TRUE));
+    if(ready){
+        if(!sPGRival.statReady){
+            PGMAP_REQUIRE(sPGRival.statWaits<HG_PG_RIVAL_STAT_CAP && kind==sPGRival.statWaits+1);
+            sPGRival.statSerial=PGQANext(sPGRival.statSerial);++sPGRival.statWaits;
+        } else PGMAP_REQUIRE(sPGRival.statOwner==token && sPGRival.statState==state && sPGRival.statKind==kind);
+        sPGRival.statOwner=token;sPGRival.statState=state;sPGRival.statKind=kind;sPGRival.statReady=1;
+    } else {
+        PGMAP_REQUIRE(HGRivalStatLease(&sPGRival,token,state,kind,sPGRival.statSerial));
+        sPGRival.statReady=0;sPGRival.statRetiredSerial=sPGRival.statSerial;++sPGRival.statRetirements;
+    }
+    sPGRival.revision=PGQANext(sPGRival.revision);
+}
+static void PGRivalFieldObserved(FieldSystem *field) {
+    SaveVarsFlags *flags=Save_VarsFlags_Get(field->saveData);
+    sPGRival.revision=PGQANext(sPGRival.revision);
+    sPGRival.battleResult=*Save_VarsFlags_GetVarAddr(flags,VAR_BATTLE_RESULT);
+    sPGRival.metPasserby=Save_VarsFlags_CheckFlagInArray(flags,FLAG_MET_PASSERBY_BOY);
+    sPGRival.rivalHidden=Save_VarsFlags_CheckFlagInArray(flags,FLAG_HIDE_CHERRYGROVE_RIVAL);
+    if(PGRivalRunning() && sPGMap.mapId==67 && sPGMap.scene==3 && sPGMap.scriptActive && sPGMap.scriptId==4)sPGRival.scriptSeen=1;
+    if(!sPGRivalPending || !HGMapStationary(&sPGMap))return;
+    uint32_t request=sPGRivalPending;sPGRivalPending=0;
+    if(request==HG_PG_RIVAL_START){PGMAP_REQUIRE(HGElmEndpoint(&sPGMap,&sPGMr) && sPGQA.coverage==255
+        && !sPGRival.started && !sPGRival.metPasserby && !sPGRival.rivalHidden);sPGRival.started=1;}
+    else if(request==HG_PG_RIVAL_FINISH){PGMAP_REQUIRE(HGRivalEndpoint(&sPGMap,&sPGMr,&sPGRival));sPGRival.done=1;}
+}
+const HGPokegearFirstRivalQAState *HGNativeFirstRivalQAGetState(void) {return &sPGRival;}
+#endif
 static uint32_t PGMapTextWait(FieldSystem *field,uint32_t *script,uaddr *textToken) {
     *script=0;*textToken=0;
     if(!field || !field->taskman || field->taskman->func!=Task_RunScripts || !field->bgConfig
@@ -161,7 +200,11 @@ static uint32_t PGMapTextWait(FieldSystem *field,uint32_t *script,uaddr *textTok
     ScriptEnvironment *env=TaskManager_GetEnvironment(field->taskman);
     if(!env || env->check!=Unk80_10_C_MAGIC || env->state!=1 || !env->activeScriptContextCount || env->activeScriptContextCount>3)return 0;
     *script=env->activeScriptNumber;
-    if((*script!=2 && *script!=3) || !env->msgWindowOpen || env->activeMovementCounter || !env->window.pixelBuffer
+    if((*script!=2 && *script!=3
+#ifdef HG_PG_RIVAL_EXTENSION
+        && !(*script==4 && PGRivalRunning() && field->location && field->location->mapId==67 && sPGMap.scene==3)
+#endif
+        ) || !env->msgWindowOpen || env->activeMovementCounter || !env->window.pixelBuffer
         || env->window.bgConfig!=field->bgConfig || !env->window.width || !env->window.height)return 0;
     ScriptContext *ctx=env->scriptContexts[0];
 #ifdef HG_PG_MR_EXTENSION
@@ -186,7 +229,11 @@ void PokegearQAFieldObserved(FieldSystem *field) {
     sPGMapLastWait=sPGMap.scriptWait;sPGMapLastTextToken=textToken;
     if(sPGMap.started) {
 #ifdef HG_PG_MR_EXTENSION
+#ifdef HG_PG_RIVAL_EXTENSION
+        PGMAP_REQUIRE(HGRivalMapAllowed(&sPGMap,&sPGMr,&sPGRival));
+#else
         PGMAP_REQUIRE(HGMrMapAllowed(&sPGMap,&sPGMr));
+#endif
 #else
         PGMAP_REQUIRE((sPGMap.mapId==33 || sPGMap.mapId==67) && sPGMap.cards<=1 && sPGMap.scene<=2);
 #endif
@@ -198,6 +245,9 @@ void PokegearQAFieldObserved(FieldSystem *field) {
 #endif
 #ifdef HG_PG_ELM_EXTENSION
     PGElmFieldObserved();
+#endif
+#ifdef HG_PG_RIVAL_EXTENSION
+    PGRivalFieldObserved(field);
 #endif
     if(!sPGMapPending || !HGMapStationary(&sPGMap))return;
     uint32_t request=sPGMapPending;sPGMapPending=0;
@@ -235,9 +285,33 @@ void PokegearQAParentExitObserved(const PokegearAppData *owner) {
 }
 void __real_Battle_LaunchApp(FieldSystem *field,BattleSetup *setup);
 void __wrap_Battle_LaunchApp(FieldSystem *field,BattleSetup *setup) {
+#ifdef HG_PG_RIVAL_EXTENSION
+    if(PGRivalRunning() && setup && setup->battleType) {
+        if(!field || field!=sPGQAField || sPGRivalBattle || sPGMapBattle || sPGRival.trainerLaunches || !sPGRival.scriptSeen
+            || sPGMap.mapId!=67 || sPGMap.scene!=3 || sPGMap.x!=575 || sPGMap.z!=400
+            || setup->battleType!=(BATTLE_TYPE_TRAINER|BATTLE_TYPE_11) || setup->battleSpecial
+            || setup->trainerId[1]!=TRAINER_PASSERBY_BOY_2 || setup->trainer[1].data.trainerClass!=TRAINERCLASS_PASSERBY
+            || !setup->party[0] || !setup->party[1] || Party_GetCount(setup->party[0])!=1 || Party_GetCount(setup->party[1])!=1) {
+            if(!sPGMap.error)sPGMap.error=__LINE__;
+        } else {
+            Pokemon *player=Party_GetMonByIndex(setup->party[0],0),*opponent=Party_GetMonByIndex(setup->party[1],0);
+            sPGRival.playerSpecies=GetMonData(player,MON_DATA_SPECIES,NULL);sPGRival.playerLevel=GetMonData(player,MON_DATA_LEVEL,NULL);
+            sPGRival.opponentSpecies=GetMonData(opponent,MON_DATA_SPECIES,NULL);sPGRival.opponentLevel=GetMonData(opponent,MON_DATA_LEVEL,NULL);
+            if(sPGRival.playerSpecies!=152 || sPGRival.playerLevel!=5 || sPGRival.opponentSpecies!=155 || sPGRival.opponentLevel!=5) {
+                if(!sPGMap.error)sPGMap.error=__LINE__;
+            } else {sPGRivalBattle=setup;sPGRival.battleType=setup->battleType;sPGRival.battleSpecial=setup->battleSpecial;
+                sPGRival.trainerId=setup->trainerId[1];sPGRival.trainerClass=setup->trainer[1].data.trainerClass;
+                sPGRival.battleLive=1;++sPGRival.trainerLaunches;}
+        }
+        __real_Battle_LaunchApp(field,setup);return;
+    }
+#endif
     if(sPGMap.started && !sPGMap.done
 #ifdef HG_PG_MR_EXTENSION
         || (sPGMap.started && PGMrRunning())
+#endif
+#ifdef HG_PG_RIVAL_EXTENSION
+        || (sPGMap.started && PGRivalRunning())
 #endif
         ) {
         if(!field || field!=sPGQAField || !setup || sPGMapBattle || setup->battleType || setup->battleSpecial) {
@@ -249,6 +323,12 @@ void __wrap_Battle_LaunchApp(FieldSystem *field,BattleSetup *setup) {
 }
 void __real_BattleSetup_Delete(BattleSetup *setup);
 void __wrap_BattleSetup_Delete(BattleSetup *setup) {
+#ifdef HG_PG_RIVAL_EXTENSION
+    if(setup && setup==sPGRivalBattle) {
+        sPGRival.outcome=setup->winFlag;sPGRivalBattle=NULL;sPGRival.battleLive=0;++sPGRival.trainerReturns;
+        if(setup->winFlag!=BATTLE_OUTCOME_WIN && setup->winFlag!=BATTLE_OUTCOME_LOSE && !sPGMap.error)sPGMap.error=__LINE__;
+    }
+#endif
     if(setup && setup==sPGMapBattle) {
         sPGMap.battleOutcome=setup->winFlag;sPGMapBattle=NULL;sPGMap.battleLive=0;++sPGMap.battleReturns;
         if(setup->winFlag!=BATTLE_OUTCOME_PLAYER_FLED && !sPGMap.error)sPGMap.error=__LINE__;
@@ -258,6 +338,14 @@ void __wrap_BattleSetup_Delete(BattleSetup *setup) {
 const HGNativePokegearQAState *HGNativePokegearQAGetState(void) {sPGMap.phone=*PGMapBaseGetState();return &sPGMap.phone;}
 uint32_t HGNativePokegearQARequest(uint32_t revision,uint32_t request) {
     if(!revision || revision!=sPGMap.revision || sPGMap.error || sPGMapPending || !HGMapStationary(&sPGMap) || sPGMap.phone.ui.active)return 0;
+#ifdef HG_PG_RIVAL_EXTENSION
+    if(request==HG_PG_RIVAL_START || request==HG_PG_RIVAL_FINISH){
+        if(sPGRivalPending || sPGRival.error || sPGMap.scriptActive || sPGMap.battleLive || sPGRival.battleLive
+            || (request==HG_PG_RIVAL_START ? sPGRival.started || sPGQA.coverage!=255 || !HGElmEndpoint(&sPGMap,&sPGMr)
+                : !PGRivalRunning() || !HGRivalEndpoint(&sPGMap,&sPGMr,&sPGRival)))return 0;
+        sPGRivalPending=request;return 1;
+    }
+#endif
 #ifdef HG_PG_ELM_EXTENSION
     if(request==HG_PG_ELM_START || request==HG_PG_ELM_FINISH){
         if(sPGElmPending || sPGMap.scriptActive || sPGMap.battleLive

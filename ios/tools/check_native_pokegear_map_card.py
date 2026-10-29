@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import shlex
 import shutil
@@ -43,6 +44,12 @@ static HGNativeFieldMenuUIState pgMenu;
 static HGPokegearMrPokemonQAState mrFinal;
 #define HGMapTextAllowed(s,i,r) HGMrTextQualified((s),&mrFinal,(i),(r))
 #endif
+#ifdef HG_PG_RIVAL_EXTENSION
+static HGPokegearFirstRivalQAState rivalFinal;
+static u32 rivalLeaseOwner,rivalLeaseState,rivalLeaseKind,rivalLeaseSerial;
+#undef HGMapTextAllowed
+#define HGMapTextAllowed(s,i,r) HGRivalTextQualified((s),&mrFinal,&rivalFinal,(i),(r))
+#endif
 static u32 mapLease,mapReads,mapReleaseReads,mapOwner,mapGen,mapRev,mapLCD,mapLeaseScript,mapLeaseSerial;
 static u32 mapMovePending,mapMoveX,mapMoveZ;
 static u32 inputReads,inputKeys,inputPressed,inputCalls,inputLCD;
@@ -58,6 +65,23 @@ static HGPokegearMrPokemonQAState sPGMr;
 #include "actual_mr_running.inc"
 #include "actual_mr_context.inc"
 static BOOL mrWaitTag(ScriptContext *ctx){return ctx!=NULL;}
+#endif
+#ifdef HG_PG_RIVAL_EXTENSION
+#include "party.h"
+#include "pokemon.h"
+#include "constants/trainers.h"
+#include "constants/trainer_class.h"
+static HGPokegearFirstRivalQAState sPGRival;
+static const BattleSetup *sPGRivalBattle;
+static u32 sPGRivalPending;
+#include "actual_rival_running.inc"
+#include "actual_rival_next.inc"
+#define PGMAP_REQUIRE(value) do{if(!(value)){sPGMap.error=__LINE__;return;}}while(0)
+#include "actual_rival_stat_wait.inc"
+#include "actual_rival_exp_enum.inc"
+int Party_GetCount(const Party *party){assert(party==(Party *)1 || party==(Party *)2);return 1;}
+Pokemon *Party_GetMonByIndex(Party *party,int slot){assert(!slot);return (Pokemon *)party;}
+u32 GetMonData(Pokemon *mon,int attr,void *ptr){assert(!ptr);return attr==MON_DATA_SPECIES ? (mon==(Pokemon *)1 ? 152 : 155) : attr==MON_DATA_LEVEL ? 5 : 0;}
 #endif
 static u32 sPGMapPending;
 #ifdef HG_PG_MR_EXTENSION
@@ -216,6 +240,52 @@ int main(void){
  sPGMap=(HGPokegearMapCardQAState){.revision=1,.started=1,.done=1,.mapId=67,.x=550,.z=385,.scene=2,.cards=1,.betweenSteps=1,.phone.fieldReady=1};
  assert(!HGNativePokegearQARequest(1,0x202));
 #endif
+#ifdef HG_PG_RIVAL_EXTENSION
+ _Static_assert(sizeof(HGPokegearFirstRivalQAState)==120,"Separate rival stat-wait packet");
+ _Static_assert(STATE_GET_EXP_LEVEL_UP_SUMMARY_PRINT_DIFF_WAIT==HG_PG_RIVAL_STAT_DIFF && STATE_GET_EXP_LEVEL_UP_SUMMARY_PRINT_TRUE_WAIT==HG_PG_RIVAL_STAT_TRUE,"Original stat-wait states");
+ route(hgRivalSouthRoute,sizeof(hgRivalSouthRoute)/sizeof(*hgRivalSouthRoute),120,120);
+ route(hgRivalCityRoute,sizeof(hgRivalCityRoute)/sizeof(*hgRivalCityRoute),90,90);
+ HGPokegearFirstRivalQAState rival={.started=1,.scriptSeen=1,.trainerLaunches=1,.trainerReturns=1,.battleType=0x801,.trainerId=496,
+  .trainerClass=119,.opponentSpecies=155,.opponentLevel=5,.playerSpecies=152,.playerLevel=5,.outcome=1,.battleResult=1,.metPasserby=1,.rivalHidden=1,
+  .statWaits=2,.statRetirements=2,.statSerial=2,.statRetiredSerial=2};
+ HGPokegearMapCardQAState end={.started=1,.done=1,.mapId=67,.x=575,.z=399,.facing=2,.cards=1,.scene=4,.lastApp=3,
+  .parentEntries=2,.parentExits=2,.betweenSteps=1,.phone={.fieldReady=1,.coverage=255,.callCompletions=1}};
+ HGPokegearMrPokemonQAState gifts={.done=1,.routeScene=3,.houseScene=1,.mysteryEgg=1,.pokedexEnabled=1,.oakRegistered=1};
+ assert(HGRivalEndpoint(&end,&gifts,&rival));rival.outcome=rival.battleResult=2;rival.statWaits=rival.statRetirements=rival.statSerial=rival.statRetiredSerial=0;assert(HGRivalEndpoint(&end,&gifts,&rival));
+ rival.battleResult=1;assert(!HGRivalEndpoint(&end,&gifts,&rival));rival.battleResult=2;
+ end.scriptActive=1;end.scriptId=4;end.scene=3;end.scriptWait=2;end.scriptSerial=70;
+ assert(HGRivalTextQualified(&end,&gifts,&rival,4,70) && !HGRivalTextQualified(&end,&gifts,&rival,4,69));
+ rival.battleLive=1;assert(!HGRivalTextQualified(&end,&gifts,&rival,4,70));rival.battleLive=0;
+ rivalFinal=rival;mrFinal=gifts;mapFinal=end;mapOwner=3;mapLCD=inputLCD=0;mapLease=1;mapReads=inputReads=3000;mapLeaseScript=4;mapLeaseSerial=70;
+ unsigned rivalInputCalls=inputCalls;assert(!mapSettle() && inputCalls==rivalInputCalls);mapFinal.scriptSerial++;
+ assert(!mapSettle() && mapLease==2 && inputCalls==rivalInputCalls+1);
+ for(u32 outcome=1;outcome<=2;outcome++){
+  sPGMap=(HGPokegearMapCardQAState){.started=1,.done=1,.mapId=67,.x=575,.z=400,.scene=3};sPGRival=(HGPokegearFirstRivalQAState){.started=1,.scriptSeen=1};
+  setup=(BattleSetup){.battleType=0x801,.trainerId={[1]=496},.party={(Party *)1,(Party *)2},.trainer={[1]={.data={.trainerClass=119}}},.winFlag=outcome};original=setup;
+  __wrap_Battle_LaunchApp(&field,&setup);assert(sPGRivalBattle==&setup && sPGRival.battleLive && sPGRival.trainerLaunches==1 && !sPGMap.battleLaunches && !sPGMap.error && !memcmp(&setup,&original,sizeof(setup)));
+  __wrap_BattleSetup_Delete(&setup);assert(!sPGRivalBattle && !sPGRival.battleLive && sPGRival.outcome==outcome && sPGRival.trainerReturns==1 && !sPGMap.battleReturns && !sPGMap.error && !memcmp(&setup,&original,sizeof(setup)));
+ }
+ gNativeBattleUIState=(HGNativeBattleUIState){.active=1,.ready=1,.mode=HG_BATTLE_UI_COMMAND,.enabledMask=1,.revision=30};sNativeBattleChoice=-1;
+ assert(HGRivalChoiceReady(&gNativeBattleUIState,0,0) && !HGNativeBattleUIChoose(29,0));
+ assert(HGNativeBattleUIChoose(30,0) && !HGNativeBattleUIChoose(30,0));
+ gNativeBattleUIState=(HGNativeBattleUIState){.active=1,.ready=1,.mode=HG_BATTLE_UI_MOVES,.enabledMask=1,.revision=31,.move={33},.pp={35}};sNativeBattleChoice=-1;
+ assert(HGRivalChoiceReady(&gNativeBattleUIState,1,30) && HGNativeBattleUIChoose(31,0) && !HGNativeBattleUIChoose(31,0));
+ gNativeBattleUIState.ready=1;assert(!HGRivalChoiceReady(&gNativeBattleUIState,2,31));gNativeBattleUIState.revision=32;gNativeBattleUIState.pp[0]=0;
+ assert(!HGRivalChoiceReady(&gNativeBattleUIState,2,31));gNativeBattleUIState.pp[0]=34;assert(!HGRivalChoiceReady(&gNativeBattleUIState,64,31));
+ sPGMap.error=0;sPGRival=(HGPokegearFirstRivalQAState){.started=1,.battleLive=1};
+ HGNativeFirstRivalQAStatWaitObserved((void *)0x1234,HG_PG_RIVAL_STAT_DIFF,1,1);
+ gNativeBattleUIState=(HGNativeBattleUIState){.mode=HG_BATTLE_UI_NONE};
+ assert(sPGRival.statWaits==1 && sPGRival.statSerial==1 && HGRivalStatReady(&sPGRival,&gNativeBattleUIState,0));
+ assert(!HGRivalStatReady(&sPGRival,&gNativeBattleUIState,1) && !HGRivalStatLease(&sPGRival,0x1235,11,1,1) && !HGRivalStatLease(&sPGRival,0x1234,13,1,1));
+ gNativeBattleUIState.ready=1;assert(!HGRivalStatReady(&sPGRival,&gNativeBattleUIState,0));gNativeBattleUIState.ready=0;
+ rivalFinal=sPGRival;rivalLeaseOwner=0x1234;rivalLeaseState=11;rivalLeaseKind=1;rivalLeaseSerial=1;
+ mapOwner=5;mapLCD=inputLCD=0;mapLease=1;mapReads=inputReads=4000;assert(!mapSettle() && mapLease==1);
+ HGNativeFirstRivalQAStatWaitObserved((void *)0x1234,11,1,0);rivalFinal=sPGRival;assert(!mapSettle() && mapLease==2);inputReads+=2;assert(mapSettle());
+ HGNativeFirstRivalQAStatWaitObserved((void *)0x1234,13,2,1);assert(sPGRival.statWaits==2 && sPGRival.statSerial==2 && HGRivalStatReady(&sPGRival,&gNativeBattleUIState,1));
+ HGNativeFirstRivalQAStatWaitObserved((void *)0x1234,13,2,0);HGNativeFirstRivalQAStatWaitObserved((void *)0x1234,38,0,0);
+ assert(!sPGRival.statOwner && !sPGRival.statReady && sPGRival.statRetirements==2 && sPGRival.statRetiredSerial==2 && !sPGMap.error);
+ puts("PASS separate read-only trainer setup/outcome1-or2, FIGHT/Tackle original Choose and independent wild ledger");
+#endif
  puts("PASS actual original Choose: COMMAND rev1 -> pending -> new COMMAND rev2 retries; stale/duplicate/unknown mode/cap rejected");
  printf("MAP_LAYOUT {\"stateBytes\":%zu,\"prefixBytes\":%zu,\"mapOffset\":%zu,\"uiOffset\":%zu}\n",sizeof(HGPokegearMapCardQAState),sizeof(HGNativePokegearQAState),offsetof(HGPokegearMapCardQAState,version),offsetof(HGNativePokegearQAState,ui));
  puts("PASS actual route/one-way ledge/qualified waits/stale owner+serial/LCD/4-read press+2-read release");return 0;
@@ -227,7 +297,7 @@ def require(value,message):
 def load(path):
     spec=importlib.util.spec_from_file_location('map_original_pokegear_qa',path)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
-def source_copies(root,here,destination,base):
+def source_copies(root,here,destination,base,first_rival=False):
     originals=base.source_copies(root,root,destination)
     field=destination/base.COPIES[0]
     previous=field.read_text()
@@ -235,6 +305,32 @@ def source_copies(root,here,destination,base):
     field.write_text(text)
     require(text.replace('#include "pokegear_map_card_guest.inc"','#include "pokegear_qa_guest.inc"',1)==
             previous,'Field include replacement drift')
+    if first_rival:
+        name='src/battle/battle_command.c';original=(root/name).read_text();task=base.function(original,'Task_GetExp')
+        wait='''    case STATE_GET_EXP_LEVEL_UP_SUMMARY_PRINT_DIFF_WAIT:
+    case STATE_GET_EXP_LEVEL_UP_SUMMARY_PRINT_TRUE_WAIT:
+        if ((gSystem.newKeys & (PAD_BUTTON_A | PAD_BUTTON_B | PAD_BUTTON_X | PAD_BUTTON_Y)) || System_GetTouchNew()) {
+            PlaySE(SEQ_SE_DP_SELECT);
+            data->state++;
+        }
+        break;'''
+        observed=wait.replace('        if (',base.hook('''#ifdef HG_PG_RIVAL_EXTENSION
+        HGNativeFirstRivalQAStatWaitObserved(data,(u32)data->state,data->state==STATE_GET_EXP_LEVEL_UP_SUMMARY_PRINT_DIFF_WAIT ? 1 : 2,1);
+#endif''')+'        if (',1)
+        observed=base.replace_once(observed,'            data->state++;',base.hook('''#ifdef HG_PG_RIVAL_EXTENSION
+            HGNativeFirstRivalQAStatWaitObserved(data,(u32)data->state,data->state==STATE_GET_EXP_LEVEL_UP_SUMMARY_PRINT_DIFF_WAIT ? 1 : 2,0);
+#endif''')+'            data->state++;')
+        changed=base.replace_once(task,wait,observed)
+        changed=base.replace_once(changed,'        Heap_Free(inData);',base.hook('''#ifdef HG_PG_RIVAL_EXTENSION
+        HGNativeFirstRivalQAStatWaitObserved(data,(u32)data->state,0,0);
+#endif''')+'        Heap_Free(inData);')
+        declaration=base.hook('''#ifdef HG_PG_RIVAL_EXTENSION
+extern void HGNativeFirstRivalQAStatWaitObserved(const void *owner,u32 state,u32 kind,u32 ready);
+#endif''')
+        copy=base.replace_once(original,task,declaration+changed)
+        restored=re.sub(r'/\* PGQA_HOOK_BEGIN \*/\n.*?\n/\* PGQA_HOOK_END \*/\n?','',copy,flags=re.S)
+        require([line.strip() for line in restored.splitlines() if line.strip()]==[line.strip() for line in original.splitlines() if line.strip()], 'GetExp original body changed')
+        path=destination/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(copy);originals[name]=original
     return originals
 def evidence_passed(row,layout):
     fixed=dict(status='passed_original_map_card',stage=11,done=1,qaBytes=layout['stateBytes'],cards=1,scene=2,mapReadySeen=1,runAttemptCap=8,
@@ -397,6 +493,151 @@ def snapshots_passed(folder,rows,maprows,layout,mrrows=None):
         if packet[:2]!=(1,72) or packet[3] or packet[4]!=1 or packet[6]!=row.get('routeScene') or packet[7]!=row.get('houseScene'):return False
         mrcomplete|=row.get('stage')==18 and packet[5]==1;mrseen.add(n);expected.add(path)
     return expected==set(folder.iterdir()) and any(r.get('stage')==8 and r.get('cards')==1 and r.get('scene')==2 for r in maprows) and (mrrows is None or mrcomplete)
+def rival_evidence_passed(row,checkpoint,elm_checkpoint,elm,rival,layout):
+    if not isinstance(row,dict) or not isinstance(elm_checkpoint,dict):return False
+    if not elm_evidence_passed({**elm_checkpoint,'resetQuiescent':row.get('resetQuiescent')},checkpoint,elm,layout):return False
+    common=dict(status='passed_original_first_rival',stage=31,done=1,qaBytes=layout['stateBytes'],cards=1,scene=4,mapReadySeen=1,
+        runAttemptCap=8,parentEntries=2,parentExits=2,lastApp=3,menuCloses=1,fieldReady=1,menuActive=0,privateSaveWrites=False,resetQuiescent=True)
+    endpoint=dict(status='passed_original_first_rival',stage=31,qaBytes=120,done=1,map=67,x=575,z=399,facing=2,routeScene=3,houseScene=1,
+        scriptSeen=1,trainerLaunches=1,trainerReturns=1,battleType=0x801,battleSpecial=0,trainer=496,**{'class':119},
+        opponentSpecies=155,opponentLevel=5,playerSpecies=152,playerLevel=5,metPasserby=1,rivalHidden=1,battleLive=0,mysteryEgg=1,pokedex=1,oakContact=1)
+    if not isinstance(rival,dict) or any(any(type(actual.get(k)) is not type(v) or actual[k]!=v for k,v in fixed.items()) for actual,fixed in ((row,common),(rival,endpoint))):return False
+    n=row.get('battleLaunches');a=row.get('runAttempts');outcome=rival.get('outcome');choices=rival.get('choices');steps=rival.get('elmSteps')
+    return type(outcome) is int and outcome in (1,2) and type(rival.get('battleResult')) is int and rival['battleResult']==outcome \
+        and type(choices) is int and 2<=choices<=64 and choices%2==0 and type(steps) is int and steps==elm_checkpoint.get('steps') \
+        and type(row.get('steps')) is int and row['steps']==steps+210 and type(n) is int and elm_checkpoint['battleLaunches']<=n<=32 \
+        and type(a) is int and elm_checkpoint['runAttempts']<=a and all(type(row.get(k)) is int for k in ('runs','battleReturns','outcome')) \
+        and row['battleReturns']==n and row['runs']==a and ((not n and not a) or n>0 and n<=a<=8*n and row['outcome']==5) \
+        and all(type(rival.get(k)) is int for k in ('statOwner','statKind','statReady','statSerial','statRetiredSerial','statWaits','statRetirements','statPresses','statSettles')) \
+        and not rival['statOwner'] and not rival['statKind'] and not rival['statReady'] \
+        and all(rival[k]==(2 if outcome==1 else 0) for k in ('statSerial','statRetiredSerial','statWaits','statRetirements','statPresses','statSettles'))
+def rival_choices_passed(rows,launches,returns,rival):
+    identity=dict(trainer=496,**{'class':119},battleType=0x801,battleSpecial=0,opponentSpecies=155,opponentLevel=5,playerSpecies=152,playerLevel=5)
+    returned=dict(launches=1,returns=1,outcome=rival.get('outcome'),battleResult=rival.get('battleResult'))
+    if len(launches)!=1 or len(returns)!=1 or any(not isinstance(actual,dict) or any(type(actual.get(k)) is not type(v) or actual[k]!=v for k,v in expected.items()) for actual,expected in ((launches[0],identity),(returns[0],returned))):return False
+    if len(rows)!=rival.get('choices') or not 2<=len(rows)<=64 or len(rows)%2:return False
+    revisions=set()
+    for i,row in enumerate(rows):
+        if not isinstance(row,dict) or any(type(row.get(k)) is not int for k in ('sequence','revision','mode','enabledMask','index','move','pp')):return False
+        if row['sequence']!=i+1 or row['mode']!=1+i%2 or row['index'] or not row['enabledMask']&1 or not row['revision'] or row['revision'] in revisions:return False
+        if row['mode']==2 and (row['move']!=33 or row['pp']<=0):return False
+        revisions.add(row['revision'])
+    return True
+def rival_trace_passed(rows,elmrows,runs,elm_checkpoint):
+    prefix=[r for r in rows if r.get('stage',99)<=25];tail=[r for r in rows if r.get('stage',0)>=26]
+    if not elm_trace_passed(elmrows,prefix,runs[:elm_checkpoint['runAttempts']],elm_checkpoint['runAttempts'],elm_checkpoint['battleLaunches']) or not tail or len(tail)%3:return False
+    previous=prefix[-1]['padReads'];serials=set();south=city=text=False
+    for i in range(0,len(tail),3):
+        a,b,c=tail[i:i+3]
+        if [r.get('event') for r in (a,b,c)]!=['press','release','settled'] or any(type(r.get(k)) is not int for r in (a,b,c) for k in ('stage','key','touch','owner','generation','revision','padReads')):return False
+        if not previous<=a['padReads']<=b['padReads'] or c['padReads']-b['padReads']<2 or any(r['key'] or r['touch'] for r in (b,c)):return False
+        if any(any(r[k]!=a[k] for k in ('stage','owner','generation','revision')) for r in (b,c)) or a['touch'] or a['generation'] or a['revision']:return False
+        if a['owner']==0:
+            if a['stage'] not in (27,28) or a['key'] not in (16,32,64,128):return False
+            south|=a['stage']==27;city|=a['stage']==28
+        elif a['owner']==5:
+            if a['stage']!=29 or a['key']!=1:return False
+        elif a['owner']==3:
+            if a['stage']!=29 or a['key']!=1 or a.get('map')!=67 or a.get('scene')!=3 or a.get('script')!=4 or a.get('wait') not in (2,3):return False
+            serial=a.get('serial')
+            if type(serial) is not int or serial<=0 or serial in serials:return False
+            serials.add(serial);text=True
+        else:return False
+        previous=c['padReads']
+    return south and city and text
+def rival_ack_passed(rows,diagnostics,rival):
+    if type(rival.get('outcome')) is not int or rival['outcome'] not in (1,2):return False
+    count=2 if rival.get('outcome')==1 else 0
+    planes=[r for r in diagnostics if r.get('label') in ('stat-1','stat-2')]
+    if len(rows)!=count*3 or len(planes)!=count:return False
+    owner=None
+    for i,plane in enumerate(planes):
+        kind=i+1;state=11+2*i;serial=i+1
+        fixed=dict(label='stat-'+str(kind),kind=kind,state=state,serial=serial,ready=1,uiMode=0,uiReady=0,frameAttempt=1,frameCaptured=1)
+        if any(type(plane.get(k)) is not type(v) or plane[k]!=v for k,v in fixed.items()) or type(plane.get('owner')) is not int or not plane['owner']:return False
+        if owner is not None and plane['owner']!=owner:return False
+        owner=plane['owner'];a,b,c=rows[i*3:i*3+3]
+        if [r.get('event') for r in (a,b,c)]!=['press','release','settled']:return False
+        for row in (a,b,c):
+            if any(type(row.get(k)) is not int for k in ('stage','ack','key','owner','state','kind','serial','retiredSerial','padReads')):return False
+            if any(row[k]!=v for k,v in dict(stage=29,ack=kind,owner=owner,state=state,kind=kind,serial=serial).items()):return False
+        if a['key']!=1 or b['key'] or c['key'] or a['retiredSerial']!=i or b['retiredSerial']!=serial or c['retiredSerial']!=serial:return False
+        if not a['padReads']<=b['padReads'] or c['padReads']-b['padReads']<2:return False
+    return True
+def rival_stat_files_passed(folder,diagnostics):
+    finish=False
+    for row in diagnostics:
+        label=row.get('label')
+        if label not in ('stat-1','stat-2','finish'):return False
+        state=folder/('rival-'+label+'-state.bin');ui=folder/('rival-'+label+'-ui.bin')
+        if any(not p.is_file() or p.is_symlink() for p in (state,ui)) or state.stat().st_size!=120 or ui.stat().st_size!=row.get('uiBytes'):return False
+        packet=struct.unpack('<30I',state.read_bytes())
+        if packet[:2]!=(2,120) or packet[3] or packet[22:27]!=(row.get('owner'),row.get('state'),row.get('kind'),row.get('ready'),row.get('serial')):return False
+        if row.get('frameAttempt')!=1 or row.get('frameCaptured')!=1:return False
+        finish|=label=='finish'
+    return finish
+
+def rival_contract_self_check(layout):
+    row=dict(status='passed_original_first_rival',stage=31,done=1,qaBytes=layout['stateBytes'],cards=1,scene=4,mapReadySeen=1,runAttemptCap=8,
+        parentEntries=2,parentExits=2,lastApp=3,menuCloses=1,fieldReady=1,menuActive=0,privateSaveWrites=False,resetQuiescent=True,
+        battleLaunches=0,battleReturns=0,runs=0,runAttempts=0,outcome=0,steps=518)
+    checkpoint=dict(stage=19,map=143,x=5,z=6,facing=2,routeScene=2,houseScene=1,mysteryEgg=1,pokedex=1,oakContact=1,healed=1,mrDone=1,manualTiles=124,parentEntries=1,parentExits=1)
+    before={**row,'status':'passed_original_elm_panic_call','stage':25,'scene':3,'steps':308}
+    elm=dict(status='passed_original_elm_panic_call',stage=25,map=34,x=568,z=295,facing=1,routeScene=3,houseScene=1,panicFlag=1,coverage=255,
+        mysteryEgg=1,pokedex=1,oakContact=1,callTarget=1,incoming=1,scripted=2,scriptID=2,effectType=0,selections=1,completions=1,
+        hangupPresses=1,textContinues=2,textSerial=2,closePresses=3,indoorSteps=304)
+    rival=dict(status='passed_original_first_rival',stage=31,qaBytes=120,done=1,map=67,x=575,z=399,facing=2,routeScene=3,houseScene=1,scriptSeen=1,
+        trainerLaunches=1,trainerReturns=1,battleType=0x801,battleSpecial=0,trainer=496,**{'class':119},opponentSpecies=155,opponentLevel=5,
+        playerSpecies=152,playerLevel=5,outcome=1,battleResult=1,metPasserby=1,rivalHidden=1,battleLive=0,mysteryEgg=1,pokedex=1,oakContact=1,choices=2,elmSteps=308,
+        statOwner=0,statKind=0,statReady=0,statSerial=2,statRetiredSerial=2,statWaits=2,statRetirements=2,statPresses=2,statSettles=2)
+    require(rival_evidence_passed(row,checkpoint,before,elm,rival,layout),'Original rival win contract rejected')
+    loss={**rival,'outcome':2,'battleResult':2,**dict.fromkeys(('statSerial','statRetiredSerial','statWaits','statRetirements','statPresses','statSettles'),0)}
+    require(rival_evidence_passed(row,checkpoint,before,elm,loss,layout),'Original rival loss contract rejected')
+    for key,value in (('battleType',1),('battleSpecial',1),('trainer',495),('outcome',5),('battleResult',2),('metPasserby',0),('rivalHidden',0),('trainerReturns',0),('battleLive',1),('x',574),('choices',65)):
+        require(not rival_evidence_passed(row,checkpoint,before,elm,{**rival,key:value},layout),'False rival evidence accepted: '+key)
+    require(not rival_evidence_passed(row,checkpoint,before,{**elm,'coverage':127},rival,layout),'Lost original Elm endpoint admitted')
+    launches=[dict(trainer=496,**{'class':119},battleType=0x801,battleSpecial=0,opponentSpecies=155,opponentLevel=5,playerSpecies=152,playerLevel=5)]
+    returns=[dict(launches=1,returns=1,outcome=1,battleResult=1)]
+    choices=[dict(sequence=1,revision=10,mode=1,enabledMask=1,index=0,move=0,pp=0),dict(sequence=2,revision=11,mode=2,enabledMask=1,index=0,move=33,pp=35)]
+    require(rival_choices_passed(choices,launches,returns,rival),'Original FIGHT/Tackle revision sequence rejected')
+    for key,value in (('revision',10),('index',3),('mode',1),('move',45),('pp',0)):
+        require(not rival_choices_passed([choices[0],{**choices[1],key:value}],launches,returns,rival),'False rival choice admitted: '+key)
+    require(not rival_choices_passed(choices,launches,[],rival),'Missing trainer deletion witness admitted')
+    acks=[];planes=[]
+    for i,state in enumerate((11,13)):
+        kind=serial=i+1;start=100+i*10
+        planes.append(dict(label='stat-'+str(kind),owner=0x1234,state=state,kind=kind,serial=serial,ready=1,uiMode=0,uiReady=0,frameAttempt=1,frameCaptured=1))
+        first=dict(event='press',stage=29,ack=kind,key=1,owner=0x1234,state=state,kind=kind,serial=serial,retiredSerial=i,padReads=start)
+        acks.extend([first,{**first,'event':'release','key':0,'retiredSerial':serial,'padReads':start+1},{**first,'event':'settled','key':0,'retiredSerial':serial,'padReads':start+3}])
+    require(rival_ack_passed(acks,planes,rival) and rival_ack_passed([],[],loss),'Original stat acknowledgement/loss contracts rejected')
+    for key,value in (('owner',0),('state',13),('kind',2),('serial',0),('key',2)):
+        bad=[dict(r) for r in acks];bad[0][key]=value;require(not rival_ack_passed(bad,planes,rival),'False stat acknowledgement admitted: '+key)
+    bad=[dict(r) for r in acks];bad[1]['retiredSerial']=0;require(not rival_ack_passed(bad,planes,rival),'Unretired stat wait admitted')
+    bad=[dict(r) for r in acks];bad[2]['padReads']=bad[1]['padReads']+1;require(not rival_ack_passed(bad,planes,rival),'Missing released reads admitted')
+    require(not rival_ack_passed(acks,[{**planes[0],'uiMode':1},planes[1]],rival),'Battle command A spam admitted')
+    require(not rival_ack_passed([],[],rival),'Missing original stat-wait witness admitted')
+    rows=[];elmrows=[]
+    def pulse(stage,owner,key,**facts):
+        start=len(rows)*10+10
+        a=dict(event='press',stage=stage,owner=owner,key=key,touch=0,generation=9 if owner else 0,revision=3 if owner else 0,padReads=start,**facts)
+        if owner==3:a.update(generation=0,revision=0)
+        triple=[a,{**a,'event':'release','key':0,'padReads':start+4},{**a,'event':'settled','key':0,'padReads':start+6}]
+        rows.extend(triple)
+        if 19<=stage<=25:elmrows.extend(triple)
+    for stage,script,map_id in ((2,2,67),(4,3,67),(14,3,34),(17,2,143)):
+        pulse(stage,3,1,script=script,serial=stage,wait=2,map=map_id)
+    pulse(20,0,128)
+    pulse(22,4,1,phase=6,main=1,scriptState=3,wait=2,serial=1,target=1,scriptID=2,incoming=1,scripted=2,coverage=63)
+    pulse(22,4,1,phase=6,main=2,target=1,scriptID=2,incoming=1,scripted=2,coverage=63)
+    pulse(23,1,2,phase=1,completed=1,footer=0)
+    pulse(23,1,2,phase=1,completed=1,footer=1)
+    pulse(27,0,32);pulse(28,0,16)
+    pulse(29,3,1,map=67,scene=3,script=4,wait=2,serial=70)
+    require(rival_trace_passed(rows,elmrows,[],before),'Original Elm prefix and rival text/release trace rejected')
+    for key,value in (('script',2),('scene',4),('map',34),('serial',0),('owner',4)):
+        bad=[dict(r) for r in rows];bad[-3][key]=value
+        require(not rival_trace_passed(bad,elmrows,[],before),'False rival text lease trace admitted: '+key)
+
 def execute(root,here,args,out,copies,report,pins,base):
     require(here==root,'Runtime requires installed Map QA4 and matching fresh Full')
     sys.path.insert(0,str(root/'ios/tools'))
@@ -413,10 +654,11 @@ def execute(root,here,args,out,copies,report,pins,base):
     if context['link'].get('nativeContent'):flags.append('-DHG_NATIVE_ROM_TABLES')
     if args.mr_pokemon:flags.append('-DHG_PG_MR_EXTENSION')
     if args.elm_panic_call:flags.append('-DHG_PG_ELM_EXTENSION')
+    if args.first_rival:flags.append('-DHG_PG_RIVAL_EXTENSION')
     private=[];private_pins={};replacements=[];new_objects=[];old_objects=[]
     try:
         require_hashes(pins,'Map source inputs')
-        for name in base.COPIES:
+        for name in ((*base.COPIES,'src/battle/battle_command.c') if args.first_rival else base.COPIES):
             source=copies/name;target=guest/(Path(name).stem+'.o');expected=units[name]['overlayStates'];log=guest/(Path(name).stem+'.log')
             if expected:code,text,state=compile_unit(str(args.wasi_sdk/'bin/clang'),flags,source,target,name,root);log.write_text(text)
             else:row,text=runner([args.wasi_sdk/'bin/clang',*flags,'-c',source,'-o',target],log);code=row['terminalReturnCode'];state={}
@@ -439,6 +681,7 @@ def execute(root,here,args,out,copies,report,pins,base):
         cflags+=['-I',str(here/'ios/tests'),'-I',str(root/'ios/tests'),'-I',str(root/'ios/Original/abi32'),'-g','-fsanitize=address,undefined','-fno-sanitize-recover=all'];native_objects=[]
         if args.mr_pokemon:cflags.append('-DHG_PG_MR_EXTENSION')
         if args.elm_panic_call:cflags.append('-DHG_PG_ELM_EXTENSION')
+        if args.first_rival:cflags.append('-DHG_PG_RIVAL_EXTENSION')
         for i,source in enumerate([*generated,*runtime,here/QA_PATHS[2]]):
             target=native/f'host-{i}.o';extra=['-DWASM_RT_TRAP_HANDLER=HGEngineTrap'] if source.name=='wasm-rt-impl.c' else [];runner(['xcrun','clang',*cflags,*extra,'-c',source,'-o',target],native/f'compile-{i}.log');native_objects.append(target)
         binary=native/'map-card-check';runner(['xcrun','clang','-fsanitize=address,undefined',*native_objects,'-o',binary],native/'link.log');report['hostABICompiled']=True
@@ -446,26 +689,37 @@ def execute(root,here,args,out,copies,report,pins,base):
         for p in fixture:copy=out/('scenario.sav'+p.name[len(save.name):]);shutil.copy2(p,copy);private.append(copy)
         private_pins={str(p):sha(p) for p in private};assert_unchanged(context);require_hashes(pins,'Map source inputs');require_hashes(fixture_pins,'Original fixture')
         report.update(gameExecuted=True,gameRuntimeExecuted=True,sourceCopiesCompiled=replacements,privateModuleSha256=sha(module),checkedStackWrites=writes,exceptionDepthRestores=restores)
-        row,text=runner([binary,context['pack']/'files',boot,out/'scenario.sav',frames],out/'runtime.log',timeout=600 if args.mr_pokemon else 300,check=False)
+        row,text=runner([binary,context['pack']/'files',boot,out/'scenario.sav',frames],out/'runtime.log',timeout=900 if args.first_rival else 600 if args.mr_pokemon else 300,check=False)
         rows={p:[] for p in ('MAP evidence: ','MAP baseline: ','MAP input: ','MAP run: ','MAP snapshot: ','POKEGEAR snapshot: ','MR evidence: ','MR snapshot: ')}
         if args.elm_panic_call:rows.update({p:[] for p in ('ELM checkpoint: ','ELM evidence: ','ELM input: ')})
+        if args.first_rival:rows.update({p:[] for p in ('RIVAL elm checkpoint: ','RIVAL evidence: ','RIVAL launch: ','RIVAL return: ','RIVAL choice: ','RIVAL ack input: ','RIVAL diagnostic: ')})
         for line in text.splitlines():
             for prefix,destination in rows.items():
                 if line.startswith(prefix):destination.append(json.loads(line[len(prefix):]));break
         report['runtimeEvidence']=rows
-        if args.elm_panic_call:
+        if args.first_rival:
+            accepted=all(len(rows[p])==1 for p in ('MAP evidence: ','ELM checkpoint: ','RIVAL elm checkpoint: ','ELM evidence: ','RIVAL evidence: ')) and rival_evidence_passed(rows['MAP evidence: '][0],rows['ELM checkpoint: '][0],rows['RIVAL elm checkpoint: '][0],rows['ELM evidence: '][0],rows['RIVAL evidence: '][0],report['nativeLayout'])
+        elif args.elm_panic_call:
             accepted=len(rows['MAP evidence: '])==len(rows['ELM checkpoint: '])==len(rows['ELM evidence: '])==1 and elm_evidence_passed(rows['MAP evidence: '][0],rows['ELM checkpoint: '][0],rows['ELM evidence: '][0],report['nativeLayout'])
         else:
             accepted=len(rows['MAP evidence: '])==1 and (len(rows['MR evidence: '])==1 and mr_evidence_passed(rows['MAP evidence: '][0],rows['MR evidence: '][0],report['nativeLayout']) if args.mr_pokemon else evidence_passed(rows['MAP evidence: '][0],report['nativeLayout']))
         require(row['terminalReturnCode']==0 and not row['timedOut'] and row['allChildrenWaited'] and accepted,'Original Map/Mr flow failed; no automatic retry')
         require(rows['MAP baseline: ']==[dict(map=33,x=668,z=397,scene=0,cards=0)],'Fresh actual Map baseline mismatch')
-        if args.elm_panic_call:require(elm_trace_passed(rows['ELM input: '],rows['MAP input: '],rows['MAP run: '],rows['MAP evidence: '][0]['runAttempts'],rows['MAP evidence: '][0]['battleLaunches']),'Qualified Elm phone/release trace mismatch')
+        if args.first_rival:
+            require(rival_trace_passed(rows['MAP input: '],rows['ELM input: '],rows['MAP run: '],rows['RIVAL elm checkpoint: '][0]),'Qualified rival story/release trace mismatch')
+            require(trace_passed([r for r in rows['MAP input: '] if r.get('stage',99)<19],rows['MAP run: '],rows['MAP evidence: '][0]['runAttempts'],rows['MAP evidence: '][0]['battleLaunches'],True),'Original wild RUN ledger mismatch')
+            require(rival_choices_passed(rows['RIVAL choice: '],rows['RIVAL launch: '],rows['RIVAL return: '],rows['RIVAL evidence: '][0]),'Trainer launch/FIGHT/Tackle/deletion evidence mismatch')
+            require(rival_ack_passed(rows['RIVAL ack input: '],rows['RIVAL diagnostic: '],rows['RIVAL evidence: '][0]),'Original stat-wait A acknowledgement evidence mismatch')
+            require(rival_stat_files_passed(out,rows['RIVAL diagnostic: ']),'Actual stat/final UI and private packets missing')
+            require(any(r.get('stage')==31 and r.get('scene')==4 and not r.get('script') for r in rows['MAP snapshot: ']),'Rival final field snapshot missing')
+        elif args.elm_panic_call:require(elm_trace_passed(rows['ELM input: '],rows['MAP input: '],rows['MAP run: '],rows['MAP evidence: '][0]['runAttempts'],rows['MAP evidence: '][0]['battleLaunches']),'Qualified Elm phone/release trace mismatch')
         else:require(trace_passed(rows['MAP input: '],rows['MAP run: '],rows['MAP evidence: '][0]['runAttempts'],rows['MAP evidence: '][0]['battleLaunches'],args.mr_pokemon),'Qualified script/RUN/release trace mismatch')
         require(snapshots_passed(frames,rows['POKEGEAR snapshot: '],rows['MAP snapshot: '],report['nativeLayout'],rows['MR snapshot: '] if args.mr_pokemon else None),'Original paired snapshot files mismatch')
         require(private_pins=={str(p):sha(p) for p in private},'Unexpected private4 disk change')
         report.update(passed=True,complete=True,status='passed_original_mr_pokemon' if args.mr_pokemon else 'passed_original_map_card',privateSaveFilesUnchanged=True,originalFixtureUnchanged=True,allCardsComplete=False,
                       limits=['Radio/Fly/Town/EasyChat positive flows remain excluded.','Original story and encounter effects are RAM changes; no disk persistence is claimed.','Original PPM visual review remains a separate post-run step.'])
         if args.elm_panic_call:report.update(status='passed_original_elm_panic_call',indoorCheckpointObserved=True,elmTerminalObserved=True)
+        if args.first_rival:report.update(status='passed_original_first_rival',rivalTerminalObserved=True,originalTrainerOutcome=rows['RIVAL evidence: '][0]['outcome'])
     finally:
         assert_unchanged(context);require_hashes(pins,'Map source inputs');require_hashes(fixture_pins,'Original fixture')
         if private_pins:
@@ -478,7 +732,9 @@ def main():
     parser.add_argument('--full-receipt',type=Path);parser.add_argument('--save',type=Path)
     parser.add_argument('--mr-pokemon',action='store_true',help='Opt-in natural Route30/Apricorn/MrPokemon/Oak continuation; stops indoors')
     parser.add_argument('--elm-panic-call',action='store_true',help='Continue the original MrPokemon endpoint through the natural exit and Elm panic call')
+    parser.add_argument('--first-rival',action='store_true',help='Continue Elm through the natural south route and original first-rival trainer battle')
     args=parser.parse_args();root=args.source_root.resolve();here=ROOT;out=args.output.resolve()
+    if args.first_rival:args.elm_panic_call=True
     if args.elm_panic_call:args.mr_pokemon=True
     require(bool(args.full_receipt)==bool(args.save),'Runtime requires both explicit --full-receipt and --save')
     require(not out.exists(),'Fresh output required');out.mkdir(parents=True)
@@ -490,12 +746,14 @@ def main():
         'files/battledata/script/subscript/subscript_0003_RunAway.s','files/battledata/script/subscript/subscript_0008_RunAwayFail.s','include/native_pokegear_ui.h','include/native_battle_ui.h')
     if args.mr_pokemon:source_names+=('files/fielddata/script/scr_seq/scr_seq_0227_R30.s','files/fielddata/script/scr_seq/scr_seq_0229_R30R0201.s','include/constants/vars.h','include/constants/items.h','include/constants/phone_contacts.h','include/save_pokegear.h','include/party.h','include/pokedex.h','include/bag.h')
     if args.elm_panic_call:source_names+=('src/application/pokegear/phone/phone_call.c','src/application/pokegear/phone/pokegear_phone.c','src/application/pokegear/phone/phone_script_defs.c','src/application/pokegear/phone/scripts/phone_scripts_prof_elm.c','include/application/pokegear/phone/phone_internal.h')
+    if args.first_rival:source_names+=('include/constants/trainers.h','include/constants/trainer_class.h','include/battle/battle_setup.h','src/battle/battle_setup.c','files/poketool/trainer/trainers.json','asm/macros/script.inc')
     pins={str(p):sha(p) for p in [*(here/p for p in QA_PATHS),*(root/p for p in source_names)]}
     report=dict(passed=False,complete=False,commands=[],sourceHashesBefore=pins,moduleBuilt=False,gameExecuted=False,gameRuntimeExecuted=False,observerDefinitionsLinked=False,hostABICompiled=False,
                 audioOperations=False,privateExports=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureExports=35,shippingABIChanged=False,
                 requiredPrivateLinkWraps=list(LINK_WRAPS),Phone33DefaultCaseUnchanged=True,allCardsComplete=False)
     if args.mr_pokemon:report.update(privateExports=[*report['privateExports'],'HGNativeMrPokemonQAGetState'],futureExports=36,mrPokemonMode=True,legacyMapPacketUnchanged=True)
     if args.elm_panic_call:report.update(elmPanicCallMode=True,legacyMrPacketUnchanged=True,existingPhonePrefixReused=True)
+    if args.first_rival:report.update(privateExports=[*report['privateExports'],'HGNativeFirstRivalQAGetState'],futureExports=37,firstRivalMode=True,rivalPrivateStateBytes=120,rivalPrivateVersion=2,legacyElmEndpointRetained=True,runtimeBudgetSeconds=900)
     env={**os.environ,'HEARTGOLD_TEST_MUTE':'1','SIMCTL_CHILD_HEARTGOLD_TEST_MUTE':'1','PYTHONDONTWRITEBYTECODE':'1'}
     def run(argv,label):
         result=subprocess.run(['nice','-n','10',*map(str,argv)],cwd=root,env=env,capture_output=True,text=True,timeout=60)
@@ -503,7 +761,7 @@ def main():
         report['commands'].append(dict(argv=list(map(str,argv)),terminalReturnCode=result.returncode,log=label,allChildrenWaited=True))
         require(result.returncode==0,'Failed '+str(out/label));return result.stdout+result.stderr
     try:
-        copies=out/'source';copies.mkdir();originals=source_copies(root,here,copies,base)
+        copies=out/'source';copies.mkdir();originals=source_copies(root,here,copies,base,args.first_rival)
         host=(here/QA_PATHS[2]).read_text();(out/'actual_map_settle.inc').write_text(base.function(host,'mapSettle')+'\n')
         guest=(here/QA_PATHS[1]).read_text();(out/'actual_map_battle.inc').write_text('\n'.join(base.function(guest,name) for name in ('__wrap_Battle_LaunchApp','__wrap_BattleSetup_Delete'))+'\n')
         (out/'actual_map_request.inc').write_text(base.function(guest,'HGNativePokegearQARequest')+'\n')
@@ -513,6 +771,12 @@ def main():
         if args.elm_panic_call:
             (out/'actual_elm_running.inc').write_text(base.function(guest,'PGElmRunning')+'\n')
             (out/'actual_elm_owner.inc').write_text('\n'.join(base.function(guest,name) for name in ('PGElmCallOwner','PGElmCallRootIdentity'))+'\n')
+        if args.first_rival:
+            (out/'actual_rival_running.inc').write_text(base.function(guest,'PGRivalRunning')+'\n')
+            (out/'actual_rival_next.inc').write_text(base.function((root/'ios/tests/pokegear_qa_guest.inc').read_text(),'PGQANext')+'\n')
+            (out/'actual_rival_stat_wait.inc').write_text(base.function(guest,'HGNativeFirstRivalQAStatWaitObserved')+'\n')
+            exp_enum=re.search(r'enum \{\n    STATE_GET_EXP_START = 0,.*?\n\};',(root/'src/battle/battle_command.c').read_text(),re.S)
+            require(exp_enum is not None,'Original GetExp enum missing');(out/'actual_rival_exp_enum.inc').write_text(exp_enum.group()+'\n')
         (out/'actual_native_battle_choose.inc').write_text(base.function((root/'src/battle/battle_input.c').read_text(),'HGNativeBattleUIChoose')+'\n')
         check=out/'actual_map_check.c';check.write_text(C_CHECK)
         includes=[here/'ios/tests',root/'ios/tests',root/'include',root/'ios/Original/abi32',root/'ios/build-original-host/include',out]
@@ -520,6 +784,7 @@ def main():
         native=['xcrun','clang','-std=c11','-O1','-g','-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-fsanitize=address,undefined','-fno-sanitize-recover=all','-DSDK_ARM9','-DHEARTGOLD_NATIVE']
         if args.mr_pokemon:native.append('-DHG_PG_MR_EXTENSION')
         if args.elm_panic_call:native.append('-DHG_PG_ELM_EXTENSION')
+        if args.first_rival:native.append('-DHG_PG_RIVAL_EXTENSION')
         for p in includes:native+=['-iquote',p]
         native+=['-I',tools/'wabt-1.0.42/include','-idirafter',root/'ios/build-original-host/include']
         for p in ('lib/include','include/library','lib/include/cw','lib/include/nitro','lib/include/nnsys','lib/include/nitro/os','lib/NitroSDK/include','lib/NitroSDK/include-pokediamond','files'):native+=['-idirafter',root/p]
@@ -527,14 +792,17 @@ def main():
         layouts=[json.loads(line[11:]) for line in log.splitlines() if line.startswith('MAP_LAYOUT ')];require(len(layouts)==1,'Real native layout missing');report['nativeLayout']=layouts[0];evidence_self_check(layouts[0]);trace_self_check()
         require(report['futureExports']==33+len(report['privateExports']) and len(set(report['privateExports']))==len(report['privateExports']),'Mode-specific private ABI changed')
         if args.mr_pokemon:mr_contract_self_check(layouts[0])
+        if args.first_rival:rival_contract_self_check(layouts[0])
         flags=['--target=wasm32-wasip1','-std=gnu11','-O2','-fwrapv','-fno-strict-aliasing','-fno-builtin-malloc','-fno-builtin-free','-fwasm-exceptions','-fexceptions','-Xclang','-disable-red-zone','-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-DHEARTGOLD_NATIVE','-DHEARTGOLD_ABI32','-DSDK_ARM9','-DSDK_CW','-DSDK_CODE_ARM','-DSDK_TS','-D_NITRO','-DPM_KEEP_ASSERTS','-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']
         if args.mr_pokemon:flags.append('-DHG_PG_MR_EXTENSION')
         if args.elm_panic_call:flags.append('-DHG_PG_ELM_EXTENSION')
+        if args.first_rival:flags.append('-DHG_PG_RIVAL_EXTENSION')
         for p in includes:flags+=['-I',p]
         for p in ('files','src','lib/include','lib/include/cw','lib/include/nitro','lib/include/nnsys','lib/include/nitro/os','include/library','lib/NitroSDK/include','lib/NitroSDK/include-pokediamond'):flags+=['-I',root/p]
-        for i,name in enumerate(base.COPIES):run([args.wasi_sdk/'bin/clang',*flags,'-fsyntax-only',copies/name],f'wasi-{i}.log')
+        for i,name in enumerate((*base.COPIES,'src/battle/battle_command.c') if args.first_rival else base.COPIES):run([args.wasi_sdk/'bin/clang',*flags,'-fsyntax-only',copies/name],f'wasi-{i}.log')
         layout=out/'layout.c';layout.write_text('#include "global.h"\n#include "pokegear_map_card_qa.h"\n_Static_assert(sizeof(HGPokegearMapCardQAState)=='+str(layouts[0]['stateBytes'])+',"Real WASI private packet/native host layout");\n_Static_assert(__builtin_offsetof(HGPokegearMapCardQAState,version)=='+str(layouts[0]['prefixBytes'])+',"Original prefix ABI");\n')
         if args.mr_pokemon:layout.write_text(layout.read_text()+'_Static_assert(sizeof(HGPokegearMrPokemonQAState)==72,"Separate Mr packet WASI/native layout");\n')
+        if args.first_rival:layout.write_text(layout.read_text()+'_Static_assert(sizeof(HGPokegearFirstRivalQAState)==120,"Separate rival stat-wait packet WASI/native layout");\n')
         run([args.wasi_sdk/'bin/clang',*flags,'-Xclang','-fdump-record-layouts','-fsyntax-only',layout],'wasi-layout.log')
         report['actualWASI32LayoutVerified']=True
         support=(root/'ios/Original/abi32/pokegear_scenario_check.c').read_text();anchor='int main(int argc,char **argv)'
@@ -543,21 +811,25 @@ def main():
         if args.host_generated:
             require('w2c_hgengine_HGNativePokegearQAGetState' in (args.host_generated/'hgengine.h').read_text(),'Genuine private header lacks original private getters')
             if args.mr_pokemon:require('w2c_hgengine_HGNativeMrPokemonQAGetState(' in (args.host_generated/'hgengine.h').read_text(),'Mr mode requires its genuine private36 header, not the prior Map header')
+            if args.first_rival:require('w2c_hgengine_HGNativeFirstRivalQAGetState(' in (args.host_generated/'hgengine.h').read_text(),'Rival mode requires its genuine private37 header')
             hostflags=['xcrun','clang','-std=c11','-fsyntax-only','-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-DSDK_ARM9','-DHEARTGOLD_NATIVE','-DWASM_RT_USE_MMAP=0','-DWASM_RT_MEMCHECK_GUARD_PAGES=0','-DWASM_RT_MEMCHECK_BOUNDS_CHECK=1']
             if args.mr_pokemon:hostflags.append('-DHG_PG_MR_EXTENSION')
             if args.elm_panic_call:hostflags.append('-DHG_PG_ELM_EXTENSION')
+            if args.first_rival:hostflags.append('-DHG_PG_RIVAL_EXTENSION')
             for p in [args.host_generated,*includes,tools/'wabt-1.0.42/include',tools/'wabt-1.0.42/share/wabt/wasm2c']:hostflags+=['-I',p]
             for p in ('lib/include','include/library'):hostflags+=['-idirafter',root/p]
             run([*hostflags,here/QA_PATHS[2]],'genuine-prior-header-host-syntax.log')
             report['hostSyntaxWithGenuineMr36Header' if args.mr_pokemon else 'hostSyntaxWithGenuinePrior33Header']=True;report['priorGeneratedHeaderSha256']=sha(args.host_generated/'hgengine.h')
-        report.update(passed=True,status='passed_map_source_contracts',originalBodiesPreserved=True,originalSourceCopies=list(base.COPIES),
-                      sourceCopyHashes={name:sha(copies/name) for name in base.COPIES},actualNativeRouteAndLeaseCheck=True,actualReadonlyBattleWrappersCheck=True,actualOriginalChooseRetrySequenceCheck=True,runAttemptCap=8,
+        report.update(passed=True,status='passed_map_source_contracts',originalBodiesPreserved=True,originalSourceCopies=list((*base.COPIES,'src/battle/battle_command.c') if args.first_rival else base.COPIES),
+                      sourceCopyHashes={name:sha(copies/name) for name in ((*base.COPIES,'src/battle/battle_command.c') if args.first_rival else base.COPIES)},actualNativeRouteAndLeaseCheck=True,actualReadonlyBattleWrappersCheck=True,actualOriginalChooseRetrySequenceCheck=True,runAttemptCap=8,
                       limits=['No Map private module linked, so linker wrappers and generated Map ABI remain unproved.','No game, route/grass/guide/Map images or encounter runtime acceptance.','Original wild damage/RNG/seen/stats changes are allowed; Phone33 immutable RAM ledger is deliberately not reused.','Original and private disk nonmutation must be checked in a future authorized runtime driver.'])
         if args.mr_pokemon:report.update(status='passed_mr_source_contracts',mrPrivateStateBytes=72,actualMrPredicateLeaseAndRunContinuationCheck=True,
             staticManualTiles=124,staticGrassTiles=39,indoorEndpoint=dict(map=143,x=5,z=6,facing=2),
             limits=[*report['limits'],'Mr route/BDHC, random encounter survival, automatic scripts and indoor gifts remain runtime-unproved.','Party HP/status is observed; full PP restoration and the Elm call after exiting are outside this endpoint.'])
         if args.elm_panic_call:report.update(status='passed_elm_source_contracts',actualElmContextLeaseExitCheck=True,
             limits=['Source/predicate checks only; no natural exit/Phone call/runtime/pixel/current Full acceptance is claimed.','Existing Mr72 and Phone prefix/getters are reused; a genuine fresh private36/native host build remains required.'])
+        if args.first_rival:report.update(status='passed_rival_source_contracts',actualRivalPredicateChoiceAndReadonlyWitnessCheck=True,
+            limits=['Source/predicate checks only; natural south route, trainer battle, original outcome and departure remain runtime-unproved.','Only the opt-in rival case adds a separate private getter; public33, Map5620, Mr72 and existing private36 cases are unchanged.'])
         if args.full_receipt:execute(root,here,args,out,copies,report,pins,base)
     except BaseException as error:report.update(passed=False,firstFailure=dict(type=type(error).__name__,message=str(error)))
     finally:

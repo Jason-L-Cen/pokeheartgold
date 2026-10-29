@@ -19,6 +19,24 @@ static HGPokegearMrPokemonQAState mrRead(void) {
 }
 #define HGMapTextAllowed(s,i,r) HGMrTextQualified((s),&mrFinal,(i),(r))
 #endif
+#ifdef HG_PG_RIVAL_EXTENSION
+enum {RIVAL_START=26,RIVAL_SOUTH,RIVAL_CITY,RIVAL_SCRIPT,RIVAL_FIELD,RIVAL_FINISH};
+static HGPokegearFirstRivalQAState rivalFinal;
+static HGPokegearMapCardQAState rivalElmMap;
+static HGPokegearMrPokemonQAState rivalElmMr;
+static HGNativePokegearQAState rivalElmPhone;
+static u32 rivalElmSteps,rivalChoices,rivalRevision,rivalNextMode=HG_BATTLE_UI_COMMAND,rivalLaunchSeen,rivalReturnSeen;
+static u32 rivalStatPresses,rivalStatSettles,rivalLastStatSerial,rivalLeaseOwner,rivalLeaseState,rivalLeaseKind,rivalLeaseSerial;
+static HGPokegearFirstRivalQAState rivalRead(void) {
+    u32 address=w2c_hgengine_HGNativeFirstRivalQAGetState(pgCapture->game);HGPokegearFirstRivalQAState state;
+    memcpy(&state,pgGuest(address,sizeof(state)),sizeof(state));
+    PG_CHECK(state.version==HG_PG_RIVAL_VERSION && state.byteSize==sizeof(state) && !state.error);
+    PG_CHECK(w2c_hgengine_HGNativeFirstRivalQAGetState(pgCapture->game)==address && !memcmp(&state,pgGuest(address,sizeof(state)),sizeof(state)));
+    return state;
+}
+#undef HGMapTextAllowed
+#define HGMapTextAllowed(s,i,r) HGRivalTextQualified((s),&mrFinal,&rivalFinal,(i),(r))
+#endif
 static u32 mapStage,mapStageFrame,mapSegment,mapPending,mapTextSerial,mapTextId,mapRunLaunch,mapRunRevision,mapRunAttempts,mapRuns,mapMenuCloses,mapClosePresses;
 static u32 mapLease,mapReads,mapReleaseReads,mapOwner,mapGen,mapRev,mapLCD,mapLeaseScript,mapLeaseSerial;
 static u32 mapMovePending,mapMoveKey,mapMoveX,mapMoveZ,mapBlocked,mapSteps;
@@ -55,10 +73,21 @@ static BOOL mapSnapshot(void) {
 }
 static void mapNext(void) {++mapStage;mapStageFrame=OS_GetVBlankCount();mapPending=0;}
 static void mapTrace(const char *event,u32 key,u32 touch,u32 x,u32 y) {
+#ifdef HG_PG_RIVAL_EXTENSION
+    if(mapOwner==5){
+        printf("RIVAL ack input: {\"event\":\"%s\",\"stage\":%u,\"ack\":%u,\"key\":%u,\"owner\":%u,\"state\":%u,\"kind\":%u,\"serial\":%u,\"retiredSerial\":%u,\"padReads\":%u}\n",
+            event,mapStage,rivalStatPresses,key,rivalLeaseOwner,rivalLeaseState,rivalLeaseKind,rivalLeaseSerial,rivalFinal.statRetiredSerial,HGNativeInputPadReads(pgCapture->env));
+        if(!strcmp(event,"settled"))++rivalStatSettles;
+    }
+#endif
     printf("MAP input: {\"event\":\"%s\",\"stage\":%u,\"segment\":%u,\"key\":%u,\"touch\":%u,\"x\":%u,\"y\":%u,\"padReads\":%u,\"map\":%u,\"worldX\":%u,\"worldZ\":%u,\"scene\":%u,\"cards\":%u,\"script\":%u,\"wait\":%u,\"serial\":%u,\"owner\":%u,\"generation\":%u,\"revision\":%u}\n",
         event,mapStage,mapSegment,key,touch,x,y,HGNativeInputPadReads(pgCapture->env),mapFinal.mapId,mapFinal.x,mapFinal.z,mapFinal.scene,mapFinal.cards,mapFinal.scriptId,mapFinal.scriptWait,mapFinal.scriptSerial,mapOwner,mapGen,mapRev);
 #ifdef HG_PG_ELM_EXTENSION
-    if(mapStage>=ELM_START)printf("ELM input: {\"event\":\"%s\",\"stage\":%u,\"key\":%u,\"touch\":%u,\"owner\":%u,\"generation\":%u,\"revision\":%u,\"padReads\":%u,\"phase\":%u,\"main\":%u,\"scriptState\":%u,\"wait\":%u,\"serial\":%u,\"target\":%u,\"scriptID\":%u,\"incoming\":%u,\"scripted\":%u,\"completed\":%u,\"footer\":%u,\"coverage\":%u}\n",
+    if(mapStage>=ELM_START
+#ifdef HG_PG_RIVAL_EXTENSION
+        && mapStage<=ELM_FINISH
+#endif
+        )printf("ELM input: {\"event\":\"%s\",\"stage\":%u,\"key\":%u,\"touch\":%u,\"owner\":%u,\"generation\":%u,\"revision\":%u,\"padReads\":%u,\"phase\":%u,\"main\":%u,\"scriptState\":%u,\"wait\":%u,\"serial\":%u,\"target\":%u,\"scriptID\":%u,\"incoming\":%u,\"scripted\":%u,\"completed\":%u,\"footer\":%u,\"coverage\":%u}\n",
         event,mapStage,key,touch,mapOwner,mapGen,mapRev,HGNativeInputPadReads(pgCapture->env),pgFinal.ui.phase,pgFinal.callMainState,pgFinal.callScriptState,pgFinal.callTextWait,pgFinal.callTextSerial,pgFinal.callTarget,pgFinal.callScriptID,pgFinal.callIncoming,pgFinal.callScripted,pgFinal.callCompletions,pgFinal.cursorInAppSwitchZone,pgFinal.coverage);
 #endif
 }
@@ -80,6 +109,9 @@ static BOOL mapSettle(void) {
         : pgFinal.fieldReady && !mapFinal.scriptActive && !mapFinal.battleLive;
 #ifdef HG_PG_ELM_EXTENSION
     if(mapOwner==4)valid=HGElmCallLease(&pgFinal,mapGen,mapRev,elmLeaseSerial,elmLeaseHangup);
+#endif
+#ifdef HG_PG_RIVAL_EXTENSION
+    if(mapOwner==5)valid=HGRivalStatLease(&rivalFinal,rivalLeaseOwner,rivalLeaseState,rivalLeaseKind,rivalLeaseSerial);
 #endif
     if(mapOwner && pgTouchEngine()!=mapLCD)valid=FALSE;
     if(!mapOwner && mapMovePending && (mapFinal.x!=mapMoveX || mapFinal.z!=mapMoveZ))valid=FALSE;
@@ -213,7 +245,83 @@ static void ElmPanicPresent(void) {
     if(mapStage==ELM_FIELD){if(!HGElmEndpoint(&mapFinal,&mrFinal))return;PG_CHECK(!pgMenu.active);if(!mapSnapshot())return;mapNext();return;}
     if(mapStage==ELM_FINISH){if(!HGElmEndpoint(&mapFinal,&mrFinal))return;
         if(!mapPending){PG_CHECK(w2c_hgengine_HGNativePokegearQARequest(pgCapture->game,mapFinal.revision,HG_PG_ELM_FINISH));mapPending=1;return;}
-        if(!(pgFinal.coverage&HG_PG_ELM_DONE))return;if(!mapSnapshot())return;pgFinish("passed_original_elm_panic_call",TRUE);
+        if(!(pgFinal.coverage&HG_PG_ELM_DONE))return;if(!mapSnapshot())return;
+#ifdef HG_PG_RIVAL_EXTENSION
+        rivalElmMap=mapFinal;rivalElmMr=mrFinal;rivalElmPhone=pgFinal;rivalElmSteps=mapSteps;
+    printf("RIVAL elm checkpoint: {\"status\":\"%s\",\"stage\":%u,\"done\":%u,\"qaBytes\":%zu,\"cards\":%u,\"scene\":%u,\"steps\":%u,\"runs\":%u,\"runAttempts\":%u,\"runAttemptCap\":%u,\"battleLaunches\":%u,\"battleReturns\":%u,\"outcome\":%u,\"mapReadySeen\":%u,\"parentEntries\":%u,\"parentExits\":%u,\"lastApp\":%u,\"menuCloses\":%u,\"fieldReady\":%u,\"menuActive\":%u,\"privateSaveWrites\":false}\n","passed_original_elm_panic_call",mapStage,mapFinal.done,sizeof(mapFinal),mapFinal.cards,mapFinal.scene,mapSteps,mapRuns,mapRuns,HG_PG_MAP_RUN_ATTEMPT_CAP,mapFinal.battleLaunches,mapFinal.battleReturns,mapFinal.battleOutcome,mapFinal.mapReadySeen,mapFinal.parentEntries,mapFinal.parentExits,mapFinal.lastApp,mapMenuCloses,pgFinal.fieldReady,pgMenu.active);
+        mapNext();return;
+#else
+        pgFinish("passed_original_elm_panic_call",TRUE);
+#endif
+    }
+}
+#endif
+#ifdef HG_PG_RIVAL_EXTENSION
+static HGNativeBattleUIState rivalUiRead(void) {
+    u32 address=w2c_hgengine_HGNativeBattleUIGetState(pgCapture->game);HGNativeBattleUIState ui;
+    memcpy(&ui,pgGuest(address,sizeof(ui)),sizeof(ui));
+    PG_CHECK(w2c_hgengine_HGNativeBattleUIGetState(pgCapture->game)==address && !memcmp(&ui,pgGuest(address,sizeof(ui)),sizeof(ui)));return ui;
+}
+static void rivalDiagnostic(const char *label) {
+    HGNativeBattleUIState ui=rivalUiRead();char path[4096];FILE *file;
+    PG_CHECK(snprintf(path,sizeof(path),"%s/../rival-%s-ui.bin",pgCapture->folder,label)<sizeof(path));file=fopen(path,"wbx");PG_CHECK(file && fwrite(&ui,1,sizeof(ui),file)==sizeof(ui) && fclose(file)==0);
+    PG_CHECK(snprintf(path,sizeof(path),"%s/../rival-%s-state.bin",pgCapture->folder,label)<sizeof(path));file=fopen(path,"wbx");PG_CHECK(file && fwrite(&rivalFinal,1,sizeof(rivalFinal),file)==sizeof(rivalFinal) && fclose(file)==0);
+    BOOL captured=mapSnapshot();
+    printf("RIVAL diagnostic: {\"label\":\"%s\",\"stage\":%u,\"frameAttempt\":1,\"frameCaptured\":%u,\"snapshot\":%u,\"uiBytes\":%zu,\"uiActive\":%u,\"uiReady\":%u,\"uiMode\":%u,\"uiRevision\":%u,\"owner\":%u,\"state\":%u,\"kind\":%u,\"ready\":%u,\"serial\":%u}\n",
+        label,mapStage,captured,pgSnapshots-1,sizeof(ui),ui.active,ui.ready,ui.mode,ui.revision,rivalFinal.statOwner,rivalFinal.statState,rivalFinal.statKind,rivalFinal.statReady,rivalFinal.statSerial);
+}
+static BOOL rivalHandleBattle(void) {
+    if(!rivalFinal.battleLive)return FALSE;
+    PG_CHECK(rivalFinal.trainerLaunches==1 && !rivalFinal.trainerReturns && rivalFinal.battleType==0x801 && !rivalFinal.battleSpecial
+        && rivalFinal.trainerId==496 && rivalFinal.trainerClass==119 && rivalFinal.opponentSpecies==155 && rivalFinal.opponentLevel==5);
+    if(!rivalLaunchSeen){rivalLaunchSeen=1;
+        printf("RIVAL launch: {\"trainer\":%u,\"class\":%u,\"battleType\":%u,\"battleSpecial\":%u,\"opponentSpecies\":%u,\"opponentLevel\":%u,\"playerSpecies\":%u,\"playerLevel\":%u}\n",
+            rivalFinal.trainerId,rivalFinal.trainerClass,rivalFinal.battleType,rivalFinal.battleSpecial,rivalFinal.opponentSpecies,rivalFinal.opponentLevel,rivalFinal.playerSpecies,rivalFinal.playerLevel);}
+    HGNativeBattleUIState ui=rivalUiRead();
+    if(HGRivalStatReady(&rivalFinal,&ui,rivalLastStatSerial)){
+        PG_CHECK(rivalStatPresses<HG_PG_RIVAL_STAT_CAP && rivalFinal.statKind==rivalStatPresses+1);
+        char label[16];snprintf(label,sizeof(label),"stat-%u",rivalFinal.statKind);rivalDiagnostic(label);
+        rivalLeaseOwner=rivalFinal.statOwner;rivalLeaseState=rivalFinal.statState;rivalLeaseKind=rivalFinal.statKind;rivalLeaseSerial=rivalFinal.statSerial;
+        PG_CHECK(HGRivalStatLease(&rivalFinal,rivalLeaseOwner,rivalLeaseState,rivalLeaseKind,rivalLeaseSerial));
+        rivalLastStatSerial=rivalLeaseSerial;++rivalStatPresses;mapPulse(1,0,0,FALSE,5);return TRUE;
+    }
+    if(!ui.active || !ui.ready)return TRUE;
+    if(ui.revision==rivalRevision)return TRUE;
+    if(!HGRivalChoiceReady(&ui,rivalChoices,rivalRevision) || ui.mode!=rivalNextMode)pgFinish("unknown_rival_input",FALSE);
+    if(!mapSnapshot())return TRUE;
+    PG_CHECK(!w2c_hgengine_HGNativeBattleUIChoose(pgCapture->game,ui.revision-1,0));
+    PG_CHECK(w2c_hgengine_HGNativeBattleUIChoose(pgCapture->game,ui.revision,0));
+    PG_CHECK(!w2c_hgengine_HGNativeBattleUIChoose(pgCapture->game,ui.revision,0));
+    rivalRevision=ui.revision;++rivalChoices;rivalNextMode=ui.mode==HG_BATTLE_UI_COMMAND ? HG_BATTLE_UI_MOVES : HG_BATTLE_UI_COMMAND;
+    printf("RIVAL choice: {\"sequence\":%u,\"revision\":%u,\"mode\":%u,\"enabledMask\":%u,\"index\":0,\"move\":%u,\"pp\":%u}\n",
+        rivalChoices,ui.revision,ui.mode,ui.enabledMask,ui.move[0],ui.pp[0]);return TRUE;
+}
+static void FirstRivalPresent(void) {
+    if(mapStage==RIVAL_START){
+        if(!HGElmEndpoint(&mapFinal,&mrFinal) || pgFinal.coverage!=255)return;
+        if(!mapPending){PG_CHECK(w2c_hgengine_HGNativePokegearQARequest(pgCapture->game,mapFinal.revision,HG_PG_RIVAL_START));mapPending=1;return;}
+        if(!rivalFinal.started)return;if(!mapSnapshot())return;mapNext();return;
+    }
+    if(mapStage==RIVAL_SOUTH){mapNavigate(hgRivalSouthRoute,sizeof(hgRivalSouthRoute)/sizeof(*hgRivalSouthRoute));return;}
+    if(mapStage==RIVAL_CITY){
+        if(mapFinal.mapId==67 && mapFinal.scriptId==4){PG_CHECK(mapFinal.x==575 && mapFinal.z==400 && mapSegment==13);
+            if(mapMovePending){PG_CHECK(HGMapStepValid(mapMoveKey,mapMoveX,mapMoveZ,mapFinal.x,mapFinal.z));++mapSteps;}
+            mapMovePending=0;mapSegment=0;mapNext();return;}
+        mapNavigate(hgRivalCityRoute,sizeof(hgRivalCityRoute)/sizeof(*hgRivalCityRoute));return;
+    }
+    if(mapStage==RIVAL_SCRIPT){
+        if(rivalFinal.trainerReturns && !rivalReturnSeen){rivalReturnSeen=1;
+            printf("RIVAL return: {\"launches\":%u,\"returns\":%u,\"outcome\":%u,\"battleResult\":%u}\n",
+                rivalFinal.trainerLaunches,rivalFinal.trainerReturns,rivalFinal.outcome,rivalFinal.battleResult);}
+        if(HGRivalEndpoint(&mapFinal,&mrFinal,&rivalFinal)){if(!mapSnapshot())return;mapNext();return;}
+        mapText(4);return;
+    }
+    if(mapStage==RIVAL_FIELD){if(!HGRivalEndpoint(&mapFinal,&mrFinal,&rivalFinal))return;PG_CHECK(!pgMenu.active);if(!mapSnapshot())return;mapNext();return;}
+    if(mapStage==RIVAL_FINISH){if(!HGRivalEndpoint(&mapFinal,&mrFinal,&rivalFinal))return;
+        if(!mapPending){PG_CHECK(w2c_hgengine_HGNativePokegearQARequest(pgCapture->game,mapFinal.revision,HG_PG_RIVAL_FINISH));mapPending=1;return;}
+        if(!rivalFinal.done)return;PG_CHECK(rivalLaunchSeen==1 && rivalReturnSeen==1 && rivalChoices>=2 && !(rivalChoices&1));
+        PG_CHECK(rivalStatPresses==rivalStatSettles && rivalStatPresses==rivalFinal.statRetirements);
+        rivalDiagnostic("finish");if(!mapSnapshot())return;pgFinish("passed_original_first_rival",TRUE);
     }
 }
 #endif
@@ -223,12 +331,24 @@ static void MapCardPresent(void *argument) {
 #ifdef HG_PG_MR_EXTENSION
     mrFinal=mrRead();
 #endif
+#ifdef HG_PG_RIVAL_EXTENSION
+    rivalFinal=rivalRead();
+#endif
+#ifdef HG_PG_RIVAL_EXTENSION
+    if(frame-mapStageFrame>12000u && mapStage>=RIVAL_START)rivalDiagnostic("watchdog");
+#endif
     if(frame-mapStageFrame>12000u)pgFinish("map_stage_timeout",FALSE);
     if(!mapSettle())return;
+#ifdef HG_PG_RIVAL_EXTENSION
+    if(rivalHandleBattle())return;
+#endif
     if(mapHandleBattle())return;
     if(mapFinal.battleReturns){PG_CHECK(mapFinal.battleOutcome==BATTLE_OUTCOME_PLAYER_FLED && mapRuns>=mapFinal.battleLaunches);}
 #ifdef HG_PG_MR_EXTENSION
 #ifdef HG_PG_ELM_EXTENSION
+#ifdef HG_PG_RIVAL_EXTENSION
+    if(mapStage>ELM_FINISH){FirstRivalPresent();return;}
+#endif
     if(mapStage>MR_FINISH){ElmPanicPresent();return;}
 #endif
     if(mapStage>MAP_FINISH){MrPokemonPresent();return;}
@@ -325,12 +445,31 @@ int main(int argc,char **argv) {
         && mapFinal.lastApp==2 && mapRuns>=mapFinal.battleLaunches && mapFinal.battleLaunches==mapFinal.battleReturns
         && mapMenuCloses==1 && !pgMenu.active && mapSteps==mrMapCardSteps+124;
 #else
+#ifdef HG_PG_RIVAL_EXTENSION
+    {HGPokegearMapCardQAState mapFinal=rivalElmMap;HGPokegearMrPokemonQAState mrFinal=rivalElmMr;HGNativePokegearQAState pgFinal=rivalElmPhone;
+        u32 mapStage=ELM_FINISH;const char *pgStatus="passed_original_elm_panic_call";
+#endif
     printf("ELM evidence: {\"status\":\"%s\",\"stage\":%u,\"map\":%u,\"x\":%u,\"z\":%u,\"facing\":%u,\"routeScene\":%u,\"houseScene\":%u,\"panicFlag\":%u,\"coverage\":%u,\"mysteryEgg\":%u,\"pokedex\":%u,\"oakContact\":%u,\"callTarget\":%u,\"incoming\":%u,\"scripted\":%u,\"scriptID\":%u,\"effectType\":%u,\"selections\":%u,\"completions\":%u,\"textContinues\":%u,\"textSerial\":%u,\"hangupPresses\":%u,\"closePresses\":%u,\"indoorSteps\":%u}\n",
         pgStatus,mapStage,mapFinal.mapId,mapFinal.x,mapFinal.z,mapFinal.facing,mrFinal.routeScene,mrFinal.houseScene,pgFinal.panicFlag,pgFinal.coverage,mrFinal.mysteryEgg,mrFinal.pokedexEnabled,mrFinal.oakRegistered,pgFinal.callTarget,pgFinal.callIncoming,pgFinal.callScripted,pgFinal.callScriptID,pgFinal.callEffectType,pgFinal.callSelections,pgFinal.callCompletions,elmContinues,pgFinal.callTextSerial,elmHangupSent,elmClosePresses,elmIndoorSteps);
+#ifdef HG_PG_RIVAL_EXTENSION
+    }
+#else
     passed=pgPassed && quiescent && mapStage==ELM_FINISH && HGElmEndpoint(&mapFinal,&mrFinal) && pgFinal.coverage==255
         && elmContinues && elmContinues==pgFinal.callTextSerial && elmHangupSent==1 && elmClosePresses>=2 && elmClosePresses<=3
         && mapFinal.battleLaunches==mapFinal.battleReturns && mapRuns>=mapFinal.battleLaunches && mapMenuCloses==1 && !pgMenu.active;
 #endif
+#endif
+#endif
+#ifdef HG_PG_RIVAL_EXTENSION
+    printf("RIVAL evidence: {\"status\":\"%s\",\"stage\":%u,\"qaBytes\":%zu,\"done\":%u,\"map\":%u,\"x\":%u,\"z\":%u,\"facing\":%u,\"routeScene\":%u,\"houseScene\":%u,\"scriptSeen\":%u,\"trainerLaunches\":%u,\"trainerReturns\":%u,\"battleType\":%u,\"battleSpecial\":%u,\"trainer\":%u,\"class\":%u,\"opponentSpecies\":%u,\"opponentLevel\":%u,\"playerSpecies\":%u,\"playerLevel\":%u,\"outcome\":%u,\"battleResult\":%u,\"metPasserby\":%u,\"rivalHidden\":%u,\"battleLive\":%u,\"choices\":%u,\"elmSteps\":%u,\"mysteryEgg\":%u,\"pokedex\":%u,\"oakContact\":%u,\"statOwner\":%u,\"statState\":%u,\"statKind\":%u,\"statReady\":%u,\"statSerial\":%u,\"statRetiredSerial\":%u,\"statWaits\":%u,\"statRetirements\":%u,\"statPresses\":%u,\"statSettles\":%u}\n",
+        pgStatus,mapStage,sizeof(rivalFinal),rivalFinal.done,mapFinal.mapId,mapFinal.x,mapFinal.z,mapFinal.facing,mrFinal.routeScene,mrFinal.houseScene,
+        rivalFinal.scriptSeen,rivalFinal.trainerLaunches,rivalFinal.trainerReturns,rivalFinal.battleType,rivalFinal.battleSpecial,rivalFinal.trainerId,rivalFinal.trainerClass,
+        rivalFinal.opponentSpecies,rivalFinal.opponentLevel,rivalFinal.playerSpecies,rivalFinal.playerLevel,rivalFinal.outcome,rivalFinal.battleResult,rivalFinal.metPasserby,
+        rivalFinal.rivalHidden,rivalFinal.battleLive,rivalChoices,rivalElmSteps,mrFinal.mysteryEgg,mrFinal.pokedexEnabled,mrFinal.oakRegistered,rivalFinal.statOwner,rivalFinal.statState,rivalFinal.statKind,rivalFinal.statReady,rivalFinal.statSerial,rivalFinal.statRetiredSerial,rivalFinal.statWaits,rivalFinal.statRetirements,rivalStatPresses,rivalStatSettles);
+    passed=pgPassed && quiescent && mapStage==RIVAL_FINISH && rivalFinal.done && HGRivalEndpoint(&mapFinal,&mrFinal,&rivalFinal)
+        && HGElmEndpoint(&rivalElmMap,&rivalElmMr) && rivalElmPhone.coverage==255 && mapFinal.battleLaunches==mapFinal.battleReturns
+        && mapRuns>=mapFinal.battleLaunches && mapMenuCloses==1 && !pgMenu.active && rivalLaunchSeen==1 && rivalReturnSeen==1
+        && rivalChoices>=2 && rivalChoices<=HG_PG_RIVAL_CHOICE_CAP && !(rivalChoices&1);
 #endif
     wasm2c_hgengine_free(game);for(u32 i=0;i<3;++i)close(wasi->fds[i]);free(game);free(env);free(wasi);free(capture);wasm_rt_free();return passed ? 0 : 1;
 }

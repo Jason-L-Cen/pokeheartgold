@@ -487,12 +487,182 @@ def capture_guest(report_path, audit, link, *, naming=False):
         namingPublicStateBytes=16 if naming else None,namingSourceProvenance=guest.get('namingSourceProvenance') if naming else None)
 
 
+
+ELM_QA_EXPORTS = ('HGNativePokegearQAGetState', 'HGNativePokegearQARequest', 'HGNativeMrPokemonQAGetState')
+ELM_NATIVE_REPORT_SHA256 = 'f670a9aea1ac257d798991eaf40c1cd90a0a4dd598a4957d3a96637c80f9c63b'
+ELM_NATIVE_BUILD_SHA256 = '3263bc84803744e0f0d274e02538efa6f8e445e1c0f0c491932d30b938546b95'
+ELM_MODULE_SHA256 = 'b6c034454423b0a0d7e94c74243633ab92c713a49203c53c40ace474c9ce396c'
+ELM_HEADER_SHA256 = '8ad20bb3284fbf3b7d6a8eaba81f0e965892de59910c5ad74fb6eb9057087395'
+ELM_QA_HEADER_SHA256 = 'bff0bb9b09afec70367eda3999a125b2e5656a4269aac40cf943a19c3fe403d4'
+
+
+def elm_panic_call_guest(report_path, fence_path, app_source_root, link, pack, header):
+    from check_native_pc_box import current_input_paths, require_hashes
+    def sealed(path, digest):
+        path=Path(path)
+        if path.is_symlink() or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=digest:
+            raise RuntimeError('Elm CHECK sealed input changed: '+str(path))
+        return json.loads(path.read_text())
+    if report_path.is_symlink() or fence_path.is_symlink():
+        raise RuntimeError('Elm CHECK report/fence must be regular sealed files')
+    report_path=report_path.resolve()
+    report=sealed(report_path,ELM_NATIVE_REPORT_SHA256)
+    if not all(report.get(k) is True for k in ('passed','complete','elmTerminalObserved','endpointPassed',
+            'pairedSnapshotsPassed','qualifiedOriginalInputTracePassed','sourceAndPrebuiltArtifactsUnchanged',
+            'originalFourUnchanged','privateFourUnchanged','preExecutionNoAudioBarrierPassed')) \
+            or report.get('status')!='passed_original_elm_panic_call':
+        raise RuntimeError('Elm CHECK requires the actual sealed natural native endpoint')
+    runtime_fence=sealed(fence_path,report['fenceSha256'])
+    build_path=Path(report['genuineModuleBuildReceipt'])
+    if runtime_fence['buildReport']!={'path':str(build_path),'sha256':ELM_NATIVE_BUILD_SHA256} \
+            or report['genuineModuleBuildReceiptSha256']!=ELM_NATIVE_BUILD_SHA256:
+        raise RuntimeError('Elm native runtime/build receipts do not pair')
+    build=sealed(build_path,ELM_NATIVE_BUILD_SHA256)
+    base_path=Path(runtime_fence['baseFence']['path'])
+    base=sealed(base_path,build['fenceSha256'])
+    if runtime_fence['baseFence']['sha256']!=build['fenceSha256'] \
+            or not all(build.get(k) is True for k in ('passed','complete','moduleBuilt','hostABICompiled','observerDefinitionsLinked','elmPanicCallMode','mrPokemonMode')) \
+            or build['futureExports']!=36 or build['privateExports']!=list(ELM_QA_EXPORTS):
+        raise RuntimeError('Elm CHECK requires the genuine private36 build and unchanged observer bindings')
+    folder=build_path.parent
+    module=folder/'guest/engine.wasm'; generated_header=folder/'native/hgengine.h'
+    if any(actual!=expected for actual,expected in ((report['privateModuleSha256'],ELM_MODULE_SHA256),
+            (build['privateModuleSha256'],ELM_MODULE_SHA256),(runtime_fence['moduleSha256'],ELM_MODULE_SHA256),
+            (report['genuineHeaderSha256'],ELM_HEADER_SHA256),(build['genuineElm36HeaderSha256'],ELM_HEADER_SHA256),
+            (runtime_fence['headerSha256'],ELM_HEADER_SHA256))):
+        raise RuntimeError('Elm CHECK module/header identity changed')
+    artifact_path=folder/'build-artifact-bank.json'
+    artifacts=sealed(artifact_path,build['buildArtifactBankSha256'])
+    require_hashes(artifacts,'Elm private build artifacts')
+    require_hashes({str(module):ELM_MODULE_SHA256,str(generated_header):ELM_HEADER_SHA256},'Elm private36 module/header')
+    if base['shippingModuleSha256']!=link['outputSha256'] or hashlib.sha256(header).hexdigest()!=report['bootHeaderSha256']:
+        raise RuntimeError('Elm CHECK current shipping engine/boot header differs from the native proof')
+    installed_ref=link.get('elmSourceAdmission')
+    if link.get('prospectiveOnly'):
+        raise RuntimeError('Prospective integration link is not a current build admission')
+    if not installed_ref and Path(report['pack']).resolve()!=pack.resolve():
+        raise RuntimeError('Elm CHECK current content differs from the native proof')
+    external=base['externalQA4']
+    if len(external)!=4:
+        raise RuntimeError('Elm CHECK requires its sealed four-file observer bank')
+    require_hashes(external,'Frozen Elm observer bank')
+    qa_headers=[Path(name) for name,digest in external.items() if name.endswith('/ios/tests/pokegear_map_card_qa.h') and digest==ELM_QA_HEADER_SHA256]
+    if len(qa_headers)!=1: raise RuntimeError('Frozen Elm QA header is missing')
+    qa_header=qa_headers[0]
+    sources=dict(base['currentSeals']['sources'])
+    # The only post-fence source delta is the published Elm QA4; production inputs retain their exact bytes.
+    for name,digest in external.items():
+        relative=Path(name).relative_to(qa_header.parents[2])
+        canonical=str(ROOT/relative)
+        if canonical not in sources: raise RuntimeError('Elm QA publication is outside the source inventory')
+        sources[canonical]=digest
+    historical_sources=dict(sources); admission=None
+    def bank_sha(bank):
+        return hashlib.sha256((json.dumps(bank,sort_keys=True,separators=(',',':'))+'\n').encode()).hexdigest()
+    if installed_ref:
+        admission=sealed(installed_ref['path'],installed_ref['sha256'])
+        if set(admission)!={'version','kind','basis','proposals','builder','transitions','current','content'} \
+                or admission['version']!=1 or admission['kind']!='elm-installed-source-transition':
+            raise RuntimeError('Unknown installed Elm source admission')
+        approved={
+            'rival':'e8add378c728b40cf7bc93d8fbc49350d96536c4f4301b4ac72b1e3cb165951c',
+            'ui':'89da658220d636197fa64015731644d232a3e57804278636ca67ae90f46fcd4a',
+            'text13':'607be217b9c871af96e14e91027273515a1dd720bf7e31b84013617b999ebd96'}
+        if set(admission['proposals'])!=set(approved):
+            raise RuntimeError('Installed Elm requires the three exact reviewed proposals')
+        replacements={}
+        for kind,digest in approved.items():
+            ref=admission['proposals'][kind]
+            if ref['sha256']!=digest: raise RuntimeError('Installed proposal identity changed: '+kind)
+            proposal=sealed(ref['path'],digest)
+            for relative,value in proposal['files'].items():
+                if Path(relative).is_absolute() or '..' in Path(relative).parts or relative in replacements:
+                    raise RuntimeError('Invalid/overlapping installed transition path')
+                replacements[relative]=value['replacementSha256'] if kind=='ui' else value
+        own_sha=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+        prior_builder=replacements['ios/tools/build_original_app.py']
+        if admission['builder']!={'previousValidatedSha256':prior_builder,'currentSha256':own_sha}:
+            raise RuntimeError('Installed successor builder is not jointly pinned')
+        replacements['ios/tools/build_original_app.py']=own_sha
+        expected={name:dict(before=historical_sources.get(str(ROOT/name)),after=digest) for name,digest in replacements.items()}
+        if len(expected)!=9 or admission['transitions']!=expected \
+                or admission['basis']!={'sourceBankSha256':bank_sha(historical_sources),'count':18910,'nativeReportSha256':ELM_NATIVE_REPORT_SHA256}:
+            raise RuntimeError('Installed Elm transition must contain exactly the reviewed nine paths')
+        sources.update({str(ROOT/name):digest for name,digest in replacements.items()})
+        if len(sources)!=18911 or admission['current']!={'sourceBankSha256':bank_sha(sources),'count':18911}:
+            raise RuntimeError('Installed source inventory digest differs')
+        content=admission['content']
+        if content['currentProfile']!=link.get('nativeContent') \
+                or content['nativeProofArchiveSha256']!='174dec9199aed30b61cf90646ec5d73218ff310d1df88f31f0fb0e56d4618929' \
+                or content['currentArchiveSha256']!='3f17b5d720110c45cb208a024c2a6b8f9e929417a98010fbd236f1bfc6a51cc5' \
+                or content['currentManifestSha256']!='25d068a39c37a449ead82e1fb52d5e509a29f7fe3202f4d15f6a75f3c0491258':
+            raise RuntimeError('Installed Text13 content profile is not the reviewed resource-only transition')
+        old_pack=verify(content['historicalProfile'])
+        generation=content['generation']
+        if generation['sha256']!='f47a2569354d0bae5f7a16023938a3a53cad3b1b826e9f7de3ff1a28ab749f1e':
+            raise RuntimeError('Text13 resource-generation receipt changed')
+        generated=sealed(generation['path'],generation['sha256'])
+        old_report=sealed(ROOT/content['historicalProfile']['report'],content['historicalProfile']['reportSha256'])
+        current_report=sealed(ROOT/content['currentProfile']['report'],content['currentProfile']['reportSha256'])
+        if Path(report['pack']).resolve()!=old_pack.resolve() or not generated.get('passed') \
+                or generated.get('compilerExecuted') is not False or generated.get('changedMembers')!=[1221] \
+                or hashlib.sha256((old_pack/'files/a/0/2/7').read_bytes()).hexdigest()!=content['nativeProofArchiveSha256'] \
+                or hashlib.sha256((pack/'files/a/0/2/7').read_bytes()).hexdigest()!=content['currentArchiveSha256'] \
+                or hashlib.sha256((pack/'manifest.json').read_bytes()).hexdigest()!=content['currentManifestSha256'] \
+                or any(old_report[key]!=current_report[key] for key in ('mapHeaderSha256','scriptHeaderSha256','messageHeaderSha256','pokedexGraphics')):
+            raise RuntimeError('Historical/current content proof or unchanged generated bindings differ')
+    if set(sources)!=set(current_input_paths()):
+        raise RuntimeError('Elm CHECK current source input inventory differs from its sealed native basis')
+    require_hashes(sources,'Elm current production and published observer inputs')
+    qa4={str(Path(name).relative_to(qa_header.parents[2])):digest for name,digest in external.items()}
+    if len(qa4)!=4 or qa4.get('ios/tests/pokegear_map_card_qa.h')!=ELM_QA_HEADER_SHA256:
+        raise RuntimeError('Elm CHECK observer publication does not match the sealed external QA4')
+    for item in build['sourceCopiesCompiled']:
+        if hashlib.sha256((ROOT/item['source']).read_bytes()).hexdigest()!=item['originalSha256']:
+            raise RuntimeError('Elm CHECK production source changed: '+item['source'])
+    app_source_root=app_source_root.resolve()
+    if app_source_root.is_relative_to(ROOT) and not (admission and app_source_root==ROOT):
+        raise RuntimeError('Canonical Elm App sources require the exact installed-source admission')
+    app_sources={str(app_source_root/name):hashlib.sha256((app_source_root/name).read_bytes()).hexdigest() for name in
+        ('ios/OriginalApp/main.m','ios/tools/build_original_app.py','ios/tests/elm_panic_call_uikit_check.inc')}
+    if any(Path(name).is_symlink() or not Path(name).is_file() for name in app_sources) \
+            or app_sources[str(app_source_root/'ios/tools/build_original_app.py')]!=hashlib.sha256(Path(__file__).read_bytes()).hexdigest():
+        raise RuntimeError('Elm App external source bank must contain this exact builder and its reviewed main/check sources')
+    inputs={**sources,**external,**artifacts,**app_sources,str(report_path):ELM_NATIVE_REPORT_SHA256,
+        str(Path(fence_path).resolve()):report['fenceSha256'],str(build_path):ELM_NATIVE_BUILD_SHA256,
+        str(base_path):build['fenceSha256'],str(artifact_path):build['buildArtifactBankSha256']}
+    if installed_ref:
+        inputs.update({str(Path(installed_ref['path'])):installed_ref['sha256'],
+            **{ref['path']:ref['sha256'] for ref in admission['proposals'].values()},
+            admission['content']['generation']['path']:admission['content']['generation']['sha256']})
+    input_bytes=(json.dumps(inputs,sort_keys=True,separators=(',',':'))+'\n').encode()
+    binding=dict(version=1,case='elm-panic-call',qaBytes=5620,mrBytes=72,nativeReportSha256=ELM_NATIVE_REPORT_SHA256,
+        nativeBuildReportSha256=ELM_NATIVE_BUILD_SHA256,moduleSha256=ELM_MODULE_SHA256,generatedHeaderSha256=ELM_HEADER_SHA256,
+        qaHeaderSha256=ELM_QA_HEADER_SHA256,bootHeaderSha256=report['bootHeaderSha256'],
+        shippingModuleSha256=link['outputSha256'],privateQAExports=list(ELM_QA_EXPORTS),
+        sourceInputBankSha256=hashlib.sha256(input_bytes).hexdigest(),sourceInputCount=len(inputs),appSources=app_sources)
+    if installed_ref:
+        binding['sourceAdmission']=dict(version=1,receiptSha256=installed_ref['sha256'],historicalSourceBankSha256=bank_sha(historical_sources),
+            currentSourceBankSha256=bank_sha(sources),currentSourceCount=len(sources),nativeProofArchiveSha256=admission['content']['nativeProofArchiveSha256'],
+            currentArchiveSha256=admission['content']['currentArchiveSha256'],currentManifestSha256=admission['content']['currentManifestSha256'])
+    resource=(json.dumps(binding,sort_keys=True,separators=(',',':'))+'\n').encode()
+    metadata=dict(elmPanicCall=True,sourceReport=str(report_path),sourceReportSha256=ELM_NATIVE_REPORT_SHA256,
+        sourceBuildReport=str(build_path),sourceBuildReportSha256=ELM_NATIVE_BUILD_SHA256,qaHeader=str(qa_header),
+        qaHeaderSha256=ELM_QA_HEADER_SHA256,privateGuestModule=str(module),privateGuestModuleSha256=ELM_MODULE_SHA256,
+        generatedHeaderSha256=ELM_HEADER_SHA256,privateQAExports=list(ELM_QA_EXPORTS),
+        bindingResourceSha256=hashlib.sha256(resource).hexdigest(),sourceInputBankSha256=binding['sourceInputBankSha256'],appSources=app_sources)
+    return module,metadata,resource,inputs
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sdk',choices=('iphonesimulator','iphoneos'),default='iphonesimulator')
     parser.add_argument('--check',action='store_true',help='Run UIKit input, frame, pause/resume and reset checks after launching')
     parser.add_argument('--check-no-audio-device',action='store_true',help='CHECK only: suppress the audio device and validate UI only; audio remains untested')
-    parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves','summary-tm','summary-candy','evolution','evolution-cancel','evolution-learn','pokedex','capture-registration','naming','pc-box'),help='Select an independent private UIKit case; requires --check')
+    parser.add_argument('--check-case',choices=('field-potion','forced-switch','learn-moves','summary-tm','summary-candy','evolution','evolution-cancel','evolution-learn','pokedex','capture-registration','naming','pc-box','elm-panic-call'),help='Select an independent private UIKit case; requires --check')
+    parser.add_argument('--elm-native-report',type=Path,help='Sealed passed native Elm runtime report; only --check-case elm-panic-call')
+    parser.add_argument('--elm-native-fence',type=Path,help='Matching sealed Elm runtime-fence.json; only --check-case elm-panic-call')
+    parser.add_argument('--elm-app-source-root',type=Path,help='Reviewed App3 source root; canonical ROOT requires installed admission; only --check-case elm-panic-call')
     parser.add_argument('--pc-box-native-report',type=Path,help='Separately approved passed native PC report; only --check-case pc-box')
     parser.add_argument('--summary-tm-report',type=Path,help='Sealed passed native TM report.json; only --check-case summary-tm')
     parser.add_argument('--summary-candy-report',type=Path,help='Sealed passed native Candy report.json; only --check-case summary-candy')
@@ -519,6 +689,10 @@ def main():
         parser.error('--naming-report is required only with --check --check-case naming')
     if (args.check_case=='pc-box')!=bool(args.pc_box_native_report):
         parser.error('--pc-box-native-report is required only with --check --check-case pc-box')
+    if any((args.check_case=='elm-panic-call')!=bool(value) for value in (args.elm_native_report,args.elm_native_fence,args.elm_app_source_root)):
+        parser.error('--elm-native-report, --elm-native-fence and --elm-app-source-root are required only with --check --check-case elm-panic-call')
+    if args.check_case=='elm-panic-call' and not args.check_no_audio_device:
+        parser.error('elm-panic-call requires --check-no-audio-device; audio is untested')
     audit=BUILD/'audit'; module=audit/'engine.wasm'
     link=json.loads((audit/'engine-link.json').read_text())
     if link['exitCode'] or hashlib.sha256(module.read_bytes()).hexdigest()!=link['outputSha256']:
@@ -528,7 +702,10 @@ def main():
     if listing.returncode or not {'HGNativePokedexUIGetState','HGNativeFieldChoiceUIGetState','HGNativeTrainerCardUIGetState','HGNativeFieldMenuUIGetState','HGNativePokegearUIGetState'}<=shipping_exports:
         raise RuntimeError('Shipping engine is missing an original public UI getter; run the current Full first')
     pack=verify(link.get('nativeContent')); header=read_boot_header(pack)
-    destination=BUILD/f'app-{args.sdk}'; destination.mkdir(exist_ok=True)
+    elm_proof=elm_panic_call_guest(args.elm_native_report,args.elm_native_fence,args.elm_app_source_root,link,pack,header) if args.check_case=='elm-panic-call' else None
+    destination=BUILD/(f'app-elm-panic-call-{args.sdk}-{hashlib.sha256(json.dumps(elm_proof[1]["appSources"],sort_keys=True,separators=(",",":")).encode()).hexdigest()[:12]}' if elm_proof else f'app-{args.sdk}')
+    if elm_proof and destination.exists(): raise RuntimeError('Fresh Elm variant output required; retain existing artifacts')
+    destination.mkdir(exist_ok=True)
     def run(command,log):
         argv=list(map(str,command)); journal=destination/(log+'.command.json')
         journal.write_text(json.dumps(dict(argv=argv,cwd=str(ROOT),returnCode=None),indent=2)+'\n')
@@ -537,8 +714,12 @@ def main():
         (destination/log).write_text(result.stdout+result.stderr)
         if result.returncode: raise RuntimeError(f'Original app build failed: {destination/log}')
     shipping_module_sha256=link['outputSha256']
-    private_guest=None; pc_box_replay=None; app_source_bank=None
-    if args.check_case=='pc-box':
+    private_guest=None; pc_box_replay=None; app_source_bank=None; elm_binding=None
+    if args.check_case=='elm-panic-call':
+        module,private_guest,elm_binding,app_source_bank=elm_proof
+        app_source_bank_bytes=(json.dumps(app_source_bank,sort_keys=True,separators=(',',':'))+'\n').encode()
+        (destination/'app-input-bank.json').write_bytes(app_source_bank_bytes)
+    elif args.check_case=='pc-box':
         from check_pc_box_uikit_binding import QA_NAMES, pc_box_guest
         module,private_guest,pc_box_replay=pc_box_guest(args.pc_box_native_report,audit,link,APPROVED_PC_NATIVE_REPORT_SHA256)
         from check_native_pc_box import current_input_paths
@@ -573,15 +754,25 @@ def main():
     selected_exports=set(re.findall(r'-> "([^"\n]+)"',selected_listing.stdout))
     if selected_listing.returncode or not {'HGNativePokedexUIGetState','HGNativeCaptureUIGetState','HGNativeNamingUIGetState','HGNativeOptionsUIGetState','HGNativeStarterUIGetState','HGNativeOakUIGetState','HGNativePCBoxUIGetState','HGNativeFieldChoiceUIGetState','HGNativeTrainerCardUIGetState','HGNativeFieldMenuUIGetState','HGNativePokegearUIGetState'}<=selected_exports:
         raise RuntimeError('Selected module lacks a current public UI getter; require a matching actual native proof, not rewritten approval hashes')
+    if args.check_case=='elm-panic-call' and (len(shipping_exports)!=33 or selected_exports!=shipping_exports|set(ELM_QA_EXPORTS)):
+        raise RuntimeError('Elm CHECK requires exactly current public33 plus PG2 and Mr1; default CHECK QA exports are incompatible')
     if args.check_case=='pc-box' and selected_exports!=shipping_exports|set(QA_NAMES):
         raise RuntimeError('PC CHECK requires exactly the current public exports plus the two approved private PC QA exports')
     if args.check and not args.check_case and selected_exports!=shipping_exports|set(QA_EXPORTS)|{'IsPaletteFadeFinished'}:
         raise RuntimeError('Default CHECK requires the shipping exports, existing private QA exports and one read-only palette-fade export')
     generated,writes,restores=generate_engine(destination,module,run)
+    if args.check_case=='elm-panic-call' and hashlib.sha256((destination/'hgengine.h').read_bytes()).hexdigest()!=ELM_HEADER_SHA256:
+        raise RuntimeError('Regenerated Elm36 native header differs from the genuine sealed header')
     flags,sources=native_build_settings(destination)
     check_flags=['-DHEARTGOLD_ORIGINAL_APP_CHECK'] if args.check else []
     if args.check_no_audio_device: check_flags.append('-DHEARTGOLD_ORIGINAL_APP_CHECK_NO_AUDIO_DEVICE')
     if args.check and not args.check_case: check_flags.append('-DHEARTGOLD_ORIGINAL_DEFAULT_CHECK')
+    if args.check_case=='elm-panic-call':
+        check_flags += ['-DHEARTGOLD_ORIGINAL_ELM_PANIC_CALL_CHECK','-DHG_PG_MR_EXTENSION','-DHG_PG_ELM_EXTENSION',
+            '-iquote',str(Path(private_guest['qaHeader']).parent),'-iquote',str(ROOT/'ios/OriginalApp'),'-iquote',str(ROOT/'ios/tests'),
+            f'-DHG_ELM_NATIVE_REPORT_SHA256="{ELM_NATIVE_REPORT_SHA256}"',
+            f'-DHG_ELM_NATIVE_MODULE_SHA256="{ELM_MODULE_SHA256}"',f'-DHG_ELM_NATIVE_HEADER_SHA256="{ELM_HEADER_SHA256}"',
+            f'-DHG_ELM_QA_HEADER_SHA256="{ELM_QA_HEADER_SHA256}"',f'-DHG_ELM_BINDING_SHA256="{private_guest["bindingResourceSha256"]}"']
     if args.check_case=='pc-box':
         check_flags += ['-DHEARTGOLD_ORIGINAL_PC_BOX_CHECK',
             f'-DHG_PC_BOX_NATIVE_REPORT_SHA256="{private_guest["sourceReportSha256"]}"',
@@ -616,8 +807,9 @@ def main():
     app.mkdir()
     entry=destination/'main.o'; audio=destination/'audio.o'
     entry_flags=['-include',private_guest['qaHeader']] if args.check_case in ('capture-registration','naming') else []
+    entry_source=(args.elm_app_source_root if args.check_case=='elm-panic-call' else ROOT)/'ios/OriginalApp/main.m'
     run(['xcrun','--sdk',args.sdk,'clang','-target',target,*flags,*check_flags,*entry_flags,'-fobjc-arc',
-         '-c',ROOT/'ios/OriginalApp/main.m','-o',entry],'entry.log')
+         '-c',entry_source,'-o',entry],'entry.log')
     run(['xcrun','--sdk',args.sdk,'clang','-target',target,'-std=c11','-O2',*check_flags,'-fobjc-arc',
          '-c',ROOT/'ios/OriginalApp/OriginalAudio.m','-o',audio],'audio.log')
     audio_framework=[] if args.check_no_audio_device else ['-framework','AVFAudio']
@@ -636,6 +828,11 @@ def main():
     if args.check_no_audio_device:
         plist['HGPrivateAudioValidation']='skipped_no_audio_device'
         plist['HGPrivateValidationScope']='UIKit/game UI only; audio untested'
+    if args.check_case=='elm-panic-call':
+        plist['HGPrivateElmNativeReportSha256']=ELM_NATIVE_REPORT_SHA256
+        plist['HGPrivateElmNativeModuleSha256']=ELM_MODULE_SHA256
+        plist['HGPrivateElmBindingSha256']=private_guest['bindingResourceSha256']
+        (app/'elm-panic-call-binding.json').write_bytes(elm_binding)
     if args.check_case=='pc-box':
         plist['HGPrivatePCBoxNativeReportSha256']=private_guest['sourceReportSha256']
         plist['HGPrivatePCBoxNativeModuleSha256']=private_guest['privateGuestModuleSha256']
@@ -695,6 +892,16 @@ def main():
     if args.check_no_audio_device:
         report.update(audioDeviceAvailable=False,audioValidation='skipped_no_audio_device',validationScope='UIKit/game UI only; audio untested')
     if args.check and not args.check_case: report['privateReadOnlyExports']=['IsPaletteFadeFinished']
+    if args.check_case=='elm-panic-call':
+        from check_native_pc_box import current_input_paths, require_hashes
+        require_hashes(app_source_bank,'Elm App source/artifact inputs after build')
+        if set(current_input_paths())!={name for name in app_source_bank if Path(name).is_relative_to(ROOT)}:
+            raise RuntimeError('Elm App source inventory changed during build')
+        if hashlib.sha256((app/'elm-panic-call-binding.json').read_bytes()).hexdigest()!=private_guest['bindingResourceSha256']:
+            raise RuntimeError('Elm App binding resource changed during build')
+        report.update(elmPanicCall=True,appInputBankFile=str(destination/'app-input-bank.json'),
+            appInputBankSha256=hashlib.sha256(app_source_bank_bytes).hexdigest(),appInputCount=len(app_source_bank),appInputsUnchanged=True,
+            privateReadOnlyObserverExports=list(ELM_QA_EXPORTS),bindingResourceSha256=private_guest['bindingResourceSha256'])
     if args.check_case=='summary-tm': report['summaryTm']=True
     if args.check_case=='summary-candy': report['rareCandyLearn']=True
     if args.check_case in ('evolution','evolution-cancel'): report.update(evolution=True,evolutionCancel=args.check_case=='evolution-cancel')

@@ -8,9 +8,38 @@ from pathlib import Path
 import struct
 import sys
 
-PROOF_SHA256='625a9f1c56f90cd7a40fe30933dc6761ccaa183474e3b23a3da4236f76e71afd'
+PROOF_SHA256='314df16b6a8b5e4b8643018e825e99d95f2350a9cb78fb333ae881aed11556dd'
 
 def sha(data): return hashlib.sha256(data).hexdigest()
+
+def controls(words):
+    result=[];position=0
+    while position<len(words) and words[position]!=0xFFFF:
+        if words[position]==0xFFFE:
+            code,count=words[position+1:position+3]
+            result.append((code,tuple(words[position+3:position+3+count])));position+=3+count
+        else:position+=1
+    return result
+
+def level_up(module,proof,source,original,image,selected):
+    evidence=proof['levelUpMessageEvidence']
+    for record in evidence['sourceReferences']:assert sha(Path(record['path']).read_bytes())==record['sha256']
+    sw,ss=module.message_row(source[197],3);rw,rs=module.message_row(original[195],3)
+    assert ss==rs==(0,1) and controls(sw)==[(0x101,(0,0)),(0x134,(1,0)),(0x202,(5,)),(0x202,(2,))]
+    assert controls(rw)==[(0x101,(0,)),(0x134,(1,)),(0x202,(5,)),(0x202,(2,))]
+    for words,record in ((sw,evidence['sourceRow']),(rw,evidence['romRow'])):
+        assert sha(struct.pack('<'+'H'*len(words),*words))==record['rawU16Sha256']
+    record=struct.unpack_from('<8I',image,struct.unpack_from('<I',image,0x50)[0]+12*32)
+    fat=struct.unpack_from('<I',image,0x48)[0];start,end=struct.unpack_from('<II',image,fat+record[6]*8)
+    code=module.decode_code(image[start:end]);assert sha(code)==evidence['overlay12Sha256']
+    for anchor in evidence['originalCodeAnchors']:
+        raw=code[int(anchor['start'],16)-record[1]:int(anchor['endExclusive'],16)-record[1]]
+        assert raw.hex()==anchor['bytesHex'] and sha(raw)==anchor['sha256']
+    entries=module.ENTRY_PROJECTIONS[197][3];assert entries[-1]==(3,3)
+    previous=module.project_message_entries(source[197],original[195],entries[:-1])
+    assert sha(previous)==evidence['currentMember1221Sha256'] and sha(selected[197])==evidence['expectedMember1221Sha256']
+    assert len(previous)==evidence['expectedOldLength'] and len(selected[197])==evidence['expectedNewLength']
+    assert all(raw_row(previous,row)==raw_row(selected[197],row) for row in range(1276) if row!=3)
 
 def raw_row(data,row):
     count,key=struct.unpack_from('<HH',data)
@@ -94,7 +123,8 @@ def main():
     proved=proof['provenEntryCorrespondences']
     expected={(row['sourceBank'],row['sourceId'],row['romBank'],row['romId']) for row in proved}
     actual={(source_id,a,record[0],b) for source_id,record in module.ENTRY_PROJECTIONS.items() for a,b in record[3]}
-    assert actual==expected and len(actual)==12 and len(module.ENTRY_PROJECTIONS)==4
+    assert actual==expected and len(actual)==13 and len(module.ENTRY_PROJECTIONS)==4
+    level_up(module,proof,source,original,image,selected)
     report=dict(scope='Read-only raw-code-unit entry projection checks; no build or runtime',imageSha256=image_sha,
         proofSha256=sha(proof_bytes),candidateSha256=sha(candidate.read_bytes()),banks=[],entries=[],
         pending=['Fresh content generation/audit/link','Full gameplay/dialogue and regional compatibility','Glyph/font rendering and layout'])
@@ -144,7 +174,7 @@ def main():
     assert narc(projected_archive)==members
     fallback_rows=sum(record['fallbackEntries'] for record in report['banks'])
     other_banks=len(source)-len(module.ENTRY_PROJECTIONS)
-    assert (fallback_rows,other_banks)==(1428,825)
+    assert (fallback_rows,other_banks)==(1427,825)
     report.update(archiveSha256=sha(projected_archive.read_bytes()),archivePath=str(projected_archive),
         originalRomMembersUnchanged=len(original),sourceFallbackRowsUnchanged=fallback_rows,otherBanksUnchanged=other_banks,
         wholeBankProjectionRejectedRows=[843,844,845,1110,1111])
