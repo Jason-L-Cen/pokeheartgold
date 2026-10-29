@@ -8,7 +8,7 @@
 #ifdef HG_FIELD_GIVE_TAKE_QA
 #include "native_bag_ui.h"
 #include "constants/heap.h"
-_Static_assert(sizeof(HGNativePartyUIState)==1480 && sizeof(HGNativeBagUIState)==1568,"Field Give/Take UI ABI");
+_Static_assert(sizeof(HGNativePartyUIState)==1480 && sizeof(HGNativeBagUIState)==1792,"Field Give/Take UI ABI");
 #endif
 #include "constants/pokemon.h"
 #include <nitro/os/native_reset.h>

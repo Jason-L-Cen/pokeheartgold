@@ -7,6 +7,7 @@
 
 enum { HG_BAG_UI_INPUT = 1, HG_BAG_UI_ITEM_MENU = 4, HG_BAG_UI_TM_MESSAGE = 13, HG_BAG_UI_GIVE_INPUT = 14, HG_BAG_UI_TM_EXIT_FADE = 37 };
 enum { HG_BAG_UI_GIVE_MODE = 1 };
+enum { HG_BAG_UI_SELL_MODE=2, HG_BAG_UI_SELL_INPUT=16, HG_BAG_UI_SELL_QUANTITY=18, HG_BAG_UI_SELL_CONFIRM=22, HG_BAG_UI_SELL_MESSAGE=24 };
 enum { HG_BAG_UI_ACTION_TM_ACK = 16, HG_BAG_UI_ACTION_TM_YES, HG_BAG_UI_ACTION_TM_NO };
 enum { HG_BAG_UI_POCKETS = 8, HG_BAG_UI_ITEMS = 6, HG_BAG_UI_ACTIONS = 4 };
 enum { HG_BAG_UI_TOUCH_POCKET, HG_BAG_UI_TOUCH_ITEM, HG_BAG_UI_TOUCH_ACTION, HG_BAG_UI_TOUCH_PREVIOUS, HG_BAG_UI_TOUCH_NEXT, HG_BAG_UI_TOUCH_CANCEL };
@@ -34,6 +35,8 @@ typedef struct HGNativeBagUIState {
     HGNativeBagUIItem items[HG_BAG_UI_ITEMS];
     HGNativeBagUIAction actions[HG_BAG_UI_ACTIONS];
     HGNativePartyUIWindow description, tmInfo, prompt, message, page, selectedEntry, cancel;
+    uint32_t transactionQuantity,transactionMax,unitPrice,currency;
+    HGNativePartyUIWindow currencyText,quantityText,quantityOnesText,totalPriceText;
 } HGNativeBagUIState;
 
 // Owner thread only; copy each nonzero descriptor's tiled 4bpp bytes before advancing the game.
@@ -41,7 +44,21 @@ const HGNativeBagUIState *HGNativeBagUIGetState(void);
 
 static inline uint32_t HGNativeBagUIIsList(const HGNativeBagUIState *state) {
     return state && ((!state->mode && state->phase == HG_BAG_UI_INPUT)
-        || (state->mode == HG_BAG_UI_GIVE_MODE && state->phase == HG_BAG_UI_GIVE_INPUT));
+        || (state->mode == HG_BAG_UI_GIVE_MODE && state->phase == HG_BAG_UI_GIVE_INPUT)
+        || (state->mode == HG_BAG_UI_SELL_MODE && state->phase == HG_BAG_UI_SELL_INPUT));
+}
+static inline uint32_t HGNativeBagUIIsSell(const HGNativeBagUIState *state) {
+    return state && state->active && state->mode==HG_BAG_UI_SELL_MODE;
+}
+static inline uint32_t HGNativeBagUIIsSellTransaction(const HGNativeBagUIState *state) {
+    return HGNativeBagUIIsSell(state) && (state->phase==HG_BAG_UI_SELL_QUANTITY || state->phase==HG_BAG_UI_SELL_CONFIRM || state->phase==HG_BAG_UI_SELL_MESSAGE);
+}
+static inline uint32_t HGNativeBagUIResolveSellKey(const HGNativeBagUIState *state,uint32_t revision,uint32_t phase,uint32_t key,uint32_t *output) {
+    if(!output || !HGNativeBagUIIsSellTransaction(state) || !state->ready || !revision || state->revision!=revision || state->phase!=phase)return 0;
+    if(key!=1 && key!=2 && key!=16 && key!=32 && key!=64 && key!=128)return 0;
+    if(phase==HG_BAG_UI_SELL_CONFIRM && key!=1 && key!=2 && key!=64 && key!=128)return 0;
+    if(phase==HG_BAG_UI_SELL_MESSAGE && key!=1 && key!=2)return 0;
+    *output=key;return 1;
 }
 
 // The producer publishes these roles only for the original TM/HM task, including its disabled exit fade.

@@ -1895,6 +1895,9 @@ int main(int argc,char **argv) {
     u32 fieldChoiceUI=w2c_hg32_CheckNativeFieldChoiceUI(&first);
     if (fieldChoiceUI) fprintf(stderr,"Native field choice UI qualification check line %u\n",fieldChoiceUI);
     CHECK(!fieldChoiceUI && !w2c_hg32_CheckNativeFieldChoiceUI(&second));
+    u32 shopUI=w2c_hg32_CheckNativeShopUI(&first);
+    if (shopUI) fprintf(stderr,"Native Shop UI qualification check line %u\n",shopUI);
+    CHECK(!shopUI && !w2c_hg32_CheckNativeShopUI(&second));
     u32 trainerCardUI=w2c_hg32_CheckNativeTrainerCardUI(&first);
     if (trainerCardUI) fprintf(stderr,"Native Trainer Card UI qualification check line %u\n",trainerCardUI);
     CHECK(!trainerCardUI && !w2c_hg32_CheckNativeTrainerCardUI(&second));

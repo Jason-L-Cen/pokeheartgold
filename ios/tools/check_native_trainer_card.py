@@ -352,7 +352,7 @@ def main():
     sys.path.insert(0,str(root/'ios/tools'));sys.path.insert(0,str(root/'ios/tests'))
     require(not args.output.exists(),'Select a new output attempt; prior evidence is retained');args.output.mkdir(parents=True)
     report=dict(passed=False,complete=False,gameRuntimeExecuted=False,moduleBuilt=False,commands=[],remainingGaps=[],
-        noAutomaticRetry=True,syntheticSaveSetters=False,privateExports=list(QA_EXPORTS),expectedPrivateExportCount=35,expectedSteps=55)
+        noAutomaticRetry=True,syntheticSaveSetters=False,privateExports=list(QA_EXPORTS),expectedPrivateExportCount=36,expectedSteps=55)
     def run(command,log,timeout=60):
         command=['nice','-n','10',*map(str,command)];result=subprocess.run(command,cwd=root,capture_output=True,text=True,timeout=timeout)
         (args.output/log).write_text(result.stdout+result.stderr);report['commands'].append(dict(command=command,returnCode=result.returncode,log=log,allChildrenWaited=True,timedOut=False))

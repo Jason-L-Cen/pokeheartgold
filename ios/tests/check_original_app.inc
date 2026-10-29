@@ -2619,6 +2619,15 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
         _summaryOwnerPictures=summarySeed; summaryCache&=![self copySummaryPictures:&changed frame:nil subFrame:nil];
     }
     report[@"summaryRawImageCacheScope"]=@(summaryCache); _summaryOwnerPictures=savedSummaryOwner;
+    // This synchronous fixture runs before runEngine starts; never install synthetic input on an engine owner.
+    [_condition lock];
+    if (!NSThread.isMainThread || _game || _env) { [_condition unlock]; return; }
+    NSData *savedBagState=_bagUIState,*savedDisplayedBagState=_displayedBagUIState; NSArray *savedBagGlyphs=_displayedBagItemGlyphs;
+    struct {uint32_t revision,phase,kind,index,touchRevision,reads,x,y,sellRevision,sellPhase,sellKeys,inputRevision,inputPhase,inputKeys,inputReads,releaseReads;BOOL scene,pending,active,sellPending,sellActive,sellCooling;} savedBagInput={
+        _bagChoiceRevision,_bagChoicePhase,_bagChoiceKind,_bagChoiceIndex,_bagTouchRevision,_bagTouchReads,_bagTouchX,_bagTouchY,
+        _bagSellChoiceRevision,_bagSellChoicePhase,_bagSellChoiceKeys,_bagSellInputRevision,_bagSellInputPhase,_bagSellInputKeys,_bagSellInputReads,_bagSellReleaseReads,
+        _bagScene,_bagChoicePending,_bagTouchActive,_bagSellChoicePending,_bagSellInputActive,_bagSellInputCooling};
+    _bagChoicePending=_bagTouchActive=NO; [self clearBagSellInputLocked]; [_condition unlock];
     NSMutableData *bagData=[NSMutableData dataWithLength:sizeof(HGNativeBagUIState)]; HGNativeBagUIState *bag=bagData.mutableBytes;
     bag->active=bag->ready=bag->cancelEnabled=1; bag->revision=21; bag->phase=HG_BAG_UI_INPUT;
     bag->pocketCount=8; bag->pocketMask=255; bag->visibleCount=bag->itemMask=bag->itemCount=1; bag->pageCount=2; bag->cursorButton=8;
@@ -2628,18 +2637,21 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     }
     bag->items[0]=(HGNativeBagUIItem){.itemId=17,.quantity=3,.enabled=1,.hitX=63,.hitY=52,.cropY=32,.cropWidth=127,.cropHeight=41};
     bag->cancelX=223; bag->cancelY=179;
+    [_condition lock]; bag->revision=20; _bagUIState=[bagData copy]; bag->revision=21; [_condition unlock];
     [self updateBagControls:[bagData copy] pictures:nil paused:NO]; [self.view layoutIfNeeded];
     report[@"bagOriginalResourceMetadata"]=@(_pocketNames.count==8 && _itemNames.count==537 && _bagActionNames.count==16 && [_bagActionNames[0] isEqual:@"USE"]);
     report[@"bagNativeListTargets"]=@(!_bagPanel.hidden && _bagPockets[7].enabled && _bagPockets[7].bounds.size.width>=44
         && !_bagItems[0].hidden && _bagItems[0].enabled && _bagItems[0].bounds.size.height>=44 && _bagItems[1].hidden);
     report[@"bagPageImageStaysInBounds"]=@(_bagPage.clipsToBounds && CGRectContainsRect(self.view.bounds,_bagPage.frame));
     [_bagItems[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    [_condition lock]; BOOL bagRejectsLiveStale=!_bagChoicePending && !_bagTouchActive; _bagUIState=[bagData copy]; [_condition unlock];
+    [_bagItems[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
     uint32_t bagX=0,bagY=0; BOOL bagPressed=NO;
     [_condition lock]; BOOL bagQueued=_bagChoicePending && _bagChoiceKind==HG_BAG_UI_TOUCH_ITEM;
     bag->ready=0; [self takeBagTouchLocked:bag reads:0 x:&bagX y:&bagY pressed:&bagPressed]; BOOL bagWaits=_bagChoicePending && !bagPressed;
     bag->ready=1; [self takeBagTouchLocked:bag reads:0 x:&bagX y:&bagY pressed:&bagPressed]; BOOL bagSample=bagPressed && bagX==63 && bagY==52;
     [self takeBagTouchLocked:bag reads:4 x:&bagX y:&bagY pressed:&bagPressed];
-    report[@"bagOriginalTouchSampling"]=@(bagQueued && bagWaits && bagSample && !bagPressed && !_bagTouchActive);
+    report[@"bagOriginalTouchSampling"]=@(bagRejectsLiveStale && bagQueued && bagWaits && bagSample && !bagPressed && !_bagTouchActive);
     _bagChoicePending=YES; _bagChoiceRevision=20;
     [self takeBagTouchLocked:bag reads:5 x:&bagX y:&bagY pressed:&bagPressed];
     report[@"bagRejectsStaleRequest"]=@(!_bagChoicePending && !_bagTouchActive);
@@ -2649,8 +2661,10 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     [self updateBagControls:[bagData copy] pictures:@{@"prompt":glyph} paused:NO]; [self.view layoutIfNeeded];
     report[@"bagNativeActionAndCancel"]=@(_bagItems[0].hidden && !_bagActions[0].hidden && _bagActions[0].enabled && _bagActions[1].hidden
         && _bagNavigation[0].enabled && _bagActions[0].bounds.size.height>=44);
-    [_bagActions[0] sendActionsForControlEvents:UIControlEventTouchUpInside]; [self pause];
-    [_condition lock]; report[@"bagPauseClearsRequest"]=@(!_bagChoicePending && !_bagTouchActive); [_condition unlock]; [self resume];
+    [_condition lock]; _bagUIState=[bagData copy]; [_condition unlock];
+    [_bagActions[0] sendActionsForControlEvents:UIControlEventTouchUpInside];
+    [_condition lock]; BOOL bagActionQueued=_bagChoicePending && _bagChoiceKind==HG_BAG_UI_TOUCH_ACTION; [_condition unlock]; [self pause];
+    [_condition lock]; report[@"bagPauseClearsRequest"]=@(bagActionQueued && !_bagChoicePending && !_bagTouchActive); [_condition unlock]; [self resume];
     bag->phase=HG_BAG_UI_INPUT; [self updateBagControls:[bagData copy] pictures:@{@"prompt":glyph} paused:NO];
     report[@"bagClosedPromptDoesNotPersist"]=@(_bagPrompt.hidden && !_bagPrompt.image);
     bag->mode=HG_BAG_UI_GIVE_MODE; bag->phase=HG_BAG_UI_GIVE_INPUT;
@@ -2658,10 +2672,18 @@ static void (^sCaptureRegistrationDisplay)(uint32_t);
     BOOL giveList=!_bagPanel.hidden && !_bagItems[0].hidden && _bagItems[0].enabled && _bagActions[0].hidden && _bagNavigation[0].enabled && _bagPrompt.hidden;
     bag->phase=HG_BAG_UI_ITEM_MENU; [self updateBagControls:[bagData copy] pictures:nil paused:NO];
     BOOL giveNoSubmenu=!_bagScene && _bagPanel.hidden;
-    bag->phase=HG_BAG_UI_GIVE_INPUT; bag->mode=2; [self updateBagControls:[bagData copy] pictures:nil paused:NO];
-    report[@"bagGivePickerKeepsExactContext"]=@(giveList && giveNoSubmenu && !_bagScene && _bagPanel.hidden);
+    bag->mode=HG_BAG_UI_SELL_MODE; bag->phase=HG_BAG_UI_SELL_INPUT; [self updateBagControls:[bagData copy] pictures:nil paused:NO];
+    BOOL sellList=_bagScene && !_bagPanel.hidden && !_bagItems[0].hidden && _bagItems[0].enabled && _bagActions[0].hidden && _bagNavigation[0].enabled && _bagPrompt.hidden;
+    bag->phase=HG_BAG_UI_GIVE_INPUT; bag->mode=3; [self updateBagControls:[bagData copy] pictures:nil paused:NO];
+    report[@"bagGivePickerKeepsExactContext"]=@(giveList && giveNoSubmenu && sellList && !_bagScene && _bagPanel.hidden);
     bag->active=0; [self updateBagControls:[bagData copy] pictures:nil paused:NO];
     report[@"bagExitHidesPanel"]=@(!_bagScene && _bagPanel.hidden && _bagNavigation[0].hidden && _bagPage.hidden);
+    [_condition lock]; _bagUIState=savedBagState; _displayedBagUIState=savedDisplayedBagState; _displayedBagItemGlyphs=savedBagGlyphs;
+    _bagChoiceRevision=savedBagInput.revision; _bagChoicePhase=savedBagInput.phase; _bagChoiceKind=savedBagInput.kind; _bagChoiceIndex=savedBagInput.index;
+    _bagTouchRevision=savedBagInput.touchRevision; _bagTouchReads=savedBagInput.reads; _bagTouchX=savedBagInput.x; _bagTouchY=savedBagInput.y;
+    _bagSellChoiceRevision=savedBagInput.sellRevision; _bagSellChoicePhase=savedBagInput.sellPhase; _bagSellChoiceKeys=savedBagInput.sellKeys;
+    _bagSellInputRevision=savedBagInput.inputRevision; _bagSellInputPhase=savedBagInput.inputPhase; _bagSellInputKeys=savedBagInput.inputKeys; _bagSellInputReads=savedBagInput.inputReads; _bagSellReleaseReads=savedBagInput.releaseReads;
+    _bagScene=savedBagInput.scene; _bagChoicePending=savedBagInput.pending; _bagTouchActive=savedBagInput.active; _bagSellChoicePending=savedBagInput.sellPending; _bagSellInputActive=savedBagInput.sellActive; _bagSellInputCooling=savedBagInput.sellCooling; [_condition unlock];
     NSMutableData *descriptionTiles=[NSMutableData dataWithLength:6145];
     HGNativePartyUIWindow description={.pixelBuffer=1,.tileWidth=32,.tileHeight=6};
     UIImage *descriptionImage=OriginalWindowImage(&description,descriptionTiles.bytes,descriptionTiles.length);

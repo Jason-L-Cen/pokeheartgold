@@ -33,6 +33,7 @@
 #include "native_battle_party_ui.h"
 #include "native_party_ui.h"
 #include "native_bag_ui.h"
+#include "native_shop_ui.h"
 #include "native_summary_ui.h"
 #include "native_evolution_ui.h"
 #include "native_pokedex_ui.h"
@@ -45,6 +46,10 @@
 #include "native_field_choice_ui.h"
 #include "native_field_menu_ui.h"
 #include "native_pokegear_ui.h"
+
+_Static_assert(sizeof(HGNativeShopUIState)==1268 && offsetof(HGNativeShopUIState,items)==80
+    && offsetof(HGNativeShopUIState,money)==800, "Shop UI ABI");
+static BOOL OriginalShopOwnsInput(const HGNativeShopUIState *state) { return state && state->active==1 && !state->kind; }
 
 _Static_assert(sizeof(HGNativePokegearUIState)==48,"original Pokegear public ABI");
 static BOOL OriginalPokegearOwnsInput(const HGNativePokegearUIState *state) {
@@ -496,7 +501,7 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     uint32_t _partyChoiceRevision, _partyChoicePhase, _partyChoiceKind, _partyChoiceIndex;
     uint32_t _partyTouchRevision, _partyTouchReads, _partyTouchX, _partyTouchY;
     UIView *_bagPanel;
-    UIImageView *_bagPreview, *_bagSelectedEntry, *_bagPrompt, *_bagPage;
+    UIImageView *_bagPreview, *_bagSelectedEntry, *_bagPrompt, *_bagPage, *_bagCurrency, *_bagQuantity, *_bagQuantityOnes, *_bagTotalPrice;
     NSArray<UIButton *> *_bagPockets, *_bagItems, *_bagActions;
     NSArray<UIImageView *> *_bagPocketImages, *_bagItemImages;
     NSArray<UIButton *> *_bagNavigation;
@@ -506,6 +511,18 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
     BOOL _bagScene, _bagChoicePending, _bagTouchActive;
     uint32_t _bagChoiceRevision, _bagChoicePhase, _bagChoiceKind, _bagChoiceIndex;
     uint32_t _bagTouchRevision, _bagTouchReads, _bagTouchX, _bagTouchY;
+    BOOL _bagSellChoicePending, _bagSellInputActive, _bagSellInputCooling;
+    uint32_t _bagSellChoiceRevision, _bagSellChoicePhase, _bagSellChoiceKeys;
+    uint32_t _bagSellInputRevision, _bagSellInputPhase, _bagSellInputKeys, _bagSellInputReads, _bagSellReleaseReads;
+    UIView *_shopPanel;
+    NSArray<UIButton *> *_shopItems, *_shopButtons;
+    NSArray<UIImageView *> *_shopItemImages, *_shopWindowImages;
+    NSData *_shopUIState, *_shopRawUIState, *_displayedShopUIState;
+    NSDictionary *_shopPictures, *_shopOwnerPictures;
+    HGNativeShopUIState _shopChoice, _shopInput;
+    BOOL _shopScene, _shopOwnedInputs, _shopChoicePending, _shopInputActive, _shopInputCooling, _shopChoiceTouch, _shopInputTouch;
+    uint32_t _shopChoiceKeys, _shopChoiceKind, _shopChoiceIndex, _shopInputKeys, _shopInputKind, _shopInputIndex;
+    uint32_t _shopInputReads, _shopReleaseReads, _shopInputX, _shopInputY;
     UIView *_summaryPanel;
     UIImageView *_summaryPreview, *_summaryContent, *_summaryTitle;
     NSArray<UIButton *> *_summaryMoves, *_summaryNavigation;
@@ -668,6 +685,17 @@ static void OriginalSetButtonContent(UIButton *button,UIButtonConfiguration *con
 #endif
 }
 - (void)engineFrame;
+- (void)clearShopInputLocked;
+- (void)queueShopKey:(OriginalKeyButton *)button;
+- (void)queueShopTouch:(UIButton *)button;
+- (void)takeShopInputLocked:(const HGNativeShopUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed;
+- (NSDictionary *)copyShopPictures:(const HGNativeShopUIState *)state subFrame:(NSData *)subFrame;
+- (void)updateShopControls:(NSData *)data pictures:(NSDictionary *)pictures paused:(BOOL)paused;
+- (void)layoutShopControls:(CGRect)area;
+- (void)clearBagSellInputLocked;
+- (void)queueBagSellKey:(OriginalKeyButton *)button;
+- (void)takeBagSellInputLocked:(const HGNativeBagUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys;
+- (void)updateBagSellKeys:(const HGNativeBagUIState *)state paused:(BOOL)paused;
 - (void)clearOptionsInputLocked;
 - (void)queueOptionsKey:(OriginalKeyButton *)button;
 - (void)takeOakInputLocked:(const HGNativeOakUIState *)state namingActive:(uint32_t)naming touchEngine:(uint32_t)touchEngine
@@ -1024,7 +1052,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _bagPanel=[UIView new]; _bagPanel.hidden=YES; _bagPanel.backgroundColor=_partyPanel.backgroundColor;
     _bagPanel.layer.cornerRadius=12; [self.view addSubview:_bagPanel];
     _bagPreview=[UIImageView new]; _bagSelectedEntry=[UIImageView new]; _bagPrompt=[UIImageView new]; _bagPage=[UIImageView new];
-    for (UIImageView *image in @[_bagPreview,_bagSelectedEntry,_bagPrompt]) {
+    _bagCurrency=[UIImageView new]; _bagQuantity=[UIImageView new]; _bagQuantityOnes=[UIImageView new]; _bagTotalPrice=[UIImageView new];
+    for (UIImageView *image in @[_bagPreview,_bagSelectedEntry,_bagPrompt,_bagCurrency,_bagQuantity,_bagQuantityOnes,_bagTotalPrice]) {
         image.contentMode=UIViewContentModeScaleAspectFit; image.clipsToBounds=YES; image.layer.magnificationFilter=kCAFilterNearest; [_bagPanel addSubview:image];
     }
     _bagPage.contentMode=UIViewContentModeScaleAspectFit; _bagPage.layer.magnificationFilter=kCAFilterNearest; _bagPage.clipsToBounds=YES;
@@ -1054,6 +1083,24 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         [button addTarget:self action:@selector(bagNavigate:) forControlEvents:UIControlEventTouchUpInside]; [self.view addSubview:button]; [bagNavigation addObject:button];
     }
     _bagNavigation=bagNavigation;
+    _shopPanel=[UIView new]; _shopPanel.hidden=YES; _shopPanel.backgroundColor=_partyPanel.backgroundColor;
+    _shopPanel.layer.cornerRadius=12; [self.view addSubview:_shopPanel];
+    NSMutableArray *shopWindows=[NSMutableArray new],*shopItems=[NSMutableArray new],*shopImages=[NSMutableArray new],*shopButtons=[NSMutableArray new];
+    for (NSUInteger i=0;i<9;i++) {
+        UIImageView *image=[UIImageView new]; image.contentMode=UIViewContentModeScaleAspectFit; image.clipsToBounds=YES;
+        image.layer.magnificationFilter=kCAFilterNearest; [_shopPanel addSubview:image]; [shopWindows addObject:image];
+    }
+    for (NSUInteger i=0;i<HG_SHOP_UI_ITEMS+HG_SHOP_UI_BUTTONS;i++) {
+        UIButton *button=[UIButton buttonWithType:UIButtonTypeCustom]; button.tag=i; button.layer.cornerRadius=8;
+        button.layer.borderWidth=2; button.backgroundColor=UIColor.whiteColor; button.imageView.contentMode=UIViewContentModeScaleAspectFit;
+        button.imageView.layer.magnificationFilter=kCAFilterNearest;
+        [button addTarget:self action:@selector(queueShopTouch:) forControlEvents:UIControlEventTouchUpInside]; [_shopPanel addSubview:button];
+        if (i<HG_SHOP_UI_ITEMS) {
+            UIImageView *image=[UIImageView new]; image.contentMode=UIViewContentModeScaleAspectFit; image.clipsToBounds=YES;
+            image.layer.magnificationFilter=kCAFilterNearest; [button addSubview:image]; [shopItems addObject:button]; [shopImages addObject:image];
+        } else [shopButtons addObject:button];
+    }
+    _shopWindowImages=shopWindows; _shopItems=shopItems; _shopItemImages=shopImages; _shopButtons=shopButtons;
     _summaryPanel=[UIView new]; _summaryPanel.hidden=YES; _summaryPanel.backgroundColor=_partyPanel.backgroundColor;
     _summaryPanel.layer.cornerRadius=12; [self.view addSubview:_summaryPanel];
     _summaryPreview=[UIImageView new]; _summaryContent=[UIImageView new]; _summaryTitle=[UIImageView new];
@@ -1233,6 +1280,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         CGFloat pw=_bagPanel.bounds.size.width,ph=_bagPanel.bounds.size.height,gap=8,leftWidth=MIN(280,pw*0.38),rx=leftWidth+gap,rw=pw-rx-gap;
         const HGNativeBagUIState *state=_displayedBagUIState.bytes;
         BOOL tm=_displayedBagUIState.length==sizeof(*state) && HGNativeBagUIIsTMHM(state);
+        BOOL sell=_displayedBagUIState.length==sizeof(*state) && HGNativeBagUIIsSell(state),trade=sell && HGNativeBagUIIsSellTransaction(state);
         CGFloat pocketWidth=(pw-9*gap)/8;
         for (NSUInteger i=0;i<HG_BAG_UI_POCKETS;i++) {
             _bagPockets[i].frame=CGRectMake(gap+i*(pocketWidth+gap),4,pocketWidth,44); _bagPocketImages[i].frame=CGRectInset(_bagPockets[i].bounds,3,3);
@@ -1252,12 +1300,29 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
             _bagPrompt.frame=CGRectMake(rx,52,rw,MAX(32,MIN(64,ph-112)));
             for (NSUInteger i=0;i<HG_BAG_UI_ACTIONS;i++) _bagActions[i].frame=CGRectMake(rx+(i%2)*(cardWidth+gap),CGRectGetMaxY(_bagPrompt.frame)+8+(i/2)*52,cardWidth,44);
         }
+        if (sell) for (NSUInteger i=0;i<HG_BAG_UI_POCKETS;i++) {
+            CGFloat width=(rw-7*gap)/8;
+            _bagPockets[i].frame=CGRectMake(rx+i*(width+gap),4,width,44);
+            _bagPocketImages[i].frame=CGRectInset(_bagPockets[i].bounds,3,3);
+        }
+        _bagCurrency.frame=CGRectMake(8,4,leftWidth-16,44);
+        CGFloat digitWidth=44*2.0/3;
+        _bagQuantity.frame=CGRectMake(rx,52,digitWidth,44); _bagQuantityOnes.frame=CGRectMake(rx+digitWidth+4,52,digitWidth,44);
+        _bagTotalPrice.frame=CGRectMake(rx+rw*0.38,52,rw*0.62,44);
+        if (trade) {
+            _bagSelectedEntry.frame=CGRectMake(rx,4,rw,40); _bagPrompt.frame=CGRectMake(rx,104,rw,MAX(44,ph-112));
+        }
         CGFloat navY=CGRectGetMaxY(area)-52;
         _bagNavigation[0].frame=CGRectMake(area.origin.x,navY,100,44);
         _bagNavigation[1].frame=CGRectMake(CGRectGetMidX(area)-122,navY,84,44);
         _bagPage.frame=CGRectMake(CGRectGetMidX(area)-34,navY,68,44);
         _bagNavigation[2].frame=CGRectMake(CGRectGetMidX(area)+38,navY,84,44);
         _buttons[@1].frame=CGRectMake(CGRectGetMaxX(area)-100,navY,100,44);
+        if (trade) {
+            CGFloat size=44,step=48,start=CGRectGetMidX(area)-3*step;
+            NSArray *keys=@[@0x40,@0x80,@0x20,@0x10,@1,@2];
+            for (NSUInteger i=0;i<keys.count;i++) _buttons[keys[i]].frame=CGRectMake(start+i*step,navY,size,44);
+        }
         _status.frame=CGRectInset(_bagPanel.frame,10,10);
     }
     if (_summaryScene && !_summaryPanel.hidden) {
@@ -1368,6 +1433,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
     [self layoutPCBoxControls:area];
     [self layoutFieldChoiceControls:area];
+    [self layoutShopControls:area];
     [self layoutCatchingTutorialControls];
     [self layoutTrainerCardControls:area];
     [self layoutPokegearControls:area];
@@ -1406,7 +1472,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _fieldMenuOpen=NO;_fieldMenuFrame=nil;
     [self clearStartMenuInputLocked];[self clearOakInputLocked];[self clearStarterInputLocked];[self clearPokegearInputLocked];
     [self clearTrainerCardInputLocked];[self clearOptionsInputLocked];[self clearNamingInputLocked];[self clearPCBoxInputLocked];
-    [self clearFieldChoiceInputLocked];[self clearCaptureInputLocked];[self clearEvolutionInputLocked];[self clearPokedexInputLocked];
+    [self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked];[self clearCaptureInputLocked];[self clearEvolutionInputLocked];[self clearPokedexInputLocked];
 }
 - (void)updateCatchingTutorialControls:(NSData *)data pictures:(NSDictionary *)pictures {
     const HGNativeBattleUIState *state=data.length==sizeof(*state) ? data.bytes : NULL;
@@ -1793,12 +1859,245 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _partySelectedName.hidden=progress || potion || tm || candy || state->phase==HG_PARTY_UI_ROSTER || !_partySelectedName.image;
     _partySelectedItem.hidden=progress || potion || tm || candy || state->phase==HG_PARTY_UI_ROSTER || !_partySelectedItem.image;
 }
+- (void)clearShopInputLocked {
+    _shopChoicePending=_shopInputActive=_shopInputCooling=_shopChoiceTouch=_shopInputTouch=NO;
+    memset(&_shopChoice,0,sizeof(_shopChoice)); memset(&_shopInput,0,sizeof(_shopInput));
+    _shopChoiceKeys=_shopChoiceKind=_shopChoiceIndex=_shopInputKeys=_shopInputKind=_shopInputIndex=0;
+    _shopInputReads=_shopReleaseReads=_shopInputX=_shopInputY=0;
+}
+- (void)queueShopKey:(OriginalKeyButton *)button {
+    const HGNativeShopUIState *shown=_displayedShopUIState.bytes; uint32_t keys;
+    if (!_shopScene || button.hidden || !button.enabled || _displayedShopUIState.length!=sizeof(*shown)
+        || !HGNativeShopUIResolveKey(shown,shown->ownerGeneration,shown->revision,(uint32_t)button.tag,&keys)) return;
+    [_condition lock];
+    const HGNativeShopUIState *live=_shopRawUIState.length==sizeof(*live) ? _shopRawUIState.bytes : NULL;
+    if (!_paused && !_stopping && !_failure && !_shopChoicePending && !_shopInputActive && !_shopInputCooling
+        && HGNativeShopUIResolveKey(live,shown->ownerGeneration,shown->revision,keys,&keys)) {
+        _shopChoice=*shown; _shopChoiceKeys=keys; _shopChoiceTouch=NO; _shopChoicePending=YES;
+    }
+    [_condition unlock];
+}
+- (void)queueShopTouch:(UIButton *)button {
+    const HGNativeShopUIState *shown=_displayedShopUIState.bytes; uint32_t x,y;
+    uint32_t kind=button.tag<HG_SHOP_UI_ITEMS ? HG_SHOP_UI_TOUCH_ITEM : HG_SHOP_UI_TOUCH_BUTTON;
+    uint32_t index=(uint32_t)button.tag-(kind==HG_SHOP_UI_TOUCH_BUTTON ? HG_SHOP_UI_ITEMS : 0);
+    if (!_shopScene || button.hidden || !button.enabled || _displayedShopUIState.length!=sizeof(*shown)
+        || !HGNativeShopUIResolveTouch(shown,shown->ownerGeneration,shown->revision,kind,index,&x,&y)) return;
+    [_condition lock];
+    const HGNativeShopUIState *live=_shopRawUIState.length==sizeof(*live) ? _shopRawUIState.bytes : NULL;
+    if (!_paused && !_stopping && !_failure && !_shopChoicePending && !_shopInputActive && !_shopInputCooling
+        && HGNativeShopUIResolveTouch(live,shown->ownerGeneration,shown->revision,kind,index,&x,&y)) {
+        _shopChoice=*shown; _shopChoiceKind=kind; _shopChoiceIndex=index; _shopChoiceTouch=YES; _shopChoicePending=YES;
+    }
+    [_condition unlock];
+}
+- (void)takeShopInputLocked:(const HGNativeShopUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys x:(uint32_t *)x y:(uint32_t *)y pressed:(BOOL *)pressed {
+    *keys=*x=*y=0; *pressed=NO; uint32_t resolved=0,px=0,py=0;
+    if (_shopInputCooling && reads-_shopReleaseReads>=2) [self clearShopInputLocked];
+    if (_shopInputActive) {
+        BOOL valid=_shopInputTouch
+            ? HGNativeShopUIResolveTouch(state,_shopInput.ownerGeneration,_shopInput.revision,_shopInputKind,_shopInputIndex,&px,&py)
+            : HGNativeShopUIResolveKey(state,_shopInput.ownerGeneration,_shopInput.revision,_shopInputKeys,&resolved);
+        if (!valid || reads-_shopInputReads>=4) {
+            [self clearShopInputLocked]; _shopInputCooling=YES; _shopReleaseReads=reads;
+        }
+    }
+    if (_shopChoicePending) {
+        BOOL valid=_shopChoiceTouch
+            ? HGNativeShopUIResolveTouch(state,_shopChoice.ownerGeneration,_shopChoice.revision,_shopChoiceKind,_shopChoiceIndex,&px,&py)
+            : HGNativeShopUIResolveKey(state,_shopChoice.ownerGeneration,_shopChoice.revision,_shopChoiceKeys,&resolved);
+        if (!_shopInputActive && !_shopInputCooling && valid) {
+            _shopInput=_shopChoice; _shopInputTouch=_shopChoiceTouch; _shopInputKeys=resolved;
+            _shopInputKind=_shopChoiceKind; _shopInputIndex=_shopChoiceIndex; _shopInputX=px; _shopInputY=py;
+            _shopInputReads=reads; _shopInputActive=YES;
+        }
+        _shopChoicePending=NO; _shopChoiceKeys=0; memset(&_shopChoice,0,sizeof(_shopChoice));
+    }
+    if (_shopInputActive) {
+        *keys=_shopInputKeys; *x=_shopInputX; *y=_shopInputY; *pressed=_shopInputTouch;
+    }
+}
+- (NSDictionary *)copyShopPictures:(const HGNativeShopUIState *)state subFrame:(NSData *)subFrame {
+    if (!OriginalShopOwnsInput(state)) { _shopOwnerPictures=nil; return nil; }
+    BOOL same=[_shopOwnerPictures[@"generation"] unsignedIntValue]==state->ownerGeneration
+        && [_shopOwnerPictures[@"revision"] unsignedIntValue]==state->revision;
+    NSMutableDictionary *pictures=same && _shopOwnerPictures ? [_shopOwnerPictures mutableCopy] : [NSMutableDictionary new];
+    const HGNativePartyUIWindow *windows[]={&state->money,&state->page,&state->description,&state->selected,&state->owned,
+        &state->quantityTens,&state->quantityOnes,&state->totalPriceText,&state->prompt};
+    NSMutableArray *windowImages=[NSMutableArray new],*items=[NSMutableArray new],*buttons=[NSMutableArray new];
+    NSArray *oldWindows=pictures[@"windows"],*oldItems=pictures[@"items"],*oldButtons=pictures[@"buttons"];
+    for (NSUInteger i=0;i<9;i++) {
+        UIImage *image=state->viewActive ? OriginalWindowImage(windows[i],_env->memory->data,_env->memory->size) : nil;
+        [windowImages addObject:image ?: (i<oldWindows.count ? oldWindows[i] : NSNull.null)];
+    }
+    for (NSUInteger i=0;i<HG_SHOP_UI_ITEMS;i++) {
+        UIImage *image=nil;
+        if (state->viewActive && state->phase==HG_SHOP_UI_LIST && i<state->visibleCount) {
+            const HGNativeShopUIItem *item=&state->items[i];
+            image=OriginalFrameRegion(subFrame,item->cropX,item->cropY,item->cropWidth,item->cropHeight);
+            if (!image) image=OriginalWindowImage(&state->items[i].text,_env->memory->data,_env->memory->size);
+        }
+        [items addObject:image ?: (i<oldItems.count ? oldItems[i] : NSNull.null)];
+    }
+    for (NSUInteger i=0;i<HG_SHOP_UI_BUTTONS;i++) {
+        UIImage *image=nil;
+        if (state->viewActive && i<state->buttonCount) {
+            const HGNativeShopUIButton *button=&state->buttons[i];
+            image=OriginalFrameRegion(subFrame,button->cropX,button->cropY,button->cropWidth,button->cropHeight);
+        }
+        [buttons addObject:image ?: (i<oldButtons.count ? oldButtons[i] : NSNull.null)];
+    }
+    pictures[@"windows"]=windowImages; pictures[@"items"]=items; pictures[@"buttons"]=buttons;
+    pictures[@"generation"]=@(state->ownerGeneration); pictures[@"revision"]=@(state->revision);
+    _shopOwnerPictures=[pictures copy]; return _shopOwnerPictures;
+}
+- (void)layoutShopControls:(CGRect)area {
+    if (!_shopScene) return;
+    CGFloat gap=8,ph=MAX(1,area.size.height-60),left=MIN(280,area.size.width*0.36),rx=left+gap,rw=area.size.width-rx-gap;
+    _shopPanel.frame=CGRectMake(area.origin.x,area.origin.y,area.size.width,ph);
+    _shopWindowImages[0].frame=CGRectMake(8,4,left-16,44);
+    _shopWindowImages[1].frame=CGRectMake(rx,4,rw,32);
+    _shopWindowImages[2].frame=CGRectMake(8,144,left-16,MAX(44,ph-152));
+    _shopWindowImages[3].frame=CGRectMake(8,52,left-16,40); _shopWindowImages[4].frame=CGRectMake(8,96,left-16,40);
+    _shopWindowImages[5].frame=CGRectMake(rx+rw*0.3,4,rw*0.18,44); _shopWindowImages[6].frame=CGRectMake(rx+rw*0.5,4,rw*0.18,44);
+    _shopWindowImages[7].frame=CGRectMake(rx,52,rw,40); _shopWindowImages[8].frame=CGRectMake(rx,100,rw,MAX(44,ph-216));
+    CGFloat cw=(rw-gap)/2,ch=MAX(1,(ph-100)/3);
+    for (NSUInteger i=0;i<HG_SHOP_UI_ITEMS;i++) {
+        _shopItems[i].frame=CGRectMake(rx+(i%2)*(cw+gap),40+(i/2)*(ch+gap),cw,ch);
+        _shopItemImages[i].frame=CGRectInset(_shopItems[i].bounds,3,3);
+    }
+    const HGNativeShopUIState *state=_displayedShopUIState.length==sizeof(*state) ? _displayedShopUIState.bytes : NULL;
+    BOOL list=state && state->phase==HG_SHOP_UI_LIST;
+    for (NSUInteger i=0;i<HG_SHOP_UI_BUTTONS;i++) {
+        _shopButtons[i].frame=list ? CGRectMake(rx+i*(rw-2*gap)/3+i*gap,ph-44,(rw-2*gap)/3,44)
+            : CGRectMake(rx+(i%3)*((rw-2*gap)/3+gap),ph-96+(i/3)*52,(rw-2*gap)/3,44);
+    }
+    NSArray *keys=@[@0x40,@0x80,@0x20,@0x10,@1,@2];
+    CGFloat width=MAX(44,MIN(72,(area.size.width-5*gap)/6)),x=CGRectGetMidX(area)-3*width-2.5*gap;
+    for (NSUInteger i=0;i<keys.count;i++) _buttons[keys[i]].frame=CGRectMake(x+i*(width+gap),CGRectGetMaxY(area)-48,width,44);
+    _status.frame=CGRectInset(_shopPanel.frame,10,10);
+}
+- (void)updateShopControls:(NSData *)data pictures:(NSDictionary *)pictures paused:(BOOL)paused {
+    const HGNativeShopUIState *state=data.length==sizeof(*state) ? data.bytes : NULL;
+    BOOL scene=OriginalShopOwnsInput(state),was=_shopScene;
+    BOOL changed=was!=scene || (scene && (_displayedShopUIState.length!=sizeof(*state)
+        || memcmp(_displayedShopUIState.bytes,state,sizeof(*state))));
+    _shopScene=scene; _displayedShopUIState=data; _shopPanel.hidden=!scene || !state->viewActive;
+    if (changed && (was || scene)) {
+        [_condition lock]; _inputGeneration++; _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0;
+        _touchPressed=NO; _joystickNeedsReset=YES;
+        if (_shopChoicePending && (!scene || _shopChoice.ownerGeneration!=state->ownerGeneration || _shopChoice.revision!=state->revision)) _shopChoicePending=NO;
+        [_condition unlock];
+        for (OriginalKeyButton *button in _buttons.allValues) button.inputGeneration++;
+        [self resetJoystick]; [self.view setNeedsLayout];
+    }
+    if (!scene) {
+        if (was) for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10,@1,@2]) {
+            UIButton *button=_buttons[key]; button.enabled=YES; button.alpha=1; button.configuration=nil; button.accessibilityHint=nil;
+        }
+        return;
+    }
+    _battleBar.hidden=_partyPanel.hidden=_partyBack.hidden=_bagPanel.hidden=_bagPage.hidden=_summaryPanel.hidden=_battleMenuPanel.hidden=_pokedexPanel.hidden=_pcBoxPanel.hidden=_trainerCardPanel.hidden=YES;
+    _fieldMenu.hidden=_fieldMenuShade.hidden=_joystick.hidden=_menuButton.hidden=_optionsPreview.hidden=_fieldChoicePreview.hidden=YES;
+    _oakPanel.hidden=_starterPanel.hidden=_pokegearPanel.hidden=YES;
+    for (UIButton *button in _bagNavigation) button.hidden=YES;
+    for (UIButton *button in _summaryNavigation) button.hidden=YES;
+    _canvas.hidden=state->viewActive==1; _canvas.userInteractionEnabled=NO;
+    [_condition lock]; BOOL idle=!_stopping && !_failure && !_shopChoicePending && !_shopInputActive && !_shopInputCooling;
+    BOOL resume=_interrupted && _interruptionEnded && !_inactive; [_condition unlock];
+    BOOL ready=!paused && idle && HGNativeShopUIInputAllowed(state,state->ownerGeneration,state->revision),list=state->phase==HG_SHOP_UI_LIST;
+    UIColor *selected=[UIColor colorWithRed:0.91 green:0.49 blue:0.12 alpha:1],*border=[UIColor colorWithRed:0.45 green:0.62 blue:0.72 alpha:1];
+    NSArray *windows=pictures[@"windows"],*items=pictures[@"items"],*buttons=pictures[@"buttons"];
+    for (NSUInteger i=0;i<9;i++) {
+        UIImageView *view=_shopWindowImages[i]; view.image=i<windows.count && [windows[i] isKindOfClass:UIImage.class] ? windows[i] : nil;
+        view.hidden=!view.image || (i==1 ? !list : (i>=5 && i<=7) ? list : i==8 ? list : NO);
+    }
+    for (NSUInteger i=0;i<HG_SHOP_UI_ITEMS;i++) {
+        UIButton *button=_shopItems[i]; uint32_t x,y;
+        button.hidden=!list || i>=MIN(state->visibleCount,HG_SHOP_UI_ITEMS); button.enabled=ready && HGNativeShopUIResolveTouch(state,state->ownerGeneration,state->revision,HG_SHOP_UI_TOUCH_ITEM,(uint32_t)i,&x,&y);
+        button.layer.borderColor=(state->cursor==i ? selected : border).CGColor;
+        _shopItemImages[i].image=i<items.count && [items[i] isKindOfClass:UIImage.class] ? items[i] : nil;
+        NSString *name=state->items[i].itemId<_itemNames.count ? _itemNames[state->items[i].itemId] : @"道具";
+        button.accessibilityLabel=name; button.accessibilityValue=[NSString stringWithFormat:@"%u，%u",state->items[i].price,state->items[i].owned];
+        button.accessibilityTraits=UIAccessibilityTraitButton | (state->cursor==i ? UIAccessibilityTraitSelected : 0);
+    }
+    NSArray *listLabels=@[@"上一页",@"下一页",@"返回"],*quantityLabels=@[@"+10",@"+1",@"−10",@"−1",@"确认",@"返回"],*confirmLabels=@[@"是",@"否"];
+    for (NSUInteger i=0;i<HG_SHOP_UI_BUTTONS;i++) {
+        UIButton *button=_shopButtons[i]; uint32_t x,y;
+        button.hidden=i>=MIN(state->buttonCount,HG_SHOP_UI_BUTTONS) || state->phase>=HG_SHOP_UI_MESSAGE;
+        UIImage *image=i<buttons.count && [buttons[i] isKindOfClass:UIImage.class] ? buttons[i] : nil;
+        [button setImage:image forState:UIControlStateNormal]; button.enabled=ready && image
+            && HGNativeShopUIResolveTouch(state,state->ownerGeneration,state->revision,HG_SHOP_UI_TOUCH_BUTTON,(uint32_t)i,&x,&y);
+        NSArray *labels=list ? listLabels : state->phase==HG_SHOP_UI_QUANTITY ? quantityLabels : confirmLabels;
+        button.accessibilityLabel=i<labels.count ? labels[i] : @"操作";
+        button.layer.borderColor=(state->phase==HG_SHOP_UI_CONFIRM && state->confirmCursor==i ? selected : border).CGColor;
+    }
+    [self.view bringSubviewToFront:_shopPanel];
+    NSArray *keys=@[@0x40,@0x80,@0x20,@0x10,@1,@2],*titles=@[@"↑",@"↓",@"←",@"→",@"A",@"B"];
+    for (NSUInteger i=0;i<keys.count;i++) {
+        UIButton *button=_buttons[keys[i]]; uint32_t key;
+        button.hidden=NO; button.configuration=nil; [button setTitle:titles[i] forState:UIControlStateNormal];
+        button.accessibilityLabel=titles[i]; button.enabled=ready && HGNativeShopUIResolveKey(state,state->ownerGeneration,state->revision,[keys[i] unsignedIntValue],&key);
+        button.alpha=button.enabled ? 1 : 0.5; [self.view bringSubviewToFront:button];
+    }
+    _buttons[@0x400].hidden=_buttons[@0x800].hidden=YES; _buttons[@8].hidden=!resume; _buttons[@8].enabled=resume;
+    if (resume) [self.view bringSubviewToFront:_buttons[@8]];
+    [self layoutShopControls:UIEdgeInsetsInsetRect(self.view.bounds,self.view.safeAreaInsets)];
+}
+- (void)clearBagSellInputLocked {
+    _bagSellChoicePending=_bagSellInputActive=_bagSellInputCooling=NO;
+    _bagSellChoiceRevision=_bagSellChoicePhase=_bagSellChoiceKeys=_bagSellInputRevision=_bagSellInputPhase=_bagSellInputKeys=_bagSellInputReads=_bagSellReleaseReads=0;
+}
+- (void)queueBagSellKey:(OriginalKeyButton *)button {
+    const HGNativeBagUIState *shown=_displayedBagUIState.bytes; uint32_t keys;
+    if (button.hidden || !button.enabled || _displayedBagUIState.length!=sizeof(*shown)
+        || !HGNativeBagUIResolveSellKey(shown,shown->revision,shown->phase,(uint32_t)button.tag,&keys)) return;
+    [_condition lock];
+    const HGNativeBagUIState *live=_bagUIState.length==sizeof(*live) ? _bagUIState.bytes : NULL;
+    if (!_paused && !_stopping && !_failure && !_shopOwnedInputs && !_bagChoicePending && !_bagTouchActive
+        && !_bagSellChoicePending && !_bagSellInputActive && !_bagSellInputCooling
+        && HGNativeBagUIResolveSellKey(live,shown->revision,shown->phase,keys,&keys)) {
+        _bagSellChoiceRevision=shown->revision; _bagSellChoicePhase=shown->phase; _bagSellChoiceKeys=keys; _bagSellChoicePending=YES;
+    }
+    [_condition unlock];
+}
+- (void)takeBagSellInputLocked:(const HGNativeBagUIState *)state reads:(uint32_t)reads keys:(uint32_t *)keys {
+    *keys=0; uint32_t resolved;
+    if (_bagSellInputCooling && reads-_bagSellReleaseReads>=2) [self clearBagSellInputLocked];
+    if (_bagSellInputActive && (reads-_bagSellInputReads>=4
+        || !HGNativeBagUIResolveSellKey(state,_bagSellInputRevision,_bagSellInputPhase,_bagSellInputKeys,&resolved))) {
+        [self clearBagSellInputLocked]; _bagSellInputCooling=YES; _bagSellReleaseReads=reads;
+    }
+    if (_bagSellChoicePending) {
+        if (!_bagSellInputActive && !_bagSellInputCooling
+            && HGNativeBagUIResolveSellKey(state,_bagSellChoiceRevision,_bagSellChoicePhase,_bagSellChoiceKeys,&resolved)) {
+            _bagSellInputRevision=_bagSellChoiceRevision; _bagSellInputPhase=_bagSellChoicePhase;
+            _bagSellInputKeys=resolved; _bagSellInputReads=reads; _bagSellInputActive=YES;
+        }
+        _bagSellChoicePending=NO; _bagSellChoiceKeys=0;
+    }
+    if (_bagSellInputActive) *keys=_bagSellInputKeys;
+}
+- (void)updateBagSellKeys:(const HGNativeBagUIState *)state paused:(BOOL)paused {
+    [_condition lock]; BOOL idle=!_stopping && !_failure && !_bagChoicePending && !_bagTouchActive
+        && !_bagSellChoicePending && !_bagSellInputActive && !_bagSellInputCooling;
+    BOOL resume=_interrupted && _interruptionEnded && !_inactive; [_condition unlock];
+    NSArray *keys=@[@0x40,@0x80,@0x20,@0x10,@1,@2],*titles=@[@"↑",@"↓",@"←",@"→",@"A",@"B"];
+    for (NSUInteger i=0;i<keys.count;i++) {
+        UIButton *button=_buttons[keys[i]]; uint32_t resolved; button.hidden=NO; button.configuration=nil;
+        [button setTitle:titles[i] forState:UIControlStateNormal]; button.accessibilityLabel=titles[i];
+        button.enabled=!paused && idle && HGNativeBagUIResolveSellKey(state,state->revision,state->phase,[keys[i] unsignedIntValue],&resolved);
+        button.alpha=button.enabled ? 1 : 0.5; [self.view bringSubviewToFront:button];
+    }
+    _buttons[@0x400].hidden=_buttons[@0x800].hidden=YES; _buttons[@8].hidden=!resume; _buttons[@8].enabled=resume;
+    if (resume) [self.view bringSubviewToFront:_buttons[@8]];
+}
 - (NSDictionary *)copyBagPictures:(const HGNativeBagUIState *)state frame:(NSData *)frame subFrame:(NSData *)subFrame {
-    if (!state->active || (state->mode && !HGNativeBagUIIsList(state))) { _bagOwnerPictures=nil; return nil; }
+    if (!state->active || (state->mode && !HGNativeBagUIIsList(state) && !HGNativeBagUIIsSell(state))) { _bagOwnerPictures=nil; return nil; }
     BOOL tm=HGNativeBagUIIsTMHM(state);
     BOOL sameView=[_bagOwnerPictures[@"revision"] unsignedIntValue]==state->revision
         && [_bagOwnerPictures[@"mode"] unsignedIntValue]==state->mode && [_bagOwnerPictures[@"phase"] unsignedIntValue]==state->phase;
-    if (!state->ready && !tm) { if (!sameView) _bagOwnerPictures=nil; return _bagOwnerPictures; }
+    if (!state->ready && !tm && !HGNativeBagUIIsSell(state)) { if (!sameView) _bagOwnerPictures=nil; return _bagOwnerPictures; }
     NSMutableDictionary *pictures=sameView && _bagOwnerPictures ? [_bagOwnerPictures mutableCopy] : [NSMutableDictionary new];
     if (state->ready) pictures[@"preview"]=OriginalPixelImage(frame,256,192) ?: NSNull.null;
     for (NSString *key in @[@"pockets",@"items",@"actions"]) {
@@ -1830,9 +2129,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
     pictures[@"itemGlyphs"]=[glyphs copy];
 #endif
-    const HGNativePartyUIWindow *windows[]={&state->prompt,&state->message,&state->page,&state->selectedEntry};
-    NSArray *keys=@[@"prompt",@"message",@"page",@"selected"];
-    for (NSUInteger i=0;i<4;i++) {
+    const HGNativePartyUIWindow *windows[]={&state->prompt,&state->message,&state->page,&state->selectedEntry,&state->currencyText,&state->quantityText,&state->quantityOnesText,&state->totalPriceText};
+    NSArray *keys=@[@"prompt",@"message",@"page",@"selected",@"currency",@"quantity",@"quantityOnes",@"totalPrice"];
+    for (NSUInteger i=0;i<8;i++) {
         UIImage *image=OriginalWindowImage(windows[i],_env->memory->data,_env->memory->size);
         if (image) pictures[keys[i]]=image;
     }
@@ -1843,7 +2142,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     const HGNativeBagUIState *state=_displayedBagUIState.bytes; uint32_t x,y;
     if (_displayedBagUIState.length!=sizeof(*state) || !HGNativeBagUIResolveTouch(state,state->revision,state->phase,kind,index,&x,&y)) return;
     [_condition lock];
-    if (!_paused && !_stopping && !_bagChoicePending && !_bagTouchActive) {
+    const HGNativeBagUIState *live=_bagUIState.length==sizeof(*live) ? _bagUIState.bytes : NULL;
+    if (!_paused && !_stopping && !_shopOwnedInputs && !_bagChoicePending && !_bagTouchActive
+        && !_bagSellChoicePending && !_bagSellInputActive && !_bagSellInputCooling
+        && HGNativeBagUIResolveTouch(live,state->revision,state->phase,kind,index,&x,&y)) {
         _bagChoiceRevision=state->revision; _bagChoicePhase=state->phase; _bagChoiceKind=kind; _bagChoiceIndex=index; _bagChoicePending=YES;
     }
     [_condition unlock];
@@ -1874,8 +2176,13 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)updateBagControls:(NSData *)data pictures:(NSDictionary *)pictures paused:(BOOL)paused {
     const HGNativeBagUIState *state=data.bytes;
     BOOL list=data.length==sizeof(*state) && HGNativeBagUIIsList(state),tm=data.length==sizeof(*state) && HGNativeBagUIIsTMHM(state);
-    BOOL scene=data.length==sizeof(*state) && state->active && (!state->mode || list);
-    BOOL panel=scene && (list || tm || state->phase==HG_BAG_UI_ITEM_MENU);
+    BOOL sell=data.length==sizeof(*state) && HGNativeBagUIIsSell(state),trade=sell && HGNativeBagUIIsSellTransaction(state);
+    BOOL scene=data.length==sizeof(*state) && state->active && (!state->mode || list || sell);
+    BOOL panel=scene && (list || tm || trade || (!state->mode && state->phase==HG_BAG_UI_ITEM_MENU));
+    BOOL wasTrade=_displayedBagUIState.length==sizeof(*state) && HGNativeBagUIIsSellTransaction(_displayedBagUIState.bytes);
+    if (wasTrade && !trade) for (NSNumber *key in @[@0x40,@0x80,@0x20,@0x10,@1,@2]) {
+        UIButton *button=_buttons[key]; button.enabled=YES; button.alpha=1; button.configuration=nil; button.accessibilityHint=nil;
+    }
     BOOL changed=_bagScene!=scene || !_displayedBagUIState || data.length!=_displayedBagUIState.length
         || (scene && memcmp(data.bytes,_displayedBagUIState.bytes,offsetof(HGNativeBagUIState,pockets)));
     if (scene && !_bagScene) { [_condition lock]; _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO; [_condition unlock]; [self resetJoystick]; }
@@ -1885,15 +2192,24 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
     for (UIButton *button in _bagNavigation) button.hidden=!panel;
     _bagPage.hidden=!panel || !list;
-    if (changed) [self.view setNeedsLayout];
+    if (changed) {
+        if (wasTrade || trade) {
+            [_condition lock]; _inputGeneration++; _keys=_pendingKeys=_submittedKeys=0; _touchPressed=NO;
+            if (_bagSellChoicePending && (!trade || _bagSellChoiceRevision!=state->revision || _bagSellChoicePhase!=state->phase)) _bagSellChoicePending=NO;
+            [_condition unlock];
+            for (OriginalKeyButton *button in _buttons.allValues) button.inputGeneration++;
+        }
+        [self.view setNeedsLayout];
+    }
+    _bagCurrency.hidden=!panel || !sell; _bagQuantity.hidden=_bagQuantityOnes.hidden=_bagTotalPrice.hidden=!panel || !trade;
     if (!panel) return;
-    [_condition lock]; BOOL waiting=_bagChoicePending || _bagTouchActive; [_condition unlock];
+    [_condition lock]; BOOL waiting=_bagChoicePending || _bagTouchActive || _bagSellChoicePending || _bagSellInputActive || _bagSellInputCooling; [_condition unlock];
     BOOL ready=state->ready && !paused && !waiting;
     UIColor *selected=[UIColor colorWithRed:0.91 green:0.49 blue:0.12 alpha:1],*border=[UIColor colorWithRed:0.45 green:0.62 blue:0.72 alpha:1];
     NSArray *pockets=pictures[@"pockets"],*items=pictures[@"items"],*actions=pictures[@"actions"];
     for (NSUInteger i=0;i<HG_BAG_UI_POCKETS;i++) {
         UIButton *button=_bagPockets[i]; const HGNativeBagUIPocket *pocket=&state->pockets[i];
-        button.hidden=tm || !(state->pocketMask&(1u<<i)); button.enabled=ready && list && pocket->enabled;
+        button.hidden=tm || trade || !(state->pocketMask&(1u<<i)); button.enabled=ready && list && pocket->enabled;
         button.layer.borderColor=(i==state->pocketIndex ? selected : border).CGColor;
         button.accessibilityLabel=pocket->pocketId<_pocketNames.count ? _pocketNames[pocket->pocketId] : @"口袋";
         button.accessibilityTraits=UIAccessibilityTraitButton | (i==state->pocketIndex ? UIAccessibilityTraitSelected : 0);
@@ -1910,7 +2226,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
     for (NSUInteger i=0;i<HG_BAG_UI_ACTIONS;i++) {
         UIButton *button=_bagActions[i]; const HGNativeBagUIAction *action=&state->actions[i];
-        button.hidden=list || i>=state->actionCount || (!tm && !(state->actionMask&(1u<<i)));
+        button.hidden=list || trade || i>=state->actionCount || (!tm && !(state->actionMask&(1u<<i)));
         uint32_t x,y; button.enabled=ready && action->enabled && (!tm || HGNativeBagUIResolveTouch(state,state->revision,state->phase,HG_BAG_UI_TOUCH_ACTION,(uint32_t)i,&x,&y));
         NSString *name=tm && action->actionId==HG_BAG_UI_ACTION_TM_ACK ? @"继续" : tm && action->actionId==HG_BAG_UI_ACTION_TM_YES ? @"是" : tm && action->actionId==HG_BAG_UI_ACTION_TM_NO ? @"否"
             : action->actionId<_bagActionNames.count && [_bagActionNames[action->actionId] length] ? _bagActionNames[action->actionId] : @"操作";
@@ -1921,13 +2237,17 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (tm && action->actionId!=HG_BAG_UI_ACTION_TM_ACK && !image) button.enabled=NO;
         OriginalSetButtonContent(button,config,image,name); button.accessibilityLabel=name;
     }
-    _bagNavigation[0].hidden=!panel || tm;
+    _bagNavigation[0].hidden=!panel || tm || trade;
     _bagNavigation[0].enabled=ready && state->cancelEnabled;
     _bagNavigation[1].hidden=_bagNavigation[2].hidden=!list;
     _bagNavigation[1].enabled=ready && state->previousEnabled; _bagNavigation[2].enabled=ready && state->nextEnabled;
     _bagPreview.image=[pictures[@"preview"] isKindOfClass:UIImage.class] ? pictures[@"preview"] : nil;
     _bagSelectedEntry.hidden=list; _bagSelectedEntry.image=pictures[@"selected"];
-    _bagPrompt.hidden=list; _bagPrompt.image=list ? nil : tm ? pictures[@"message"] : (pictures[@"prompt"] ?: pictures[@"message"]); _bagPage.image=pictures[@"page"];
+    _bagPrompt.hidden=list; _bagPrompt.image=list ? nil : (tm || trade) ? (pictures[@"message"] ?: pictures[@"prompt"]) : (pictures[@"prompt"] ?: pictures[@"message"]); _bagPage.image=pictures[@"page"];
+    _bagCurrency.image=[pictures[@"currency"] isKindOfClass:UIImage.class] ? pictures[@"currency"] : nil;
+    _bagQuantity.image=[pictures[@"quantity"] isKindOfClass:UIImage.class] ? pictures[@"quantity"] : nil;
+    _bagQuantityOnes.image=[pictures[@"quantityOnes"] isKindOfClass:UIImage.class] ? pictures[@"quantityOnes"] : nil;
+    _bagTotalPrice.image=[pictures[@"totalPrice"] isKindOfClass:UIImage.class] ? pictures[@"totalPrice"] : nil;
 }
 - (NSDictionary *)copySummaryPictures:(const HGNativeSummaryUIState *)state frame:(NSData *)frame subFrame:(NSData *)subFrame {
     BOOL learning=state->active && HGNativeSummaryUIIsLearning(state);
@@ -3487,6 +3807,13 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
 }
 - (void)keyDown:(OriginalKeyButton *)sender {
+    if (_shopScene || _shopOwnedInputs) {
+        if (sender.hidden || !sender.enabled) return;
+        sender.inputGeneration++;
+        [_condition lock]; BOOL resume=sender.tag==8 && _interrupted && _interruptionEnded && !_inactive;
+        if (resume) {_interrupted=_interruptionEnded=NO;_paused=NO;[_condition signal];} [_condition unlock];
+        if (!resume) [self queueShopKey:sender]; return;
+    }
     if ([self catchingTutorialBlocksInput]) {
         [_condition lock]; if (sender.tag==8 && _interrupted && _interruptionEnded && !_inactive) {_interrupted=_interruptionEnded=NO;_paused=NO;[_condition signal];} [_condition unlock]; return;
     }
@@ -3532,6 +3859,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         if (!resume) [self queueNamingInputKeys:sender.tag==0x400 ? 4 : (uint32_t)sender.tag touch:NO point:CGPointZero];
         return;
     }
+    if (_bagScene && _displayedBagUIState.length==sizeof(HGNativeBagUIState) && HGNativeBagUIIsSellTransaction(_displayedBagUIState.bytes)) {
+        if (sender.hidden || !sender.enabled) return;
+        [_condition lock]; BOOL resume=sender.tag==8 && _interrupted && _interruptionEnded && !_inactive;
+        if (resume) {_interrupted=_interruptionEnded=NO;_paused=NO;[_condition signal];} [_condition unlock];
+        if (!resume) [self queueBagSellKey:sender]; return;
+    }
     if (_fieldChoiceScene) {
         if (sender.hidden || !sender.enabled) return;
         [_condition lock]; BOOL resume=sender.tag==8 && _interrupted && _interruptionEnded && !_inactive;
@@ -3559,8 +3892,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     } else if (!_paused && !_captureScene) { _keys |= sender.tag; _pendingKeys |= sender.tag; }
     [_condition unlock];
 }
-- (void)keyUp:(UIButton *)sender { if (_oakScene || _starterScene || _pokegearScene || (_startMenuScene && _startMenuBlocksInput) || _trainerCardScene || _optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene) return; [_condition lock]; _keys &= ~sender.tag; [_condition unlock]; }
-- (void)keyCancel:(UIButton *)sender { if (_oakScene || _starterScene || _pokegearScene || (_startMenuScene && _startMenuBlocksInput) || _trainerCardScene || _optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene) return; [_condition lock]; _keys &= ~sender.tag; _pendingKeys &= ~sender.tag; _submittedKeys &= ~sender.tag; [_condition unlock]; }
+- (void)keyUp:(UIButton *)sender { if (_oakScene || _starterScene || _pokegearScene || (_startMenuScene && _startMenuBlocksInput) || _trainerCardScene || _optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene || _shopScene || _bagSellInputActive || _bagSellInputCooling) return; [_condition lock]; _keys &= ~sender.tag; [_condition unlock]; }
+- (void)keyCancel:(UIButton *)sender { if (_oakScene || _starterScene || _pokegearScene || (_startMenuScene && _startMenuBlocksInput) || _trainerCardScene || _optionsScene || _namingScene || _pcBoxScene || _fieldChoiceScene || _shopScene || _bagSellInputActive || _bagSellInputCooling) return; [_condition lock]; _keys &= ~sender.tag; _pendingKeys &= ~sender.tag; _submittedKeys &= ~sender.tag; [_condition unlock]; }
 - (void)acknowledgeKeysLocked:(uint32_t)reads {
     // Display callbacks can outpace original PAD_Read; keep submitted taps until it samples them.
     if (reads==_lastPadReadCount) return;
@@ -3588,7 +3921,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t direction=0;
     if (pressed && length>=travel*0.2) direction=fabs(dy)>=fabs(dx) ? (dy<0 ? 0x40 : 0x80) : (dx<0 ? 0x20 : 0x10);
     [_condition lock];
-    BOOL allowed=_fieldMapId && !_selectedEngine && !_fieldMenuOpen && !_startMenuScene && !_paused && !_stopping && !_battleMode && !_evolutionScene && !_captureScene && !_namingScene && !_optionsScene && !_oakOwnerGeneration && !_starterOwnerGeneration && !_pcBoxOwnerGeneration && !_fieldChoiceOwnerGeneration;
+    BOOL allowed=_fieldMapId && !_selectedEngine && !_fieldMenuOpen && !_startMenuScene && !_paused && !_stopping && !_battleMode && !_evolutionScene && !_captureScene && !_namingScene && !_optionsScene && !_oakOwnerGeneration && !_starterOwnerGeneration && !_pcBoxOwnerGeneration && !_fieldChoiceOwnerGeneration && !_shopOwnedInputs;
     if (!allowed) { direction=0; _pendingJoystickKeys=0; }
     _joystickKeys=direction;
     if (pressed && allowed) { _pendingJoystickKeys=direction; _joystickNeedsReset=NO; }
@@ -3604,7 +3937,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 - (void)toggleMenu {
     if ([self catchingTutorialBlocksInput]) return;
     if (_pokegearScene) return;
-    if (_oakScene || _starterScene || _optionsScene || _namingScene || _captureScene || _evolutionScene || _pokedexScene || _pcBoxOwnerGeneration || _fieldChoiceScene) return;
+    if (_oakScene || _starterScene || _optionsScene || _namingScene || _captureScene || _evolutionScene || _pokedexScene || _pcBoxOwnerGeneration || _fieldChoiceScene || _shopOwnedInputs) return;
     if (_startMenuScene) {if (_startMenuBlocksInput) [self queueStartMenuInputKeys:2 touch:NO point:CGPointZero];return;}
     [_condition lock];
     if (_fieldMapId) {
@@ -3624,7 +3957,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (_pokegearScene) return;
     if (_oakScene || _starterScene || _optionsScene) return;
     if (_namingScene) {if (pressed) [self queueNamingInputKeys:0 touch:YES point:point];return;}
-    if (_pcBoxOwnerGeneration || _fieldChoiceScene) return;
+    if (_pcBoxOwnerGeneration || _fieldChoiceScene || _shopOwnedInputs) return;
     if (_startMenuScene && _startMenuBlocksInput) {
         if (pressed && !_fieldMenu.hidden && _fieldMenu.userInteractionEnabled && _fieldMenu.bounds.size.width>0 && _fieldMenu.bounds.size.height>0
             && CGRectContainsPoint(_fieldMenu.bounds,point))
@@ -3645,7 +3978,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (_pokegearScene) return;
     if (_oakScene || _starterScene || _optionsScene) return;
     if (_namingScene) {if (gesture.state==UIGestureRecognizerStateBegan) [self tapAt:[gesture locationInView:gesture.view]];return;}
-    if (_pcBoxOwnerGeneration || _fieldChoiceScene) return;
+    if (_pcBoxOwnerGeneration || _fieldChoiceScene || _shopOwnedInputs) return;
     if (_startMenuScene && _startMenuBlocksInput) {if (gesture.state==UIGestureRecognizerStateBegan) [self touchAt:[gesture locationInView:gesture.view] pressed:YES];return;}
     [self touchAt:[gesture locationInView:gesture.view] pressed:gesture.state == UIGestureRecognizerStateBegan || gesture.state == UIGestureRecognizerStateChanged];
 }
@@ -3676,8 +4009,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
         [self clearPCBoxInputLocked];
         if (_pcBoxOwnerGeneration) {_pcBoxInputCooling=YES;_pcBoxReleaseReads=_lastPadReadCount;}
-        [self clearFieldChoiceInputLocked];
+        [self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked];
         if (_fieldChoiceOwnerGeneration) {_fieldChoiceInputCooling=YES;_fieldChoiceReleaseReads=_lastPadReadCount;}
+        if (_shopOwnedInputs) {_shopInputCooling=YES;_shopReleaseReads=_lastPadReadCount;}
+        const HGNativeBagUIState *bag=_bagUIState.length==sizeof(*bag) ? _bagUIState.bytes : NULL;
+        if (HGNativeBagUIIsSellTransaction(bag)) {_bagSellInputCooling=YES;_bagSellReleaseReads=_lastPadReadCount;}
         [self clearOakInputLocked];
         if (_oakOwnerGeneration) {_oakInputCooling=YES;_oakReleaseReads=_lastPadReadCount;}
         [self clearStarterInputLocked];
@@ -3735,7 +4071,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     [self clearPCBoxCheckTransientLocked:NO];
 #endif
-    [self clearOakInputLocked]; [self clearStarterInputLocked]; [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; [self clearEvolutionInputLocked]; [self clearPokedexInputLocked]; _stopping = YES; _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; _inputGeneration++;
+    [self clearOakInputLocked]; [self clearStarterInputLocked]; [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; [self clearEvolutionInputLocked]; [self clearPokedexInputLocked]; _stopping = YES; _partyChoicePending = _partyTouchActive = _bagChoicePending = _bagTouchActive = _summaryChoicePending = _summaryInputActive = _summaryTouchPressed = NO; _summaryInputKeys=0; _inputGeneration++;
     _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
     _checkBattleMenusRequestPending=NO;
@@ -3760,6 +4096,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL menuOpen=_fieldMenuOpen; NSData *menuFrame=_fieldMenuFrame; _fieldMenuFrame=nil;
     NSData *partyUI=_partyUIState,*bagUI=_bagUIState,*summaryUI=_summaryUIState,*evolutionUI=_evolutionUIState,*pokedexUI=_pokedexUIState,*optionsUI=_optionsUIState,*namingUI=_namingUIState,*captureUI=_captureUIState,*pcBoxUI=_pcBoxUIState;
     NSData *fieldChoiceUI=_fieldChoiceUIState; UIImage *fieldChoicePreview=_fieldChoicePreviewImage;
+    NSData *shopUI=_shopUIState; NSDictionary *shopPictures=_shopPictures;
     NSData *trainerUI=_trainerCardUIState,*trainerRaw=_trainerCardRawUIState;NSDictionary *trainerPictures=_trainerCardPictures;
     NSData *pokegearUI=_pokegearUIState,*pokegearRaw=_pokegearRawUIState;NSDictionary *pokegearPictures=_pokegearPictures;
     uint32_t pokegearRawEngine=_pokegearRawEngine,pokegearFrameEngine=_pokegearFrameEngine;
@@ -3800,8 +4137,11 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL pokegearContext=!oakContext && !starterContext && OriginalPokegearOwnsInput(pokegear);
     if (!pokegearContext) [self updatePokegearControls:pokegearRaw pictures:nil paused:paused];
     _buttons[@2048].hidden=YES;
+    const HGNativeShopUIState *shop=shopUI.length==sizeof(*shop) ? shopUI.bytes : NULL;
+    BOOL shopContext=OriginalShopOwnsInput(shop);
+    if (!shopContext) [self updateShopControls:shopUI pictures:nil paused:paused];
     BOOL trainerContext=!oakContext && !starterContext && trainerRaw.length==sizeof(HGNativeTrainerCardUIState) && ((const HGNativeTrainerCardUIState *)trainerRaw.bytes)->active==1;
-    BOOL startMenuBlocked=oakContext || starterContext || pokegearContext || trainerContext
+    BOOL startMenuBlocked=shopContext || oakContext || starterContext || pokegearContext || trainerContext
         || (optionsUI.length==sizeof(HGNativeOptionsUIState) && ((const HGNativeOptionsUIState *)optionsUI.bytes)->active)
         || (namingUI.length==sizeof(HGNativeNamingUIState) && ((const HGNativeNamingUIState *)namingUI.bytes)->active)
         || (captureUI.length==sizeof(HGNativeCaptureUIState) && ((const HGNativeCaptureUIState *)captureUI.bytes)->active)
@@ -3836,15 +4176,15 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [self updateEvolutionControls:evolutionUI pictures:evolutionPictures summary:summaryContext || captureContext || namingContext || optionsContext paused:paused];
     BOOL pcBoxActive=pcBoxUI.length==sizeof(HGNativePCBoxUIState) && ((const HGNativePCBoxUIState *)pcBoxUI.bytes)->active==1;
     BOOL bagActive=bagUI.length==sizeof(HGNativeBagUIState) && ((const HGNativeBagUIState *)bagUI.bytes)->active;
-    BOOL pcBoxBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || (summary && summary->active) || bagActive || _partyScene || _evolutionScene || _battleScene || _battleMenuScene;
+    BOOL pcBoxBlocked=shopContext || oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || (summary && summary->active) || bagActive || _partyScene || _evolutionScene || _battleScene || _battleMenuScene;
     BOOL pcBoxContext=pcBoxActive && !pcBoxBlocked;
     if (!pcBoxContext) [self updatePCBoxControls:pcBoxUI pictures:pcBoxPictures blocked:pcBoxBlocked paused:paused];
     const HGNativeFieldChoiceUIState *fieldChoice=fieldChoiceUI.length==sizeof(HGNativeFieldChoiceUIState) ? fieldChoiceUI.bytes : NULL;
-    BOOL fieldChoiceBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene
+    BOOL fieldChoiceBlocked=shopContext || oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene
         || (pokedexUI.length==sizeof(HGNativePokedexUIState) && ((const HGNativePokedexUIState *)pokedexUI.bytes)->active);
     BOOL fieldChoiceContext=fieldChoice && fieldChoice->active==1 && HGNativeFieldChoiceUIIsViewPhase(fieldChoice->phase) && !fieldChoiceBlocked;
     if (!fieldChoiceContext) [self updateFieldChoiceControls:fieldChoiceUI preview:nil blocked:fieldChoiceBlocked paused:paused];
-    BOOL pokedexBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene || pcBoxActive || fieldChoiceContext;
+    BOOL pokedexBlocked=shopContext || oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || _evolutionScene || _battleScene || _battleMenuScene || _partyScene || _bagScene || pcBoxActive || fieldChoiceContext;
     [self updatePokedexControls:pokedexUI pictures:pokedexPictures blocked:pokedexBlocked paused:paused];
     if (captureContext) [self updateCaptureControls:captureUI paused:paused];
     if (frame) {
@@ -3855,12 +4195,12 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _displayedBattleMenusQAState=battleMenusQAAtRead; _displayedPaletteFadeFinished=paletteFadeFinishedAtRead;
 #endif
     }
-    BOOL field=!oakContext && !starterContext && !pokegearContext && fieldMap && !engine && !_battleMode && !_battleScene && !_partyScene && !_bagScene && !_summaryScene && !_battleMenuScene && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext && !pcBoxActive && !fieldChoiceContext;
+    BOOL field=!shopContext && !oakContext && !starterContext && !pokegearContext && fieldMap && !engine && !_battleMode && !_battleScene && !_partyScene && !_bagScene && !_summaryScene && !_battleMenuScene && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext && !pcBoxActive && !fieldChoiceContext;
     if (!field) _fieldMenu.image=nil;
     else if (menuFrame) _fieldMenu.image=OriginalPixelImage(menuFrame,256,192);
     BOOL panel=field && menuOpen && _fieldMenu.image;
     _fieldMenu.hidden=_fieldMenuShade.hidden=!panel; _fieldMenu.userInteractionEnabled=!paused;
-    _canvas.userInteractionEnabled=!(field && menuOpen) && !_partyScene && !(_bagScene && !_bagPanel.hidden) && !(_summaryScene && !_summaryPanel.hidden) && !summaryLearning && !_battleMenuKind && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext && !pcBoxActive && !fieldChoiceContext;
+    _canvas.userInteractionEnabled=!shopContext && !(field && menuOpen) && !_partyScene && !(_bagScene && !_bagPanel.hidden) && !(_summaryScene && !_summaryPanel.hidden) && !summaryLearning && !_battleMenuKind && !_evolutionScene && !_pokedexScene && !_captureScene && !namingContext && !optionsContext && !pcBoxActive && !fieldChoiceContext;
     NSMutableArray *visible=[NSMutableArray new];
     NSArray *auxNames=@[@"已登记道具 1",@"已登记道具 2",@"跑鞋开关",@"互动"];
     const unsigned auxBits[]={29,30,28,31};
@@ -3895,6 +4235,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     OriginalSetButtonContent(_menuButton,nil,nil,field ? (menuOpen ? @"关闭菜单" : @"菜单") : (engine ? @"返回场景" : @"触摸菜单"));
     _menuButton.accessibilityLabel=_menuButton.currentTitle;
     if (_pokedexScene) [self layoutPokedexControls:UIEdgeInsetsInsetRect(self.view.bounds,self.view.safeAreaInsets)];
+    if (_bagScene && _displayedBagUIState.length==sizeof(HGNativeBagUIState) && HGNativeBagUIIsSell(_displayedBagUIState.bytes) && !HGNativeBagUIIsList(_displayedBagUIState.bytes))
+        [self updateBagSellKeys:_displayedBagUIState.bytes paused:paused];
     if (pcBoxContext) [self updatePCBoxControls:pcBoxUI pictures:pcBoxPictures blocked:NO paused:paused];
     if (fieldChoiceContext) [self updateFieldChoiceControls:fieldChoiceUI preview:fieldChoicePreview blocked:NO paused:paused];
     if (namingContext) [self updateNamingControls:namingUI paused:paused];
@@ -3914,6 +4256,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (starterContext) [self updateStarterControls:starterUI pictures:starterPictures touchEngine:starterTouchEngine paused:paused];
     if (oakContext) [self updateOakControls:oakUI pictures:oakPictures namingActive:oakNamingActive touchEngine:oakTouchEngine paused:paused];
     [self updateCatchingTutorialControls:battleUI pictures:catchingTutorialPictures];
+    if (shopContext) [self updateShopControls:shopUI pictures:shopPictures paused:paused];
     if (failure) { _status.text = failure; _status.hidden = NO; }
     else if (interrupted) { _status.text = ended ? @"已暂停，点开始继续" : @"声音中断，已暂停"; _status.hidden = NO; }
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
@@ -4280,7 +4623,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
                 [self clearPCBoxCheckTransientLocked:YES];
 #endif
-                [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearCaptureInputLocked]; [_condition unlock]; }
+                [self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked]; [self clearPCBoxInputLocked]; [self clearCaptureInputLocked]; [_condition unlock]; }
         }
     }
     uint32_t battleAddress=w2c_hgengine_HGNativeBattleUIGetState(_game);
@@ -4295,6 +4638,10 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     uint32_t partyAddress=w2c_hgengine_HGNativePartyUIGetState(_game);
     if (!partyAddress || partyAddress>_env->memory->size || sizeof(HGNativePartyUIState)>_env->memory->size-partyAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativePartyUIState *currentParty=(const HGNativePartyUIState *)(_env->memory->data+partyAddress);
+    uint32_t shopAddress=w2c_hgengine_HGNativeShopUIGetState(_game);
+    if (!shopAddress || shopAddress>_env->memory->size || sizeof(HGNativeShopUIState)>_env->memory->size-shopAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
+    const HGNativeShopUIState *currentShop=(const HGNativeShopUIState *)(_env->memory->data+shopAddress);
+    BOOL shopContext=OriginalShopOwnsInput(currentShop);
     uint32_t bagAddress=w2c_hgengine_HGNativeBagUIGetState(_game);
     if (!bagAddress || bagAddress>_env->memory->size || sizeof(HGNativeBagUIState)>_env->memory->size-bagAddress) wasm_rt_trap(WASM_RT_TRAP_OOB);
     const HGNativeBagUIState *currentBag=(const HGNativeBagUIState *)(_env->memory->data+bagAddress);
@@ -4350,14 +4697,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     BOOL summaryLearning=currentSummary->active && HGNativeSummaryUIIsLearning(currentSummary);
     BOOL summaryContext=!oakContext && !trainerContext && !optionsContext && !namingContext && currentSummary->active && (summaryLearning || HGNativeSummaryUIIsOrdinary(currentSummary));
     BOOL pcBoxActive=currentPCBox->active==1;
-    BOOL pcBoxContext=!oakContext && !trainerContext && pcBoxActive && !optionsContext && !namingContext && !captureContext && !currentSummary->active
+    BOOL pcBoxContext=!shopContext && !oakContext && !trainerContext && pcBoxActive && !optionsContext && !namingContext && !captureContext && !currentSummary->active
         && !currentBag->active && !currentParty->active && !currentEvolution->active && !battleChild && !currentBattle->active;
     BOOL fieldChoiceView=currentFieldChoice->active==1 && HGNativeFieldChoiceUIIsViewPhase(currentFieldChoice->phase);
-    BOOL fieldChoiceContext=!oakContext && !trainerContext && fieldChoiceView && !optionsContext && !namingContext && !captureContext && !summaryContext && !pcBoxActive
+    BOOL fieldChoiceContext=!shopContext && !oakContext && !trainerContext && fieldChoiceView && !optionsContext && !namingContext && !captureContext && !summaryContext && !pcBoxActive
         && !currentBag->active && !currentParty->active && !currentEvolution->active && !battleChild && !currentBattle->active && !currentPokedex->active;
-    BOOL pokedexBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || currentEvolution->active || battleChild || currentBattle->active || currentParty->active || currentBag->active || pcBoxActive || fieldChoiceContext;
+    BOOL pokedexBlocked=shopContext || oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || currentEvolution->active || battleChild || currentBattle->active || currentParty->active || currentBag->active || pcBoxActive || fieldChoiceContext;
     BOOL pokedexContext=currentPokedex->active && !pokedexBlocked;
-    BOOL startMenuBlocked=oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || currentSummary->active || pcBoxActive
+    BOOL startMenuBlocked=shopContext || oakContext || starterContext || pokegearContext || trainerContext || optionsContext || namingContext || captureContext || currentSummary->active || pcBoxActive
         || currentParty->active || currentBag->active || currentEvolution->active || battleChild || currentBattle->active || currentPokedex->active || fieldChoiceContext;
     BOOL startMenuContext=currentStartMenu->active==1 && !currentStartMenu->childActive && !startMenuBlocked;
     BOOL startMenuView=startMenuContext && OriginalStartMenuHasView(currentStartMenu);
@@ -4397,7 +4744,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _partyChoicePending=_partyTouchActive=_bagChoicePending=_bagTouchActive=_summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO;
         _summaryInputKeys=0;_battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
         [self clearTrainerCardInputLocked];[self clearOptionsInputLocked];[self clearNamingInputLocked];[self clearPCBoxInputLocked];
-        [self clearFieldChoiceInputLocked];[self clearCaptureInputLocked];[self clearEvolutionInputLocked];[self clearPokedexInputLocked];
+        [self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked];[self clearCaptureInputLocked];[self clearEvolutionInputLocked];[self clearPokedexInputLocked];
         if (pokegearContext) {_fieldMenuOpen=NO;_fieldMenuFrame=nil;}
     }
     _pokegearOwnedInputs=pokegearContext;_pokegearRawUIState=[NSData dataWithBytes:currentPokegear length:sizeof(*currentPokegear)];
@@ -4419,7 +4766,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         _touchPressed=NO;_joystickNeedsReset=YES;_fieldMenuOpen=NO;_fieldMenuFrame=nil;_battleChoicePending=NO;
         _partyChoicePending=_partyTouchActive=_bagChoicePending=_bagTouchActive=_summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO;
         _summaryInputKeys=0;_battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
-        [self clearOptionsInputLocked];[self clearNamingInputLocked];[self clearPCBoxInputLocked];[self clearFieldChoiceInputLocked];
+        [self clearOptionsInputLocked];[self clearNamingInputLocked];[self clearPCBoxInputLocked];[self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked];
         [self clearCaptureInputLocked];[self clearEvolutionInputLocked];[self clearPokedexInputLocked];
     }
     _trainerCardOwnerGeneration=trainerContext ? currentTrainer->ownerGeneration : 0;
@@ -4460,6 +4807,31 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
         }
     }
     _fieldChoiceOwnerGeneration=fieldChoiceContext ? currentFieldChoice->ownerGeneration : 0;
+    const HGNativeShopUIState *oldShop=_shopRawUIState.length==sizeof(*oldShop) ? _shopRawUIState.bytes : NULL;
+    BOOL shopHandoff=_shopOwnedInputs!=shopContext || (shopContext && (!oldShop || oldShop->ownerGeneration!=currentShop->ownerGeneration));
+    if (shopHandoff) {
+        BOOL released=_shopOwnedInputs || _shopInputActive; [self clearShopInputLocked];
+        if (released) {_shopInputCooling=YES;_shopReleaseReads=HGNativeInputPadReads(_env);}
+        _inputGeneration++; _joystickNeedsReset=YES;
+    }
+    _shopOwnedInputs=shopContext; _shopRawUIState=[NSData dataWithBytes:currentShop length:sizeof(*currentShop)];
+    if (shopContext || _shopInputCooling) {
+        _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0;
+        _touchX=_touchY=0; _touchPressed=NO; _joystickNeedsReset=YES; _fieldMenuOpen=NO; _fieldMenuFrame=nil;
+        _battleChoicePending=_partyChoicePending=_partyTouchActive=_bagChoicePending=_bagTouchActive=NO;
+        _summaryChoicePending=_summaryInputActive=_summaryTouchPressed=NO; _summaryInputKeys=0;
+        _battleMenuChoicePending=_battleMenuTouchActive=_battleMenuTouchCooling=NO;
+        [self clearOakInputLocked]; [self clearStarterInputLocked]; [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked];
+        [self clearStartMenuInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearPCBoxInputLocked];
+        [self clearFieldChoiceInputLocked]; [self clearCaptureInputLocked]; [self clearEvolutionInputLocked]; [self clearPokedexInputLocked]; [self clearBagSellInputLocked];
+    }
+    BOOL bagSellOwner=!shopContext && HGNativeBagUIIsSell(currentBag);
+    BOOL bagSellContext=bagSellOwner && HGNativeBagUIIsSellTransaction(currentBag);
+    if (bagSellContext || _bagSellInputActive || _bagSellInputCooling) {
+        _keys=_pendingKeys=_submittedKeys=_joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0;
+        _touchX=_touchY=0; _touchPressed=NO; _joystickNeedsReset=YES;
+        _bagChoicePending=_bagTouchActive=NO;
+    }
 #ifdef HEARTGOLD_ORIGINAL_CAPTURE_REGISTRATION_CHECK
     BOOL captureLeaseWasActive=_captureInputActive; uint32_t captureLeaseStart=_captureInputReads;
 #endif
@@ -4517,7 +4889,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     _fieldMapId=fieldMap;
     // Original LCD routing: SUB_MAIN=0 touches main; MAIN_SUB=1 touches sub.
     _touchEngine=(*_displayControl>>15)&1;
-    if (catchingTutorial) _selectedEngine=0;
+    if (shopContext) _selectedEngine=0;
+    else if (catchingTutorial) _selectedEngine=0;
     else if (oakContext) _selectedEngine=0;
     else if (starterContext) _selectedEngine=0;
     else if (startMenuContext) _selectedEngine=0;
@@ -4532,7 +4905,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     else if (pokedexContext) _selectedEngine=0;
     else if (battleChild) _selectedEngine=battleMenuKind ? 0 : _touchEngine;
     else if (fieldMap || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty) || HGNativePartyUIIsRareCandy(currentParty)))) _selectedEngine=0;
-    else if (currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag))) _selectedEngine=HGNativeBagUIIsList(currentBag) || HGNativeBagUIIsTMHM(currentBag) || currentBag->phase==HG_BAG_UI_ITEM_MENU ? 0 : _touchEngine;
+    else if (currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag) || HGNativeBagUIIsSell(currentBag))) _selectedEngine=HGNativeBagUIIsList(currentBag) || HGNativeBagUIIsTMHM(currentBag) || HGNativeBagUIIsSell(currentBag) || currentBag->phase==HG_BAG_UI_ITEM_MENU ? 0 : _touchEngine;
     else if (currentBattle->active && (currentBattle->mode || _automaticMenuEngine)) _selectedEngine=0;
     else if (_automaticMenuEngine) _selectedEngine=_touchEngine;
     if ((!fieldMap || battleChild || currentEvolution->active || currentPokedex->active || captureContext) && (_joystickKeys || _pendingJoystickKeys)) { _joystickKeys=_pendingJoystickKeys=_submittedJoystickKeys=0; _joystickNeedsReset=YES; }
@@ -4571,9 +4944,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
         [self clearPCBoxCheckTransientLocked:YES];
 #endif
-        [self clearOakInputLocked]; [self clearStarterInputLocked]; [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; }
+        [self clearOakInputLocked]; [self clearStarterInputLocked]; [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked]; }
     BOOL stopping = _stopping;
-    uint32_t keys = oakContext || starterContext || pokegearContext || startMenuBlocksInput || trainerContext || optionsContext || namingContext || captureContext || pcBoxContext || fieldChoiceContext ? 0 : [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth,preferredBattleWidth=_preferredBattleWidth;
+    uint32_t keys = shopContext || _shopInputCooling || bagSellOwner || _bagSellInputActive || _bagSellInputCooling || oakContext || starterContext || pokegearContext || startMenuBlocksInput || trainerContext || optionsContext || namingContext || captureContext || pcBoxContext || fieldChoiceContext ? 0 : [self takeKeysLocked], x = _touchX, y = _touchY, engine = _selectedEngine,preferredWidth=_preferredViewWidth,preferredBattleWidth=_preferredBattleWidth;
     BOOL battleChoice = !pokegearContext && !trainerContext && !optionsContext && !namingContext && !captureContext && !pcBoxActive && !fieldChoiceContext && _battleChoicePending;
     uint32_t battleRevision = _battleChoiceRevision, battleIndex = _battleChoiceIndex;
     _battleChoicePending = NO;
@@ -4582,9 +4955,21 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [self takeStartMenuInputLocked:currentStartMenu blocked:startMenuBlocked reads:HGNativeInputPadReads(_env) keys:&startKeys x:&startX y:&startY pressed:&startPressed];
     uint32_t trainerKeys=0,trainerX=0,trainerY=0;BOOL trainerPressed=NO;
     uint32_t pokegearKeys=0,pokegearX=0,pokegearY=0;BOOL pokegearPressed=NO;
-    [self takePokegearInputLocked:currentPokegear reads:HGNativeInputPadReads(_env) keys:&pokegearKeys x:&pokegearX y:&pokegearY pressed:&pokegearPressed];
-    [self takeTrainerCardInputLocked:currentTrainer reads:HGNativeInputPadReads(_env) keys:&trainerKeys x:&trainerX y:&trainerY pressed:&trainerPressed];
-    if (oakContext) {
+    if (!shopContext) [self takePokegearInputLocked:currentPokegear reads:HGNativeInputPadReads(_env) keys:&pokegearKeys x:&pokegearX y:&pokegearY pressed:&pokegearPressed];
+    if (!shopContext) [self takeTrainerCardInputLocked:currentTrainer reads:HGNativeInputPadReads(_env) keys:&trainerKeys x:&trainerX y:&trainerY pressed:&trainerPressed];
+    if (shopContext || _shopInputCooling) {
+        keys=x=y=0;pressed=NO;engine=0;battleChoice=NO;
+        if (!_paused && !stopping) [self takeShopInputLocked:currentShop reads:HGNativeInputPadReads(_env) keys:&keys x:&x y:&y pressed:&pressed];
+    }
+    else if (bagSellOwner || _bagSellChoicePending || _bagSellInputActive || _bagSellInputCooling) {
+        keys=x=y=0;pressed=NO;engine=0;battleChoice=NO;
+        if (!_paused && !stopping) {
+            [self takeBagSellInputLocked:currentBag reads:HGNativeInputPadReads(_env) keys:&keys];
+            if (HGNativeBagUIIsList(currentBag) && !_bagSellInputActive && !_bagSellInputCooling)
+                [self takeBagTouchLocked:currentBag reads:HGNativeInputPadReads(_env) x:&x y:&y pressed:&pressed];
+        }
+    }
+    else if (oakContext) {
         keys=x=y=0;pressed=NO;engine=0;battleChoice=NO;
         if(!_paused && !stopping)[self takeOakInputLocked:currentOak namingActive:currentNaming->active touchEngine:_touchEngine reads:HGNativeInputPadReads(_env) keys:&keys x:&x y:&y pressed:&pressed];
     }
@@ -4721,6 +5106,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSData *battleUI = [NSData dataWithBytes:_env->memory->data + battleAddress length:sizeof(HGNativeBattleUIState)];
     NSData *partyUI = [NSData dataWithBytes:currentParty length:sizeof(*currentParty)];
     NSData *bagUI = [NSData dataWithBytes:currentBag length:sizeof(*currentBag)];
+    NSData *shopUI = [NSData dataWithBytes:currentShop length:sizeof(*currentShop)];
     NSData *summaryUI = [NSData dataWithBytes:currentSummary length:sizeof(*currentSummary)];
     NSData *pcBoxUI = [NSData dataWithBytes:currentPCBox length:sizeof(*currentPCBox)];
     NSData *fieldChoiceUI = [NSData dataWithBytes:currentFieldChoice length:sizeof(*currentFieldChoice)];
@@ -4759,8 +5145,8 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
 #endif
     const HGNativeBattleUIState *battleState = battleUI.bytes;
-    BOOL originalPage=catchingTutorial || oakContext || starterContext || pokegearContext || startMenuContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || fieldChoiceContext || currentEvolution->active || pokedexContext || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty) || HGNativePartyUIIsRareCandy(currentParty)))
-        || (currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag)));
+    BOOL originalPage=shopContext || catchingTutorial || oakContext || starterContext || pokegearContext || startMenuContext || trainerContext || optionsContext || namingContext || captureContext || summaryContext || pcBoxActive || fieldChoiceContext || currentEvolution->active || pokedexContext || (currentParty->active && !currentParty->panelLayout && (!currentParty->context || HGNativePartyUIIsItemProgress(currentParty) || HGNativePartyUIIsPotionUse(currentParty) || HGNativePartyUIIsTMHM(currentParty) || HGNativePartyUIIsRareCandy(currentParty)))
+        || (currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag) || HGNativeBagUIIsSell(currentBag)));
     BOOL battleScene=(battleState->active || battleChild) && !engine && !originalPage;
     uint32_t sceneWidth=originalPage ? 256 : fieldMap ? MAX(256,preferredWidth) : 256;
     uint32_t width=battleScene ? MAX(256,preferredBattleWidth) : engine ? 256 : sceneWidth;
@@ -4847,7 +5233,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     }
     NSDictionary *pcBoxPictures=nil;
     if (pcBoxActive) {
-        if (memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox))) return;
+        if (memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox)) || memcmp(shopUI.bytes,currentShop,sizeof(*currentShop))) return;
         if (pcBoxContext && currentPCBox->viewActive==1) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
             CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
@@ -4857,7 +5243,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
             CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_COPY,1);
 #endif
             NSData *subFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
-            if (memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox))) return;
+            if (memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox)) || memcmp(shopUI.bytes,currentShop,sizeof(*currentShop))) return;
             pcBoxPictures=[self copyPCBoxPictures:pcBoxUI.bytes main:frame sub:subFrame];
             if (!pcBoxPictures) return;
         } else pcBoxPictures=_pcBoxOwnerPictures;
@@ -4901,7 +5287,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     NSDictionary *evolutionPictures=(trainerContext || optionsContext || namingContext || captureContext) ? nil : [self copyEvolutionPictures:evolutionUI.bytes];
     NSDictionary *partyPictures=(trainerContext || optionsContext || namingContext || captureContext) ? nil : [self copyPartyPictures:partyUI.bytes frame:frame];
     NSData *bagSubFrame=nil;
-    if (!trainerContext && !optionsContext && !namingContext && !captureContext && currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag))) {
+    if (!trainerContext && !optionsContext && !namingContext && !captureContext && currentBag->active && (!currentBag->mode || HGNativeBagUIIsList(currentBag) || HGNativeBagUIIsSell(currentBag))) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         CheckAudioAppStage(&trace,HG_AUDIO_CHECK_APP_RENDER,1);
 #endif
@@ -4911,7 +5297,14 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #endif
         bagSubFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
     }
-    NSDictionary *bagPictures=(trainerContext || optionsContext || namingContext || captureContext) ? nil : [self copyBagPictures:bagUI.bytes frame:frame subFrame:bagSubFrame];
+    NSDictionary *bagPictures=(trainerContext || optionsContext || namingContext || captureContext || shopContext) ? nil : [self copyBagPictures:bagUI.bytes frame:frame subFrame:bagSubFrame];
+    NSData *shopSubFrame=nil;
+    if (shopContext && currentShop->viewActive) {
+        if (memcmp(shopUI.bytes,currentShop,sizeof(*currentShop)) || !w2c_hgengine_HGNativeRender2D(_game,1,_frameBuffer,256*192*4)) return;
+        shopSubFrame=[NSData dataWithBytes:_env->memory->data+_frameBuffer length:256*192*4];
+    }
+    NSDictionary *shopPictures=[self copyShopPictures:shopUI.bytes subFrame:shopSubFrame];
+    if (memcmp(shopUI.bytes,currentShop,sizeof(*currentShop))) return;
     NSData *summarySubFrame=nil;
     if (!trainerContext && !optionsContext && !namingContext && !captureContext && summaryContext) {
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
@@ -4979,7 +5372,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     if (memcmp(trainerUI.bytes,currentTrainer,sizeof(*currentTrainer))) return;
     if (memcmp(pokegearUI.bytes,currentPokegear,sizeof(*currentPokegear)) || (pokegearContext && pokegearFrameEngine!=((*_displayControl>>15)&1))) return;
     if (memcmp(startMenuUI.bytes,currentStartMenu,sizeof(*currentStartMenu)) || (startMenuView && startMenuFrameEngine!=((*_displayControl>>15)&1))) return;
-    if (memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox))) return;
+    if (memcmp(pcBoxUI.bytes,currentPCBox,sizeof(*currentPCBox)) || memcmp(shopUI.bytes,currentShop,sizeof(*currentShop))) return;
     if (memcmp(fieldChoiceUI.bytes,currentFieldChoice,sizeof(*currentFieldChoice))) return;
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
     HGPCBoxQAState pcPublishedQA={0}; BOOL pcQACoherent=[self readPCBoxQAOwner:&pcPublishedQA]
@@ -5002,6 +5395,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
     [_condition lock]; _frame = frame; _frameWidth=width; _frameEngine=engine; _battleUIState = battleUI;
     _partyUIState=partyUI; _partyPictures=partyPictures;
     _bagUIState=bagUI; _bagPictures=bagPictures;
+    _shopUIState=shopUI; _shopPictures=shopPictures;
     _summaryUIState=summaryUI; _summaryPictures=summaryPictures;
     _pcBoxUIState=pcBoxUI; _pcBoxPictures=pcBoxPictures;
     _trainerCardUIState=trainerUI;_trainerCardPictures=trainerPictures;
@@ -5169,7 +5563,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
                     [self clearPCBoxCheckTransientLocked:NO]; _pcBoxQAState=nil;
 #endif
-                    [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked];
+                    [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
                     _audioChanging=NO; _finished = YES;
 #endif
@@ -5208,6 +5602,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     HGNativeBattleUIState battle = {0};
                     HGNativePartyUIState party = {0};
                     HGNativeBagUIState bag = {0};
+                    HGNativeShopUIState shop={0}; NSData *shopUI=[NSData dataWithBytes:&shop length:sizeof(shop)];
                     HGNativeSummaryUIState summary = {0}; HGNativeEvolutionUIState evolution={0};
                     HGNativeOakUIState oak={0};NSData *oakUI=[NSData dataWithBytes:&oak length:sizeof(oak)];
                     HGNativeStarterUIState starter={0}; NSData *starterUI=[NSData dataWithBytes:&starter length:sizeof(starter)];
@@ -5224,6 +5619,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     [self updateNamingControls:namingUI paused:NO];
                     [self updatePCBoxControls:pcBoxUI pictures:nil blocked:NO paused:NO];
                     [self updateFieldChoiceControls:fieldChoiceUI preview:nil blocked:NO paused:NO];
+                    [self updateShopControls:shopUI pictures:nil paused:NO];
                     [self updateCaptureControls:captureUI paused:NO];
                     [self->_condition lock];
                     self->_audio = [OriginalAudio new];
@@ -5237,6 +5633,9 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     self->_partyChoiceRevision = self->_partyChoicePhase = self->_partyChoiceKind = self->_partyChoiceIndex = 0;
                     self->_partyTouchRevision = self->_partyTouchReads = self->_partyTouchX = self->_partyTouchY = 0;
                     self->_bagChoicePending = self->_bagTouchActive = NO;
+                    [self clearShopInputLocked]; [self clearBagSellInputLocked]; self->_shopOwnedInputs=self->_shopScene=NO;
+                    self->_shopUIState=self->_shopRawUIState=self->_displayedShopUIState=shopUI;
+                    self->_shopPictures=self->_shopOwnerPictures=nil;
                     self->_bagChoiceRevision = self->_bagChoicePhase = self->_bagChoiceKind = self->_bagChoiceIndex = 0;
                     self->_bagTouchRevision = self->_bagTouchReads = self->_bagTouchX = self->_bagTouchY = 0;
                     [self clearCaptureInputLocked];
@@ -5263,7 +5662,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
                     self->_startMenuUIState=self->_startMenuRawUIState=self->_displayedStartMenuUIState=nil;
                     self->_startMenuMainFrame=self->_startMenuSubFrame=nil;self->_startMenuFrameEngine=self->_startMenuRawEngine=self->_displayedStartMenuEngine=1;
                     self->_trainerCardOwnerGeneration=0;self->_trainerCardUIState=self->_trainerCardRawUIState=self->_displayedTrainerCardUIState=nil;self->_trainerCardPictures=nil;
-                    [self clearFieldChoiceInputLocked]; self->_fieldChoiceOwnerGeneration=self->_fieldChoiceFrameGeneration=0; self->_fieldChoiceScene=NO;
+                    [self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked]; self->_fieldChoiceOwnerGeneration=self->_fieldChoiceFrameGeneration=0; self->_fieldChoiceScene=NO;
                     self->_fieldChoiceUIState=self->_displayedFieldChoiceUIState=fieldChoiceUI;
                     self->_fieldChoiceOwnerFrame=nil; self->_fieldChoicePreviewImage=self->_fieldChoiceOwnerPreview=nil;
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
@@ -5419,7 +5818,7 @@ static void outputPCM(void *context,const int16_t *stereo,size_t frames) {
 #ifdef HEARTGOLD_ORIGINAL_PC_BOX_CHECK
         [self clearPCBoxCheckTransientLocked:NO]; _pcBoxQAState=nil;
 #endif
-        [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked];
+        [self clearPokegearInputLocked]; [self clearTrainerCardInputLocked]; [self clearFieldChoiceInputLocked]; [self clearShopInputLocked]; [self clearBagSellInputLocked]; [self clearPCBoxInputLocked]; [self clearOptionsInputLocked]; [self clearNamingInputLocked]; [self clearCaptureInputLocked];
 #ifdef HEARTGOLD_ORIGINAL_APP_CHECK
         _audioChanging=NO; _finished = YES;
 #endif

@@ -30,6 +30,13 @@
 #include "text.h"
 #include "touchscreen.h"
 #include "yes_no_prompt.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_shop_ui.h"
+#include "bag.h"
+#include "palette_vram_addr.h"
+struct TouchMartAppData;
+static void NativeTouchMartUIPublish(struct TouchMartAppData *data);
+#endif
 
 // Bottom-screen counterpart of the field mart: the item list, the
 // quantity/price panel and the purchase messages, driven by the MartData of the shop task.
@@ -325,6 +332,9 @@ SysTask *TouchMartApp_Init(BgConfig *bgConfig, void *lastTouchMenuInput, FieldSy
     data->pokeathlonSave = Save_Pokeathlon_Get(data->fieldSystem->saveData);
     data->state = TOUCH_MART_STATE_WAIT_FADE;
     data->martData = martData;
+#ifdef HEARTGOLD_NATIVE
+    NativeShopUIInvalidate(martData);
+#endif
     TouchMartApp_SetupBgs(data);
     TouchMartApp_LoadGraphics(data);
     TouchMartApp_SetupText(data);
@@ -373,6 +383,9 @@ static void TouchMartApp_PrintCancel(TouchMartAppData *data, int leftAligned) {
 
 void TouchMartApp_Exit(BgConfig *bgConfig, SysTask *task) {
     TouchMartAppData *data = SysTask_GetData(task);
+#ifdef HEARTGOLD_NATIVE
+    NativeShopUIInvalidate(data->martData);
+#endif
     TextFlags_SetCanTouchSpeedUpPrint(FALSE);
     TouchMartApp_FreeWindows(data);
     TouchMartApp_FreeText(data);
@@ -417,6 +430,9 @@ static void TouchMartApp_RunTask(SysTask *task, void *env) {
         if (IsPaletteFadeFinished() == TRUE) {
             data->state = TOUCH_MART_STATE_RUN;
         }
+#ifdef HEARTGOLD_NATIVE
+        NativeTouchMartUIPublish(data);
+#endif
         return;
     case TOUCH_MART_STATE_RUN:
         switch (data->martData->state) {
@@ -440,6 +456,9 @@ static void TouchMartApp_RunTask(SysTask *task, void *env) {
             TouchMartApp_HandleAction(data, data->martData->touchMartAction);
             data->martData->touchMartAction = TOUCH_MART_ACTION_NONE;
         }
+#ifdef HEARTGOLD_NATIVE
+        NativeTouchMartUIPublish(data);
+#endif
         return;
     }
 }
@@ -1141,3 +1160,83 @@ static void TouchMartApp_RemoveDetailWindows(TouchMartAppData *data) {
     RemoveWindow(&data->windows[TOUCH_MART_WINDOW_TOTAL_PRICE]);
     RemoveWindow(&data->windows[TOUCH_MART_WINDOW_PROMPT]);
 }
+
+#ifdef HEARTGOLD_NATIVE
+static BOOL NativeShopUIWindow(HGNativePartyUIWindow *out,TouchMartAppData *data,const Window *window,u32 clear) {
+    MI_CpuClear8(out,sizeof(*out));
+    if(window->bgConfig!=data->bgConfig || window->bgId>=8 || window->colorMode!=GF_BG_CLR_4BPP
+        || !window->width || window->width>32 || !window->height || window->height>6 || !window->pixelBuffer
+        || window->paletteNum>=16 || window->bgConfig->bgs[window->bgId].colorMode!=GX_BG_COLORMODE_16
+        || (uintptr_t)window->pixelBuffer>UINT32_MAX-window->width*window->height*32)return FALSE;
+    out->pixelBuffer=(u32)(uintptr_t)window->pixelBuffer;out->tileWidth=window->width;out->tileHeight=window->height;
+    out->clearColor=clear;out->engine=window->bgId>=GF_BG_LYR_SUB_0;
+    const u16 *palette=out->engine ? GetSubBgPlttAddr() : GetMainBgPlttAddr();
+    MI_CpuCopy16(palette+window->paletteNum*16,out->palette,sizeof(out->palette));return TRUE;
+}
+static BOOL NativeShopUIButton(HGNativeShopUIButton *out,const TouchscreenHitbox *box,BOOL enabled) {
+    u32 right=box->rect.right ? box->rect.right : 256;
+    if(box->rect.top>=box->rect.bottom || box->rect.bottom>192 || box->rect.left>=right)return FALSE;
+    out->enabled=enabled;out->cropX=box->rect.left;out->cropY=box->rect.top;
+    out->cropWidth=right-out->cropX;out->cropHeight=box->rect.bottom-out->cropY;
+    out->hitX=out->cropX+out->cropWidth/2;out->hitY=out->cropY+out->cropHeight/2;return TRUE;
+}
+static void NativeTouchMartUIPublish(TouchMartAppData *data) {
+    MartData *m=data->martData;
+    if(!m || m->martType!=MART_TYPE_NORMAL || m->sellOnly)return;
+    HGNativeShopUIState next;MI_CpuClear8(&next,sizeof(next));next.kind=m->martType;next.phase=m->state;
+    next.pageStart=m->pageStart;next.itemCount=m->numItems;next.cursor=m->cursorPos;next.selectedItemId=m->item;
+    next.currency=PlayerProfile_GetMoney(m->playerProfile);next.unitPrice=m->cost;next.quantity=m->quantity;next.maxQuantity=m->maxQuantity;
+    next.totalPrice=m->cost*m->quantity;
+    if(m->item)next.ownedQuantity=Bag_GetQuantity(m->inventory,m->item,HEAP_ID_FIELD2);
+    BOOL view=m->state==HG_SHOP_UI_LIST || m->state==HG_SHOP_UI_QUANTITY || m->state==HG_SHOP_UI_CONFIRM
+        || m->state==HG_SHOP_UI_PURCHASE_PRINT || m->state==HG_SHOP_UI_MESSAGE || m->state==HG_SHOP_UI_ERROR || m->state==HG_SHOP_UI_BONUS;
+    if(!view || data->state!=TOUCH_MART_STATE_RUN){NativeShopUIPublish(m,&next);return;}
+    next.viewActive=1;
+    BOOL valid=NativeShopUIWindow(&next.money,data,&data->moneyWindow,0);
+    valid=NativeShopUIWindow(&next.description,data,&m->windows[1],0) && valid;
+    BOOL settled=IsPaletteFadeFinished() && !((data->bgConfig->bufferTransferScheduled|data->bgConfig->scrollScheduled)&0x70)
+        && m->touchButton==(u32)-1 && m->touchMartAction==0;
+    if(m->state==HG_SHOP_UI_LIST){
+        valid=NativeShopUIWindow(&next.page,data,&data->pageWindow,0) && valid;
+        if(m->pageStart>m->numItems)valid=FALSE;
+        else {u32 count=m->numItems-m->pageStart;next.visibleCount=count>HG_SHOP_UI_ITEMS ? HG_SHOP_UI_ITEMS : count;}
+        for(u32 i=0;i<next.visibleCount;++i){
+            HGNativeShopUIItem *item=&next.items[i];HGNativeShopUIButton hit={0};
+            item->itemId=m->itemIds[m->pageStart+i];item->price=MartData_GetItemPrice(m,item->itemId);
+            item->owned=Bag_GetQuantity(m->inventory,item->itemId,HEAP_ID_FIELD2);
+            item->enabled=TouchMartApp_IsSelectionValid(data,i);
+            valid=NativeShopUIButton(&hit,&sTouchMartItemListButtons[i],item->enabled) && valid;
+            item->hitX=hit.hitX;item->hitY=hit.hitY;item->cropX=hit.cropX;item->cropY=hit.cropY;item->cropWidth=hit.cropWidth;item->cropHeight=hit.cropHeight;
+            valid=NativeShopUIWindow(&item->text,data,&data->windows[TOUCH_MART_WINDOW_ITEM_0+i],0) && valid;
+        }
+        next.buttonCount=3;
+        valid=NativeShopUIButton(&next.buttons[0],&sTouchMartItemListButtons[6],m->pageStart!=0) && valid;
+        valid=NativeShopUIButton(&next.buttons[1],&sTouchMartItemListButtons[7],m->pageStart+6<m->numItems) && valid;
+        valid=NativeShopUIButton(&next.buttons[2],&sTouchMartItemListButtons[8],TRUE) && valid;
+    }else{
+        BOOL messagePhase=m->state==HG_SHOP_UI_PURCHASE_PRINT || m->state>=HG_SHOP_UI_MESSAGE;
+        const Window *prompt=messagePhase ? &data->messageWindow : &data->windows[TOUCH_MART_WINDOW_PROMPT];
+        valid=NativeShopUIWindow(&next.prompt,data,prompt,15) && valid;
+        BOOL pageWait=messagePhase && TextPrinterIsWaitingForInput(m->printerID,&data->messageWindow);
+        if(m->state==HG_SHOP_UI_PURCHASE_PRINT)settled=settled && pageWait;
+        else settled=settled && (pageWait || (DialogBox_IsPrintFinished(m->printerID) && DialogBox_IsPrintFinished(data->printerId)));
+        if(m->state==HG_SHOP_UI_QUANTITY || m->state==HG_SHOP_UI_CONFIRM){
+            valid=NativeShopUIWindow(&next.selected,data,&data->windows[TOUCH_MART_WINDOW_SELECTED_ITEM],0) && valid;
+            valid=NativeShopUIWindow(&next.owned,data,&data->windows[TOUCH_MART_WINDOW_IN_BAG],0) && valid;
+        }
+        if(m->state==HG_SHOP_UI_QUANTITY){
+            valid=NativeShopUIWindow(&next.quantityTens,data,&data->windows[TOUCH_MART_WINDOW_QUANTITY_TENS],0) && valid;
+            valid=NativeShopUIWindow(&next.quantityOnes,data,&data->windows[TOUCH_MART_WINDOW_QUANTITY_ONES],0) && valid;
+            valid=NativeShopUIWindow(&next.totalPriceText,data,&data->windows[TOUCH_MART_WINDOW_TOTAL_PRICE],0) && valid;
+            next.buttonCount=6;
+            for(u32 i=0;i<6;++i)valid=NativeShopUIButton(&next.buttons[i],&sTouchMartQuantityButtons[i],i>=4 || (i==0 || i==2 ? m->maxQuantity>=10 : m->maxQuantity!=1)) && valid;
+        }else if(m->state==HG_SHOP_UI_CONFIRM){
+            YesNoPrompt *yes=data->yesNoPrompt;
+            settled=settled && yes && yes->buttonsAreInit==1 && yes->result==3 && !yes->confirmSelectionTimer;
+            if(yes){next.confirmCursor=yes->cursorPos;next.buttonCount=2;
+                for(u32 i=0;i<2;++i)valid=NativeShopUIButton(&next.buttons[i],&yes->hitboxes[i],!yes->ignoreTouch) && valid;}
+        }
+    }
+    next.ready=settled && valid;NativeShopUIPublish(m,&next);
+}
+#endif

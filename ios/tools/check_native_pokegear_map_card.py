@@ -645,7 +645,7 @@ def execute(root,here,args,out,copies,report,pins,base):
     from check_native_save_roundtrip import static_delta
     from prepare_overlay_state import compile_unit
     context=validate_full(args.full_receipt);require(context['fullSourceBankCurrent'],'Fresh Full must include the exact installed Map QA4')
-    shipping=context['formal']['shipping']['exports'];require(len(shipping)==33 and context['formal']['actualNormalCheckKinds']==104,'Shipping33/normal104 required')
+    shipping=context['formal']['shipping']['exports'];require(len(shipping)==34 and 'HGNativeShopUIGetState' in shipping and context['formal']['actualNormalCheckKinds']==105,'Shipping34/normal105 required')
     save=args.save.resolve();fixture=[Path(str(save)+s) for s in ('','.console','.wifi','.lock')]
     require(not args.save.is_symlink() and all(p.is_file() and not p.is_symlink() for p in fixture) and set(fixture)==set(save.parent.glob(save.name+'*')),'Exactly four original regular fixture files required')
     fixture_pins={str(p):sha(p) for p in fixture};h=context['helpers'];runner=Runner(report);guest=out/'guest';guest.mkdir();units={r['file']:r for r in context['audited']['units']};objects=list(context['objects'])
@@ -749,11 +749,11 @@ def main():
     if args.first_rival:source_names+=('include/constants/trainers.h','include/constants/trainer_class.h','include/battle/battle_setup.h','src/battle/battle_setup.c','files/poketool/trainer/trainers.json','asm/macros/script.inc')
     pins={str(p):sha(p) for p in [*(here/p for p in QA_PATHS),*(root/p for p in source_names)]}
     report=dict(passed=False,complete=False,commands=[],sourceHashesBefore=pins,moduleBuilt=False,gameExecuted=False,gameRuntimeExecuted=False,observerDefinitionsLinked=False,hostABICompiled=False,
-                audioOperations=False,privateExports=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureExports=35,shippingABIChanged=False,
+                audioOperations=False,privateExports=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureExports=36,shippingABIChanged=False,
                 requiredPrivateLinkWraps=list(LINK_WRAPS),Phone33DefaultCaseUnchanged=True,allCardsComplete=False)
-    if args.mr_pokemon:report.update(privateExports=[*report['privateExports'],'HGNativeMrPokemonQAGetState'],futureExports=36,mrPokemonMode=True,legacyMapPacketUnchanged=True)
+    if args.mr_pokemon:report.update(privateExports=[*report['privateExports'],'HGNativeMrPokemonQAGetState'],futureExports=37,mrPokemonMode=True,legacyMapPacketUnchanged=True)
     if args.elm_panic_call:report.update(elmPanicCallMode=True,legacyMrPacketUnchanged=True,existingPhonePrefixReused=True)
-    if args.first_rival:report.update(privateExports=[*report['privateExports'],'HGNativeFirstRivalQAGetState'],futureExports=37,firstRivalMode=True,rivalPrivateStateBytes=120,rivalPrivateVersion=2,legacyElmEndpointRetained=True,runtimeBudgetSeconds=900)
+    if args.first_rival:report.update(privateExports=[*report['privateExports'],'HGNativeFirstRivalQAGetState'],futureExports=38,firstRivalMode=True,rivalPrivateStateBytes=120,rivalPrivateVersion=2,legacyElmEndpointRetained=True,runtimeBudgetSeconds=900)
     env={**os.environ,'HEARTGOLD_TEST_MUTE':'1','SIMCTL_CHILD_HEARTGOLD_TEST_MUTE':'1','PYTHONDONTWRITEBYTECODE':'1'}
     def run(argv,label):
         result=subprocess.run(['nice','-n','10',*map(str,argv)],cwd=root,env=env,capture_output=True,text=True,timeout=60)
@@ -790,7 +790,7 @@ def main():
         for p in ('lib/include','include/library','lib/include/cw','lib/include/nitro','lib/include/nnsys','lib/include/nitro/os','lib/NitroSDK/include','lib/NitroSDK/include-pokediamond','files'):native+=['-idirafter',root/p]
         run([*native,check,'-o',out/'actual-map-check'],'native-compile.log');log=run([out/'actual-map-check'],'native-run.log')
         layouts=[json.loads(line[11:]) for line in log.splitlines() if line.startswith('MAP_LAYOUT ')];require(len(layouts)==1,'Real native layout missing');report['nativeLayout']=layouts[0];evidence_self_check(layouts[0]);trace_self_check()
-        require(report['futureExports']==33+len(report['privateExports']) and len(set(report['privateExports']))==len(report['privateExports']),'Mode-specific private ABI changed')
+        require(report['futureExports']==34+len(report['privateExports']) and len(set(report['privateExports']))==len(report['privateExports']),'Mode-specific private ABI changed')
         if args.mr_pokemon:mr_contract_self_check(layouts[0])
         if args.first_rival:rival_contract_self_check(layouts[0])
         flags=['--target=wasm32-wasip1','-std=gnu11','-O2','-fwrapv','-fno-strict-aliasing','-fno-builtin-malloc','-fno-builtin-free','-fwasm-exceptions','-fexceptions','-Xclang','-disable-red-zone','-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-DHEARTGOLD_NATIVE','-DHEARTGOLD_ABI32','-DSDK_ARM9','-DSDK_CW','-DSDK_CODE_ARM','-DSDK_TS','-D_NITRO','-DPM_KEEP_ASSERTS','-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']
@@ -810,8 +810,8 @@ def main():
         (out/'pokegear_map_phone_support.inc').write_text(support.replace(anchor,'static int PGMapUnusedPhoneMain(int argc,char **argv)',1))
         if args.host_generated:
             require('w2c_hgengine_HGNativePokegearQAGetState' in (args.host_generated/'hgengine.h').read_text(),'Genuine private header lacks original private getters')
-            if args.mr_pokemon:require('w2c_hgengine_HGNativeMrPokemonQAGetState(' in (args.host_generated/'hgengine.h').read_text(),'Mr mode requires its genuine private36 header, not the prior Map header')
-            if args.first_rival:require('w2c_hgengine_HGNativeFirstRivalQAGetState(' in (args.host_generated/'hgengine.h').read_text(),'Rival mode requires its genuine private37 header')
+            if args.mr_pokemon:require('w2c_hgengine_HGNativeMrPokemonQAGetState(' in (args.host_generated/'hgengine.h').read_text(),'Mr mode requires its genuine private37 header, not the prior Map header')
+            if args.first_rival:require('w2c_hgengine_HGNativeFirstRivalQAGetState(' in (args.host_generated/'hgengine.h').read_text(),'Rival mode requires its genuine private38 header')
             hostflags=['xcrun','clang','-std=c11','-fsyntax-only','-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-DSDK_ARM9','-DHEARTGOLD_NATIVE','-DWASM_RT_USE_MMAP=0','-DWASM_RT_MEMCHECK_GUARD_PAGES=0','-DWASM_RT_MEMCHECK_BOUNDS_CHECK=1']
             if args.mr_pokemon:hostflags.append('-DHG_PG_MR_EXTENSION')
             if args.elm_panic_call:hostflags.append('-DHG_PG_ELM_EXTENSION')
@@ -819,7 +819,7 @@ def main():
             for p in [args.host_generated,*includes,tools/'wabt-1.0.42/include',tools/'wabt-1.0.42/share/wabt/wasm2c']:hostflags+=['-I',p]
             for p in ('lib/include','include/library'):hostflags+=['-idirafter',root/p]
             run([*hostflags,here/QA_PATHS[2]],'genuine-prior-header-host-syntax.log')
-            report['hostSyntaxWithGenuineMr36Header' if args.mr_pokemon else 'hostSyntaxWithGenuinePrior33Header']=True;report['priorGeneratedHeaderSha256']=sha(args.host_generated/'hgengine.h')
+            report['hostSyntaxWithGenuineMr37Header' if args.mr_pokemon else 'hostSyntaxWithGenuinePrior34Header']=True;report['priorGeneratedHeaderSha256']=sha(args.host_generated/'hgengine.h')
         report.update(passed=True,status='passed_map_source_contracts',originalBodiesPreserved=True,originalSourceCopies=list((*base.COPIES,'src/battle/battle_command.c') if args.first_rival else base.COPIES),
                       sourceCopyHashes={name:sha(copies/name) for name in ((*base.COPIES,'src/battle/battle_command.c') if args.first_rival else base.COPIES)},actualNativeRouteAndLeaseCheck=True,actualReadonlyBattleWrappersCheck=True,actualOriginalChooseRetrySequenceCheck=True,runAttemptCap=8,
                       limits=['No Map private module linked, so linker wrappers and generated Map ABI remain unproved.','No game, route/grass/guide/Map images or encounter runtime acceptance.','Original wild damage/RNG/seen/stats changes are allowed; Phone33 immutable RAM ledger is deliberately not reused.','Original and private disk nonmutation must be checked in a future authorized runtime driver.'])
@@ -827,9 +827,9 @@ def main():
             staticManualTiles=124,staticGrassTiles=39,indoorEndpoint=dict(map=143,x=5,z=6,facing=2),
             limits=[*report['limits'],'Mr route/BDHC, random encounter survival, automatic scripts and indoor gifts remain runtime-unproved.','Party HP/status is observed; full PP restoration and the Elm call after exiting are outside this endpoint.'])
         if args.elm_panic_call:report.update(status='passed_elm_source_contracts',actualElmContextLeaseExitCheck=True,
-            limits=['Source/predicate checks only; no natural exit/Phone call/runtime/pixel/current Full acceptance is claimed.','Existing Mr72 and Phone prefix/getters are reused; a genuine fresh private36/native host build remains required.'])
+            limits=['Source/predicate checks only; no natural exit/Phone call/runtime/pixel/current Full acceptance is claimed.','Existing Mr72 and Phone prefix/getters are reused; a genuine fresh private37/native host build remains required.'])
         if args.first_rival:report.update(status='passed_rival_source_contracts',actualRivalPredicateChoiceAndReadonlyWitnessCheck=True,
-            limits=['Source/predicate checks only; natural south route, trainer battle, original outcome and departure remain runtime-unproved.','Only the opt-in rival case adds a separate private getter; public33, Map5620, Mr72 and existing private36 cases are unchanged.'])
+            limits=['Source/predicate checks only; natural south route, trainer battle, original outcome and departure remain runtime-unproved.','Only the opt-in rival case adds a separate private getter; public34, Map5620, Mr72 and existing private37 cases are unchanged.'])
         if args.full_receipt:execute(root,here,args,out,copies,report,pins,base)
     except BaseException as error:report.update(passed=False,firstFailure=dict(type=type(error).__name__,message=str(error)))
     finally:

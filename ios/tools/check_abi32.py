@@ -105,6 +105,7 @@ def link_engine(link,listing,destination,native_content=None):
              '-Wl,--export=HGNativeRender2DView','-Wl,--export=HGNativeRenderBattleView','-Wl,--export=HGNativeSetViewWidth','-Wl,--export=HGNativeGeometryFrame',
              '-Wl,--export=HGNativeBattleUIGetState','-Wl,--export=HGNativeBattleUIChoose','-Wl,--export=HGNativeCaptureUIGetState','-Wl,--export=HGNativeNamingUIGetState','-Wl,--export=HGNativeOptionsUIGetState','-Wl,--export=HGNativeStarterUIGetState','-Wl,--export=HGNativeOakUIGetState','-Wl,--export=HGNativePCBoxUIGetState','-Wl,--export=HGNativePartyUIGetState','-Wl,--export=HGNativePartyUIGetStats',
              '-Wl,--export=HGNativeFieldChoiceUIGetState',
+             '-Wl,--export=HGNativeShopUIGetState',
              '-Wl,--export=HGNativeTrainerCardUIGetState',
              '-Wl,--export=HGNativeFieldMenuUIGetState',
              '-Wl,--export=HGNativePokegearUIGetState',
@@ -597,6 +598,7 @@ def main():
     sources.append('ios/Original/tests/oak_ui_check.c')
     sources.append('ios/Original/tests/pc_box_ui_check.c')
     sources.append('ios/Original/tests/field_choice_ui_check.c')
+    sources.append('ios/Original/tests/shop_ui_check.c')
     sources.append('ios/Original/tests/trainer_card_ui_check.c')
     sources.append('ios/Original/tests/field_menu_ui_check.c')
     sources.append('ios/Original/tests/pokegear_ui_check.c')
@@ -1031,6 +1033,7 @@ def main():
     exports.append('CheckNativeOakUI')
     exports.append('CheckNativePCBoxUI')
     exports.append('CheckNativeFieldChoiceUI')
+    exports.append('CheckNativeShopUI')
     exports.append('CheckNativeTrainerCardUI')
     exports.append('CheckNativeFieldMenuUI')
     exports.append('CheckNativePokegearUI')

@@ -26,6 +26,9 @@
 #include "communication_club_link.h"
 #include "seal_data.h"
 #include "mart_bag_task.h"
+#ifdef HEARTGOLD_NATIVE
+#include "native_shop_ui.h"
+#endif
 
 static void RocketHQ_UpdateElectrodePropAnimation(FieldSystem *fieldSystem, u8 index);
 static void MartTask_InitMartMessageData(MartData *data);
@@ -252,6 +255,9 @@ void Mart_Init(TaskManager *taskManager, FieldSystem *fieldSystem, const u16 *it
     }
     // Mart_SetItemsForSale?
     MartData_InitItemList(martData, items, CheckFlag09A(martData->varsFlags), priceOverrides);
+#ifdef HEARTGOLD_NATIVE
+    NativeShopUIBegin(martData,kind,buy_sell);
+#endif
     TaskManager_Call(taskManager, Task_Mart, martData);
 }
 
@@ -402,6 +408,9 @@ BOOL Task_Mart(TaskManager *taskManager) {
     if (data->fieldSpriteManager.spriteList) {
         SpriteList_RenderAndAnimateSprites(data->fieldSpriteManager.spriteList);
     }
+#ifdef HEARTGOLD_NATIVE
+    NativeShopUIPhase(data,data->state);
+#endif
     return FALSE;
 }
 
@@ -415,6 +424,9 @@ static void MartData_InitMessageData(MartData *data) {
 }
 
 static BOOL MartData_Destroy(FieldSystem *fieldSystem_unused, MartData *data) {
+#ifdef HEARTGOLD_NATIVE
+    NativeShopUIRetire(data);
+#endif
     DestroyMsgData(data->messageData);
     MessageFormat_Delete(data->messageFormat);
     String_Delete(data->string);
@@ -703,6 +715,9 @@ static void MartData_DrawPageItemIcons(MartData *data, int pageStart, u8 numItem
 }
 
 static u8 MartData_CloseMenu(MartData *data) {
+#ifdef HEARTGOLD_NATIVE
+    NativeShopUIInvalidate(data);
+#endif
     MartData_RemoveWindows(data);
     BgFillTilemapBufferAndSchedule(data->bgConfig, 1, 0);
     Sprite_SetDrawFlag(data->sprites[3], FALSE);
@@ -1499,6 +1514,9 @@ static u8 MartData_AnimateButtonPress(MartData *data) {
 }
 
 static void Mart_FadeOut(FieldSystem *fieldSystem_unused, MartData *data) {
+#ifdef HEARTGOLD_NATIVE
+    NativeShopUIInvalidate(data);
+#endif
     FieldMap_FadeScreen(FADE_TYPE_BRIGHTNESS_OUT);
     data->state = TASK_MART_23;
 }
@@ -1519,6 +1537,9 @@ static void Task_Mart_LaunchSellBag(TaskManager *taskManager) {
     if (IsPaletteFadeFinished()) {
         FieldSystem *fieldSystem = TaskManager_GetFieldSystem(taskManager);
         MartData *data = TaskManager_GetEnvironment(taskManager);
+#ifdef HEARTGOLD_NATIVE
+        NativeShopUIRetire(data);
+#endif
         data->bagView = Bag_CreateView(Save_Bag_Get(fieldSystem->saveData), sMartSellBagPockets, HEAP_ID_FIELD2);
         BagView_Init(data->bagView, fieldSystem->saveData, 2, fieldSystem->bagCursor, &fieldSystem->menuInputState);
         Bag_LaunchApp(fieldSystem, data->bagView);

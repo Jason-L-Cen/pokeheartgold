@@ -569,7 +569,7 @@ def main():
         parser_self_check(report['packetLayout'],report.get('wasiGearLayout'),out)
         report.update(passed=True,complete=False,status='passed_source_contracts',originalNonblankBodiesPreserved=True,sourceCopies=list(COPIES),overlayOwnership=ownership,auditReferenceSha256=sha(audit),
             selectorAndCloneLedgerActualCExecuted=True,expectedElmScript=8,expectedScriptType=0,expectedElmRNGCalls=0,
-            privateExportsProposed=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureTotalExports=35,
+            privateExportsProposed=['HGNativePokegearQAGetState','HGNativePokegearQARequest'],futureTotalExports=36,
             residentRequestAndHostInputActualCExecuted=True,residentObserverBodiesImplemented=True,hostDriverImplemented=True,
             wasiSyntaxUnits=8 if args.wasi_sdk else 0,actualWASILayoutVerified=bool(args.wasi_sdk),structuralSnapshotParserNegativesExecuted=bool(args.wasi_sdk),
             limits=['Seven source copies pass syntax; whole generated-header host ABI and game are not linked or run by source checks.',
@@ -587,7 +587,7 @@ def execute(root,here,args,out,copies,report,source_pins):
     from prepare_overlay_state import compile_unit
     context=validate_private_full(root,args.full_receipt,out)
     report.update(historicalFullBankUnchanged=context['historicalFullBankUnchanged'],historicalFullInputCount=context['historicalFullInputCount'],actualNativeInputCount=context['actualNativeInputCount'],qaAppendDelta=context['qaAppendDelta'],actualRuntimeInputBankSha256=context['actualRuntimeInputBankSha256'],fullSourceBankCurrent=context['fullSourceBankCurrent'])
-    shipping=context['formal']['shipping']['exports'];require(len(shipping)==33 and 'HGNativePokegearUIGetState' in shipping and context['formal']['actualNormalCheckKinds']==104,'Integrated Pokegear33/104 Full required')
+    shipping=context['formal']['shipping']['exports'];require(len(shipping)==34 and 'HGNativePokegearUIGetState' in shipping and 'HGNativeShopUIGetState' in shipping and context['formal']['actualNormalCheckKinds']==105,'Integrated Pokegear34/105 Full required')
     require('wasiGearLayout' in report,'Explicit --wasi-sdk required for the actual WASI byte-effect layout before execution')
     h=context['helpers'];sdk=args.wasi_sdk;guest_flags=['--target=wasm32-wasip1','-std=gnu11','-O2','-fwrapv','-fno-strict-aliasing','-fno-builtin-malloc','-fno-builtin-free','-fwasm-exceptions','-fexceptions','-Xclang','-disable-red-zone',
         '-fms-extensions','-Wno-microsoft','-Wno-unknown-pragmas','-DHEARTGOLD_NATIVE','-DHEARTGOLD_ABI32','-DSDK_ARM9','-DSDK_CW','-DSDK_CODE_ARM','-DSDK_TS','-D_NITRO','-DPM_KEEP_ASSERTS','-DPLATFORM_INTRINSIC_FUNCTION_BIT_CLZ32=__builtin_clz']

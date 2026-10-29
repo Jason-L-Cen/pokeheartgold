@@ -14,7 +14,7 @@
 #include "constants/pokemon.h"
 #include "constants/items.h"
 #include "item.h"
-_Static_assert(sizeof(HGNativePartyUIState)==1480 && sizeof(HGNativeBagUIState)==1568,"Field Potion UI ABI");
+_Static_assert(sizeof(HGNativePartyUIState)==1480 && sizeof(HGNativeBagUIState)==1792,"Field Potion UI ABI");
 #endif
 #include <nitro/os/native_reset.h>
 #include <setjmp.h>

@@ -11,7 +11,7 @@ uint32_t CheckOriginalBagPacketUI(void) {
         .actions={{.actionId=HG_BAG_UI_ACTION_TM_ACK,.enabled=1,.hitX=124,.hitY=24}},
         .message={.pixelBuffer=0x10000,.engine=1,.tileWidth=27,.tileHeight=4,.clearColor=15}};
     uint32_t x=0,y=0; HGNativeBagUIState copy=state;
-    CHECK(sizeof(state)==1568 && HGNativeBagUIIsTMHM(&state));
+    CHECK(sizeof(state)==1792 && HGNativeBagUIIsTMHM(&state));
     CHECK(HGNativeBagUIResolveTouch(&state,7,HG_BAG_UI_TM_MESSAGE,HG_BAG_UI_TOUCH_ACTION,0,&x,&y) && x==124 && y==24);
     CHECK(!memcmp(&state,&copy,sizeof(state)));
     CHECK(!HGNativeBagUIResolveTouch(&state,6,state.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y)
@@ -68,11 +68,48 @@ uint32_t CheckOriginalBagPacketUI(void) {
     state.phase=HG_BAG_UI_GIVE_INPUT;
     CHECK(HGNativeBagUIIsList(&state) && HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y)
         && !HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    state.mode=HG_BAG_UI_SELL_MODE; state.phase=HG_BAG_UI_SELL_INPUT;
+    CHECK(HGNativeBagUIIsSell(&state) && HGNativeBagUIIsList(&state) && !HGNativeBagUIIsSellTransaction(&state)
+        && HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y)
+        && HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y)
+        && !HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ACTION,0,&x,&y));
+    uint32_t output=0, keys[]={1,2,16,32,64,128}, phases[]={HG_BAG_UI_SELL_QUANTITY,HG_BAG_UI_SELL_CONFIRM,HG_BAG_UI_SELL_MESSAGE};
+    CHECK(!HGNativeBagUIResolveSellKey(&state,9,state.phase,1,&output));
+    CHECK(!HGNativeBagUIResolveTouch(&state,8,state.phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+    copy=state; copy.ready=0; CHECK(!HGNativeBagUIResolveTouch(&copy,9,copy.phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+    copy=state; copy.phase=17; CHECK(!HGNativeBagUIIsList(&copy) && !HGNativeBagUIIsSellTransaction(&copy)
+        && !HGNativeBagUIResolveSellKey(&copy,9,copy.phase,1,&output));
+    for (uint32_t i=0;i<3;++i) {
+        state.phase=phases[i]; copy=state;
+        CHECK(HGNativeBagUIIsSellTransaction(&state) && !HGNativeBagUIIsList(&state));
+        for (uint32_t j=0;j<6;++j) {
+            uint32_t key=keys[j],allowed=i==0 || (i==1 && key!=16 && key!=32) || key==1 || key==2;
+            output=0xfeed;
+            CHECK(HGNativeBagUIResolveSellKey(&state,9,state.phase,key,&output)==allowed
+                && output==(allowed ? key : 0xfeed));
+        }
+        CHECK(!HGNativeBagUIResolveSellKey(&state,8,state.phase,1,&output)
+            && !HGNativeBagUIResolveSellKey(&state,0,state.phase,1,&output)
+            && !HGNativeBagUIResolveSellKey(&state,9,HG_BAG_UI_SELL_INPUT,1,&output)
+            && !HGNativeBagUIResolveSellKey(&state,9,state.phase,4,&output)
+            && !HGNativeBagUIResolveSellKey(&state,9,state.phase,0,&output)
+            && !HGNativeBagUIResolveSellKey(&state,9,state.phase,65,&output)
+            && !HGNativeBagUIResolveSellKey(&state,9,state.phase,1,NULL)
+            && !HGNativeBagUIResolveSellKey(NULL,9,state.phase,1,&output)
+            && !HGNativeBagUIResolveTouch(&state,9,state.phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y)
+            && !memcmp(&state,&copy,sizeof(state)));
+        copy=state; copy.ready=0; CHECK(!HGNativeBagUIResolveSellKey(&copy,9,copy.phase,1,&output));
+        copy=state; copy.active=0; CHECK(!HGNativeBagUIIsSell(&copy) && !HGNativeBagUIResolveSellKey(&copy,9,copy.phase,1,&output));
+        copy=state; copy.revision=10; CHECK(!HGNativeBagUIResolveSellKey(&copy,9,copy.phase,1,&output));
+        for (uint32_t mode=0;mode<4;++mode) if (mode!=HG_BAG_UI_SELL_MODE) {
+            copy=state; copy.mode=mode; CHECK(!HGNativeBagUIIsSell(&copy) && !HGNativeBagUIResolveSellKey(&copy,9,copy.phase,1,&output));
+        }
+    }
     return 0;
 }
 #ifdef HG_NATIVE_BAG_UI_PACKET_CHECK_MAIN
 int main(void) { uint32_t line=CheckOriginalBagPacketUI(); if (line) { fprintf(stderr,"Bag packet UI check line %u\n",line); return 1; }
-    puts("PASS: public Bag TM ACK/YesNo, disabled fade identity, stale input guards and ordinary/Give packet regression."); return 0; }
+    puts("PASS: public Bag TM ACK/YesNo, disabled fade identity, stale guards, ordinary/Give packets and seller list/quantity/confirm/message guards."); return 0; }
 #endif
 #else
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -102,6 +139,10 @@ static void BagCheckCopy16(const void *source, void *destination, u32 size);
 #define IsPaletteFadeFinished BagCheckFadeFinished
 #define GetMainBgPlttAddr BagCheckMainPalette
 #define GetSubBgPlttAddr BagCheckSubPalette
+#define PlayerProfile_GetMoney BagCheckMoney
+#define Save_Bag_Get BagCheckSaveBag
+#define Bag_GetQuantity BagCheckQuantity
+#define TextPrinterCheckActive BagCheckPrinterActive
 #include "../../../src/application/bag/bag_app.c"
 #include "../../../src/application/bag/bag_app_display.c"
 #include "../../../src/pm_string.c"
@@ -113,6 +154,12 @@ static struct { Window *window; u8 *pixels; u32 size; } checkWindows[32];
 static u16 checkPalettes[2][256];
 static u32 checkAllocations, checkPrints, checkFrees;
 static BOOL checkFade = TRUE;
+static PlayerProfile checkProfile;
+static Bag checkBag;
+static SaveData *const checkSave=(SaveData *)(uintptr_t)0x12340;
+static u32 checkMoney=12345;
+static u16 checkOwnedQuantity=2;
+static u8 checkPrinterActive;
 static void BagCheckClear(void *destination, u32 size) { memset(destination,0,size); }
 static void BagCheckCopy16(const void *source, void *destination, u32 size) { memcpy(destination,source,size); }
 void *Heap_Alloc(enum HeapID heap, u32 size) { BOUNDARY(heap==HEAP_ID_6); void *p=malloc(size); BOUNDARY(p); ++checkAllocations; return p; }
@@ -134,6 +181,7 @@ void RemoveWindow(Window *window) {
     const HGNativeBagUIState *state=HGNativeBagUIGetState(); BOUNDARY(!state->ready);
     for (u32 i=0;i<HG_BAG_UI_ITEMS;i++) BOUNDARY(!state->items[i].text.pixelBuffer);
     for (u32 i=0;i<HG_BAG_UI_ACTIONS;i++) BOUNDARY(!state->actions[i].text.pixelBuffer);
+    BOUNDARY(!state->currencyText.pixelBuffer && !state->quantityText.pixelBuffer && !state->quantityOnesText.pixelBuffer && !state->totalPriceText.pixelBuffer);
     u32 i=BagCheckWindowSlot(window); free(checkWindows[i].pixels); memset(&checkWindows[i],0,sizeof(checkWindows[i]));
     memset(window,0,sizeof(*window)); ++checkFrees;
 }
@@ -155,6 +203,10 @@ void ManagedSprite_SetDrawFlag(ManagedSprite *sprite,int visible) { BOUNDARY(spr
 BOOL IsPaletteFadeFinished(void) { return checkFade; }
 u16 *GetMainBgPlttAddr(void) { return checkPalettes[0]; }
 u16 *GetSubBgPlttAddr(void) { return checkPalettes[1]; }
+u32 PlayerProfile_GetMoney(PlayerProfile *profile) { BOUNDARY(profile==&checkProfile); return checkMoney; }
+Bag *Save_Bag_Get(SaveData *save) { BOUNDARY(save==checkSave); return &checkBag; }
+u16 Bag_GetQuantity(Bag *bag,u16 itemId,enum HeapID heap) { BOUNDARY(bag==&checkBag && itemId==1 && heap==HEAP_ID_6); return checkOwnedQuantity; }
+u8 TextPrinterCheckActive(u8 printerId) { (void)printerId; return checkPrinterActive; }
 
 u32 CheckOriginalBagUI(void) {
     CHECK(HGNativeBagUIGetState()==&gNativeBagUIState && !gNativeBagUIState.active && !gNativeBagUIState.revision);
@@ -169,7 +221,7 @@ u32 CheckOriginalBagUI(void) {
     BagApp_AddWindows(&app); BagApp_AddItemListWindows(&app); app.listBank=1;
     NativeBagUIBind(&app); NativeBagUIPublish(&app,HG_BAG_UI_INPUT);
     const HGNativeBagUIState *state=HGNativeBagUIGetState();
-    CHECK(sizeof(*state)==1568 && state->ready && state->pocketMask==255 && state->pocketCount==8 && state->visibleCount==6 && state->itemMask==63);
+    CHECK(sizeof(*state)==1792 && state->ready && state->pocketMask==255 && state->pocketCount==8 && state->visibleCount==6 && state->itemMask==63);
     CHECK(state->items[0].text.pixelBuffer==(u32)(uintptr_t)app.dynWindows[0].pixelBuffer && state->description.tileHeight==6);
     CHECK(state->previousEnabled && state->nextEnabled && state->pageCount==2 && state->description.palette[15]==checkPalettes[0][4*16+15]);
     u32 revision=state->revision,x=0,y=0; HGNativeBagUIState copy=*state;
@@ -225,7 +277,7 @@ u32 CheckOriginalBagUI(void) {
     bad=app.windows[0]; bad.bgConfig=NULL; CHECK(!NativeBagUIWindow(&descriptor,&app,&bad,GF_BG_LYR_MAIN_1,32,6,0));
     bad=app.windows[0]; bad.pixelBuffer=(void *)(uintptr_t)UINT32_MAX; CHECK(!NativeBagUIWindow(&descriptor,&app,&bad,GF_BG_LYR_MAIN_1,32,6,0));
     revision=state->revision; view.mode=HG_BAG_UI_GIVE_MODE; NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT);
-    CHECK(sizeof(*state)==1568 && state->ready && HGNativeBagUIIsList(state) && state->revision>revision
+    CHECK(sizeof(*state)==1792 && state->ready && HGNativeBagUIIsList(state) && state->revision>revision
         && state->pocketMask==255 && state->itemMask==63 && state->visibleCount==6 && !state->actionCount && !state->actionMask
         && state->description.pixelBuffer && state->page.pixelBuffer && state->cancel.pixelBuffer
         && !state->prompt.pixelBuffer && !state->selectedEntry.pixelBuffer && !state->tmInfo.pixelBuffer);
@@ -272,6 +324,53 @@ u32 CheckOriginalBagUI(void) {
     NativeBagUIBind(NULL); CHECK(!state->active && !state->ready && !state->items[0].text.pixelBuffer);
     NativeBagUIBind(&app); NativeBagUIPublish(&app,HG_BAG_UI_GIVE_INPUT);
     CHECK(state->ready && state->revision>revision && !HGNativeBagUIResolveTouch(state,revision,HG_BAG_UI_GIVE_INPUT,HG_BAG_UI_TOUCH_CANCEL,0,&x,&y));
+    view.mode=HG_BAG_UI_SELL_MODE; view.saveData=checkSave; app.profile=&checkProfile;
+    app.quantity=1; app.maxQuantity=2; app.sellPrice=50; view.itemId=1;
+    NativeBagUIBegin(&app); NativeBagUIPublish(&app,HG_BAG_UI_SELL_INPUT);
+    CHECK(state->ready && HGNativeBagUIIsSell(state) && HGNativeBagUIIsList(state) && state->selectedQuantity==2
+        && state->transactionQuantity==1 && state->transactionMax==2 && state->unitPrice==50 && state->currency==checkMoney
+        && HGNativeBagUIResolveTouch(state,state->revision,state->phase,HG_BAG_UI_TOUCH_ITEM,0,&x,&y));
+    BagApp_RemoveItemListWindows(&app); BagApp_AddItemActionWindows(&app);
+    NativeBagUIPublish(&app,HG_BAG_UI_SELL_QUANTITY); revision=state->revision;
+    CHECK(state->ready && state->selectedQuantity==checkOwnedQuantity && state->transactionQuantity==1
+        && state->currencyText.pixelBuffer==(u32)(uintptr_t)app.dynWindows[22].pixelBuffer
+        && state->quantityText.pixelBuffer==(u32)(uintptr_t)app.dynWindows[17].pixelBuffer
+        && state->quantityOnesText.pixelBuffer==(u32)(uintptr_t)app.dynWindows[18].pixelBuffer
+        && state->quantityText.tileWidth==2 && state->quantityText.tileHeight==3
+        && state->quantityOnesText.tileWidth==2 && state->quantityOnesText.tileHeight==3
+        && state->totalPriceText.pixelBuffer==(u32)(uintptr_t)app.dynWindows[23].pixelBuffer);
+    copy=*state;
+    for (u32 repeat=0;repeat<3;++repeat) {
+        NativeBagUIBegin(&app);
+        CHECK(!state->ready && !state->currencyText.pixelBuffer && !state->quantityText.pixelBuffer
+            && !state->quantityOnesText.pixelBuffer && !state->totalPriceText.pixelBuffer
+            && state->transactionQuantity==1 && state->transactionMax==2 && state->unitPrice==50 && state->currency==checkMoney);
+        NativeBagUIPublish(&app,HG_BAG_UI_SELL_QUANTITY);
+        CHECK(state->ready && state->revision==revision && !memcmp(state,&copy,sizeof(copy)));
+    }
+    app.quantity=2; NativeBagUIBegin(&app); NativeBagUIPublish(&app,HG_BAG_UI_SELL_QUANTITY);
+    u32 key=0;
+    CHECK(state->ready && state->revision>revision && state->transactionQuantity==2
+        && !HGNativeBagUIResolveSellKey(state,revision,state->phase,1,&key)
+        && HGNativeBagUIResolveSellKey(state,state->revision,state->phase,1,&key) && key==1);
+    revision=state->revision; checkFade=FALSE; NativeBagUIBegin(&app); NativeBagUIPublish(&app,HG_BAG_UI_SELL_QUANTITY);
+    CHECK(!state->ready && !HGNativeBagUIResolveSellKey(state,revision,state->phase,1,&key)); checkFade=TRUE;
+    Window digit=app.dynWindows[18]; app.dynWindows[18].height=4; NativeBagUIPublish(&app,HG_BAG_UI_SELL_QUANTITY);
+    CHECK(!state->ready && !state->quantityOnesText.pixelBuffer); app.dynWindows[18]=digit;
+    NativeBagUIPublish(&app,HG_BAG_UI_SELL_QUANTITY); CHECK(state->ready && state->revision==revision);
+    YesNoPrompt yes={.buttonsAreInit=1,.result=3}; app.yesNoPrompt=&yes;
+    NativeBagUIPublish(&app,HG_BAG_UI_SELL_CONFIRM);
+    CHECK(state->ready && !state->quantityText.pixelBuffer && !state->quantityOnesText.pixelBuffer
+        && HGNativeBagUIResolveSellKey(state,state->revision,state->phase,64,&key)
+        && !HGNativeBagUIResolveSellKey(state,state->revision,state->phase,16,&key));
+    yes.confirmSelectionTimer=1; NativeBagUIBegin(&app); NativeBagUIPublish(&app,HG_BAG_UI_SELL_CONFIRM);
+    CHECK(!state->ready); yes.confirmSelectionTimer=0; yes.result=0; NativeBagUIPublish(&app,HG_BAG_UI_SELL_CONFIRM); CHECK(!state->ready);
+    yes.result=3; NativeBagUIPublish(&app,HG_BAG_UI_SELL_CONFIRM); CHECK(state->ready); app.yesNoPrompt=NULL;
+    checkPrinterActive=1; NativeBagUIBegin(&app); NativeBagUIPublish(&app,HG_BAG_UI_SELL_MESSAGE); CHECK(!state->ready);
+    checkPrinterActive=0; NativeBagUIPublish(&app,HG_BAG_UI_SELL_MESSAGE);
+    CHECK(state->ready && state->message.pixelBuffer && HGNativeBagUIResolveSellKey(state,state->revision,state->phase,2,&key)
+        && !HGNativeBagUIResolveSellKey(state,state->revision,state->phase,64,&key));
+    BagApp_RemoveItemActionWindows(&app); BagApp_AddItemListWindows(&app);
     view.mode=0; NativeBagUIPublish(&app,HG_BAG_UI_INPUT);
     revision=state->revision; checkFade=FALSE; NativeBagUIBegin(&app); NativeBagUIPublish(&app,1); CHECK(!state->ready && state->revision==revision);
     checkFade=TRUE; view.mode=1; NativeBagUIPublish(&app,1); CHECK(!state->ready); view.mode=0;

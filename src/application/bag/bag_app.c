@@ -3504,7 +3504,8 @@ static void NativeBagUIBegin(BagApp *app) {
     gNativeBagUIState.ready = FALSE;
     for (u32 i = 0; i < HG_BAG_UI_ITEMS; ++i) MI_CpuClear8(&gNativeBagUIState.items[i].text, sizeof(HGNativePartyUIWindow));
     for (u32 i = 0; i < HG_BAG_UI_ACTIONS; ++i) MI_CpuClear8(&gNativeBagUIState.actions[i].text, sizeof(HGNativePartyUIWindow));
-    MI_CpuClear8(&gNativeBagUIState.description, sizeof(gNativeBagUIState) - offsetof(HGNativeBagUIState, description));
+    MI_CpuClear8(&gNativeBagUIState.description, offsetof(HGNativeBagUIState,transactionQuantity)-offsetof(HGNativeBagUIState,description));
+    MI_CpuClear8(&gNativeBagUIState.currencyText, sizeof(gNativeBagUIState)-offsetof(HGNativeBagUIState,currencyText));
 }
 
 static void NativeBagUICacheActions(BagApp *app, const u8 *actions) {
@@ -3691,12 +3692,34 @@ static void NativeBagUIPublish(BagApp *app, u32 phase) {
         }
         // Yes/No are original BG buttons, not Window objects; the owner copies their 48x32 frame crops.
     }
+    if(HGNativeBagUIIsSell(&next)){
+        next.currency=PlayerProfile_GetMoney(app->profile);
+        next.transactionQuantity=app->quantity;next.transactionMax=app->maxQuantity;next.unitPrice=app->sellPrice;
+        if(HGNativeBagUIIsSellTransaction(&next)){
+            next.selectedItemId=app->bagView->itemId;
+            next.selectedQuantity=Bag_GetQuantity(Save_Bag_Get(app->bagView->saveData),next.selectedItemId,HEAP_ID_6);
+            ready=graphicsReady && IsPaletteFadeFinished();
+            if(phase==HG_BAG_UI_SELL_QUANTITY)ready=ready && app->quantity>=1 && app->quantity<=app->maxQuantity && app->maxQuantity<=99;
+            if(phase==HG_BAG_UI_SELL_CONFIRM)ready=ready && app->yesNoPrompt && app->yesNoPrompt->buttonsAreInit==1
+                && app->yesNoPrompt->result==3 && !app->yesNoPrompt->confirmSelectionTimer;
+            if(phase==HG_BAG_UI_SELL_MESSAGE)ready=ready && !TextPrinterCheckActive(app->printerId);
+            valid=NativeBagUIWindow(&next.description,app,&app->windows[0],GF_BG_LYR_MAIN_1,32,6,0) && valid;
+            valid=NativeBagUIWindow(&next.message,app,&app->windows[3],GF_BG_LYR_SUB_0,27,4,15) && valid;
+            valid=NativeBagUIWindow(&next.currencyText,app,&app->dynWindows[22],GF_BG_LYR_SUB_0,9,4,0) && valid;
+            if(phase==HG_BAG_UI_SELL_QUANTITY){
+                valid=NativeBagUIWindow(&next.quantityText,app,&app->dynWindows[17],GF_BG_LYR_SUB_0,2,3,0) && valid;
+                valid=NativeBagUIWindow(&next.quantityOnesText,app,&app->dynWindows[18],GF_BG_LYR_SUB_0,2,3,0) && valid;
+                valid=NativeBagUIWindow(&next.totalPriceText,app,&app->dynWindows[23],GF_BG_LYR_SUB_0,8,3,0) && valid;
+            }
+        }
+    }
     next.ready = ready && valid;
     BOOL changed = memcmp(&next, &gNativeBagUIState, offsetof(HGNativeBagUIState, ready)) != 0
         || memcmp(&next.pocketIndex, &gNativeBagUIState.pocketIndex, offsetof(HGNativeBagUIState, pockets) - offsetof(HGNativeBagUIState, pocketIndex)) != 0
         || memcmp(next.pockets, gNativeBagUIState.pockets, sizeof(next.pockets)) != 0;
     for (u32 i = 0; i < HG_BAG_UI_ITEMS; ++i) if (memcmp(&next.items[i], &gNativeBagUIState.items[i], offsetof(HGNativeBagUIItem, text)) != 0) changed = TRUE;
     for (u32 i = 0; i < HG_BAG_UI_ACTIONS; ++i) if (memcmp(&next.actions[i], &gNativeBagUIState.actions[i], offsetof(HGNativeBagUIAction, text)) != 0) changed = TRUE;
+    if(memcmp(&next.transactionQuantity,&gNativeBagUIState.transactionQuantity,4*sizeof(uint32_t))!=0)changed=TRUE;
     if (changed) ++next.revision;
     gNativeBagUIState = next;
 }
